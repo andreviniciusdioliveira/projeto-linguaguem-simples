@@ -83,6 +83,19 @@ def processar():
     gerar_pdf_simplificado(texto_simplificado)
     return jsonify({"texto": texto_simplificado})
 
+@app.route("/processar_texto", methods=["POST"])
+def processar_texto():
+    data = request.get_json()
+    texto = data.get("texto", "")
+    if not texto:
+        return jsonify({"erro": "Nenhum texto recebido"}), 400
+
+    texto_simplificado, erro = simplificar_com_chatgpt(texto)
+    if erro:
+        return jsonify({"erro": erro}), 500
+
+    return jsonify({"texto": texto_simplificado})
+
 @app.route("/download_pdf")
 def download_pdf():
     return send_file("pdf_simplificado.pdf", as_attachment=True)
