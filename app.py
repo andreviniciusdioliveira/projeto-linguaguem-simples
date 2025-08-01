@@ -14,15 +14,17 @@ logging.basicConfig(level=logging.INFO)
 
 # --- Verificação da chave API ---
 API_KEY = os.getenv("GOOGLE_API_KEY")
+MODEL_NAME = "models/gemini-1.5-pro-latest"
+
 if not API_KEY:
     logging.error("Nenhuma chave de API encontrada! Defina GOOGLE_API_KEY no ambiente.")
     GEMINI_OK = False
 else:
     try:
         genai.configure(api_key=API_KEY)
-        # Teste rápido do Gemini
-        test_model = genai.GenerativeModel('gemini-pro')
-        test_response = test_model.generate_content("Teste de chave API Gemini")
+        logging.info(f"Validando chave do Gemini com modelo {MODEL_NAME}...")
+        test_model = genai.GenerativeModel(MODEL_NAME)
+        test_response = test_model.generate_content("Teste rápido da API Gemini")
         if test_response and hasattr(test_response, 'text'):
             logging.info("Chave do Gemini válida!")
             GEMINI_OK = True
@@ -57,7 +59,7 @@ def simplificar_com_gemini(texto):
     if not GEMINI_OK:
         return None, "A chave do Gemini é inválida ou não foi configurada corretamente."
     try:
-        model = genai.GenerativeModel('gemini-pro')
+        model = genai.GenerativeModel(MODEL_NAME)
         response = model.generate_content(PROMPT_SIMPLIFICACAO + texto)
         return response.text, None
     except Exception as e:
