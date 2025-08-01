@@ -15,7 +15,7 @@ body {
     padding: 30px;
     border-radius: 16px;
     box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-    width: 700px;
+    width: 750px;
     max-width: 95%;
     text-align: center;
     transition: background 0.4s, color 0.4s;
@@ -34,6 +34,17 @@ h1 {
     margin-bottom: 10px;
 }
 
+h2 {
+    font-size: 1.4rem;
+    color: #005bb5;
+    margin-top: 30px;
+    margin-bottom: 15px;
+    border-bottom: 2px solid #0073e6;
+    padding-bottom: 5px;
+    display: inline-block;
+}
+
+/* Área de upload de PDF */
 #drop-area {
     border: 2px dashed #0073e6;
     border-radius: 12px;
@@ -48,6 +59,7 @@ h1 {
     border-color: #3399ff;
 }
 
+/* Texto manual */
 #manualText {
     width: 100%;
     padding: 10px;
@@ -64,6 +76,7 @@ body.dark-mode #manualText {
     border-color: #666;
 }
 
+/* Botões */
 .button {
     background: #0073e6;
     color: #fff;
@@ -79,6 +92,20 @@ body.dark-mode #manualText {
 .button:hover {
     background: #005bb5;
     transform: scale(1.03);
+}
+
+.clear {
+    background: #dc3545 !important;
+}
+.clear:hover {
+    background: #b02a37 !important;
+}
+
+.manual-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 20px;
 }
 
 #output {
@@ -101,6 +128,12 @@ body.dark-mode #manualText {
 }
 @keyframes fadeInUp {
     to { opacity: 1; transform: translateY(0); }
+}
+
+.result-buttons {
+    margin-top: 15px;
+    display: flex;
+    gap: 10px;
 }
 
 #avatarContainer {
@@ -181,6 +214,7 @@ body.dark-mode .container { background: #2a2a2a; color: #fff; }
 body.dark-mode #drop-area { border-color: #66b3ff; background: #333; }
 body.dark-mode #output { background: #444; color: #f0f0f0; }
 body.dark-mode .button { background: #3399ff; }
+body.dark-mode .clear { background: #ff6b6b !important; }
 body.dark-mode #loading { color: #66b3ff; }
 
 /* Switch Style */
