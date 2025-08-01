@@ -6,9 +6,32 @@ import io
 import google.generativeai as genai
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
+import os
+import logging
 
 app = Flask(__name__)
-genai.configure(api_key="SUA_CHAVE_API_GEMINI")
+logging.basicConfig(level=logging.INFO)
+
+# --- Verificação da chave API ---
+API_KEY = os.getenv("GOOGLE_API_KEY")
+if not API_KEY:
+    logging.error("Nenhuma chave de API encontrada! Defina GOOGLE_API_KEY no ambiente.")
+    GEMINI_OK = False
+else:
+    try:
+        genai.configure(api_key=API_KEY)
+        # Teste rápido do Gemini
+        test_model = genai.GenerativeModel('gemini-pro')
+        test_response = test_model.generate_content("Teste de chave API Gemini")
+        if test_response and hasattr(test_response, 'text'):
+            logging.info("Chave do Gemini válida!")
+            GEMINI_OK = True
+        else:
+            logging.error("Chave fornecida não retornou resposta válida.")
+            GEMINI_OK = False
+    except Exception as e:
+        logging.error(f"Erro ao validar chave Gemini: {e}")
+        GEMINI_OK = False
 
 PROMPT_SIMPLIFICACAO = """
 Você é um especialista em linguagem cidadã.
@@ -17,8 +40,6 @@ sem termos técnicos difíceis, mantendo o sentido original.
 
 Texto:
 """
-
-texto_simplificado_global = ""
 
 def extrair_texto_pdf(pdf_bytes):
     texto = ""
@@ -33,9 +54,15 @@ def extrair_texto_pdf(pdf_bytes):
     return texto
 
 def simplificar_com_gemini(texto):
-    model = genai.GenerativeModel('gemini-pro')
-    response = model.generate_content(PROMPT_SIMPLIFICACAO + texto)
-    return response.text
+    if not GEMINI_OK:
+        return None, "A chave do Gemini é inválida ou não foi configurada corretamente."
+    try:
+        model = genai.GenerativeModel('gemini-pro')
+        response = model.generate_content(PROMPT_SIMPLIFICACAO + texto)
+        return response.text, None
+    except Exception as e:
+        logging.error(f"Erro ao chamar o Gemini: {e}")
+        return None, "Erro ao processar texto com o Gemini."
 
 def gerar_pdf_simplificado(texto):
     output_path = "pdf_simplificado.pdf"
@@ -53,17 +80,20 @@ def gerar_pdf_simplificado(texto):
 
 @app.route("/")
 def index():
-    return render_template("index.html")
+    return render_template("index.html", gemini_ok=GEMINI_OK)
 
 @app.route("/processar", methods=["POST"])
 def processar():
-    global texto_simplificado_global
     file = request.files['file']
     pdf_bytes = file.read()
     texto_original = extrair_texto_pdf(pdf_bytes)
-    texto_simplificado_global = simplificar_com_gemini(texto_original)
-    gerar_pdf_simplificado(texto_simplificado_global)
-    return jsonify({"texto": texto_simplificado_global})
+
+    texto_simplificado, erro = simplificar_com_gemini(texto_original)
+    if erro:
+        return jsonify({"erro": erro}), 500
+
+    gerar_pdf_simplificado(texto_simplificado)
+    return jsonify({"texto": texto_simplificado})
 
 @app.route("/download_pdf")
 def download_pdf():
