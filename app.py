@@ -3,18 +3,21 @@ import fitz
 import pytesseract
 from PIL import Image
 import io
-import google.generativeai as genai
-from reportlab.pdfgen import canvas
-from reportlab.lib.pagesizes import letter
 import os
 import logging
+from openai import OpenAI
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import letter
 
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
 
-# --- Configuração API Gemini ---
-API_KEY = os.getenv("GOOGLE_API_KEY")
-MODEL_NAME = "models/gemini-1.5-pro-latest"
+# --- Configuração OpenAI ---
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+if not OPENAI_API_KEY:
+    logging.error("Nenhuma chave de API do OpenAI encontrada! Defina OPENAI_API_KEY no ambiente.")
+client = OpenAI(api_key=OPENAI_API_KEY)
+
 PROMPT_SIMPLIFICACAO = """
 Você é um especialista em linguagem cidadã.
 Reescreva o texto abaixo de forma simples, clara e acessível,
@@ -22,13 +25,6 @@ sem termos técnicos difíceis, mantendo o sentido original.
 
 Texto:
 """
-
-if not API_KEY:
-    logging.error("Nenhuma chave de API encontrada! Defina GOOGLE_API_KEY no ambiente.")
-    GEMINI_OK = False
-else:
-    genai.configure(api_key=API_KEY)
-    GEMINI_OK = True  # Validação apenas durante uso
 
 def extrair_texto_pdf(pdf_bytes):
     texto = ""
@@ -42,14 +38,19 @@ def extrair_texto_pdf(pdf_bytes):
             texto += conteudo + "\n"
     return texto
 
-def simplificar_com_gemini(texto):
+def simplificar_com_chatgpt(texto):
     try:
-        model = genai.GenerativeModel(MODEL_NAME)
-        response = model.generate_content(PROMPT_SIMPLIFICACAO + texto)
-        return response.text, None
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": "Você é um especialista em linguagem simples."},
+                {"role": "user", "content": PROMPT_SIMPLIFICACAO + texto}
+            ]
+        )
+        return response.choices[0].message.content, None
     except Exception as e:
-        logging.error(f"Erro ao chamar o Gemini: {e}")
-        return None, "Erro ao processar texto com o Gemini. Verifique a chave ou a API."
+        logging.error(f"Erro ao chamar o ChatGPT: {e}")
+        return None, "Erro ao processar texto com ChatGPT. Verifique a chave ou a API."
 
 def gerar_pdf_simplificado(texto):
     output_path = "pdf_simplificado.pdf"
@@ -67,7 +68,7 @@ def gerar_pdf_simplificado(texto):
 
 @app.route("/")
 def index():
-    return render_template("index.html", gemini_ok=GEMINI_OK)
+    return render_template("index.html")
 
 @app.route("/processar", methods=["POST"])
 def processar():
@@ -75,7 +76,7 @@ def processar():
     pdf_bytes = file.read()
     texto_original = extrair_texto_pdf(pdf_bytes)
 
-    texto_simplificado, erro = simplificar_com_gemini(texto_original)
+    texto_simplificado, erro = simplificar_com_chatgpt(texto_original)
     if erro:
         return jsonify({"erro": erro}), 500
 
