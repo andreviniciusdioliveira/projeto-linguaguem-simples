@@ -5,7 +5,7 @@ from PIL import Image
 import io
 import os
 import logging
-from openai import OpenAI
+import openai
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 
@@ -16,7 +16,7 @@ logging.basicConfig(level=logging.INFO)
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 if not OPENAI_API_KEY:
     logging.error("Nenhuma chave de API do OpenAI encontrada! Defina OPENAI_API_KEY no ambiente.")
-client = OpenAI(api_key=OPENAI_API_KEY)
+openai.api_key = OPENAI_API_KEY
 
 PROMPT_SIMPLIFICACAO = """
 Você é um especialista em linguagem cidadã.
@@ -40,14 +40,14 @@ def extrair_texto_pdf(pdf_bytes):
 
 def simplificar_com_chatgpt(texto):
     try:
-        response = client.chat.completions.create(
-            model="gpt-4o",
+        response = openai.ChatCompletion.create(
+            model="gpt-4o",  # você pode trocar para "gpt-3.5-turbo" se quiser reduzir custo
             messages=[
                 {"role": "system", "content": "Você é um especialista em linguagem simples."},
                 {"role": "user", "content": PROMPT_SIMPLIFICACAO + texto}
             ]
         )
-        return response.choices[0].message.content, None
+        return response.choices[0].message["content"], None
     except Exception as e:
         logging.error(f"Erro ao chamar o ChatGPT: {e}")
         return None, "Erro ao processar texto com ChatGPT. Verifique a chave ou a API."
