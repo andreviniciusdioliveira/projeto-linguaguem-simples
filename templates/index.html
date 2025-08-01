@@ -19,13 +19,18 @@
         <h1>Agente de Linguagem Simples</h1>
         <p class="api-indicator">Usando API: ChatGPT (OpenAI)</p>
 
+        <!-- Área PDF -->
         <div id="drop-area">
             <p>Arraste e solte seu PDF aqui ou clique para selecionar</p>
             <input type="file" id="fileElem" accept="application/pdf" style="display:none">
             <label class="button" for="fileElem">Selecionar PDF</label>
         </div>
 
-        <div id="loading">Simplificando seu PDF, aguarde...</div>
+        <!-- Campo de texto -->
+        <textarea id="manualText" placeholder="Ou cole seu texto aqui..." rows="6"></textarea>
+        <button class="button" onclick="processManualText()">Simplificar Texto</button>
+
+        <div id="loading">Simplificando, aguarde...</div>
         <div id="erroMsg"></div>
 
         <div id="output">
@@ -90,7 +95,36 @@
             }, 3500);
         }
 
-        // ---- Drag & Drop ----
+        // ---- Processar texto manual ----
+        function processManualText() {
+            let text = document.getElementById("manualText").value.trim();
+            if (!text) {
+                showToast("Cole um texto para simplificar!", "error");
+                return;
+            }
+            document.getElementById("loading").style.display = "block";
+            fetch("/processar_texto", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ texto: text })
+            })
+            .then(res => res.json().then(data => ({status: res.status, body: data})))
+            .then(result => {
+                document.getElementById("loading").style.display = "none";
+                if (result.status !== 200) {
+                    showToast(result.body.erro || "Erro ao processar o texto.", "error");
+                    return;
+                }
+                document.getElementById("textoSimplificado").innerText = result.body.texto;
+                showToast("Texto simplificado com sucesso!", "success");
+            })
+            .catch(() => {
+                document.getElementById("loading").style.display = "none";
+                showToast("Erro de comunicação com servidor.", "error");
+            });
+        }
+
+        // ---- Drag & Drop PDF ----
         let dropArea = document.getElementById('drop-area');
         let fileInput = document.getElementById('fileElem');
 
