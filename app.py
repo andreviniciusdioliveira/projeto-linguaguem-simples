@@ -112,11 +112,11 @@ PROMPT_SIMPLIFICACAO = """**Papel:** Você é um especialista em linguagem simpl
 **Formato de saída:**
 Por favor, apresente o resultado no seguinte formato:
 
+**RESUMO EM LINGUAGEM SIMPLES:**
+[Explicação breve do que a decisão significa para quem não é da área jurídica]
+
 **VERSÃO SIMPLIFICADA OFICIAL:**
 [Texto em linguagem simples, mantendo tom formal e respeitoso]
-
-**RESUMO PARA LEIGOS:**
-[Explicação breve do que a decisão significa para quem não é da área jurídica]
 
 **TEXTO ORIGINAL A SER SIMPLIFICADO:**
 """
