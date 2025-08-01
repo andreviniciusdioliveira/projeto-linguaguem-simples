@@ -124,7 +124,10 @@ Use estes ícones para indicar visualmente o resultado da decisão:
 Por favor, apresente o resultado no seguinte formato:
 
 **RESUMO EM LINGUAGEM SIMPLES:**
-[Inicie com o ícone apropriado] [Explicação breve do que a decisão significa, começando sempre com: "Você ganhou", "Você perdeu", "Você ganhou parcialmente", etc., quando aplicável]
+
+[ÍCONE] **[RESULTADO EM DESTAQUE]**
+
+[Explicação breve do que a decisão significa, começando sempre com: "Você ganhou", "Você perdeu", "Você ganhou parcialmente", etc., quando aplicável]
 
 **VERSÃO SIMPLIFICADA OFICIAL:**
 [Texto em linguagem simples, mantendo tom formal e respeitoso]
@@ -133,6 +136,19 @@ Por favor, apresente o resultado no seguinte formato:
 • Valor da causa: [se houver]
 • Próximos passos: [se houver]
 • Prazos: [se houver]
+
+**Exemplo de formatação do resumo:**
+Se a pessoa ganhou totalmente:
+✅ **VOCÊ GANHOU A CAUSA!**
+Explicação do que significa...
+
+Se a pessoa perdeu:
+❌ **VOCÊ PERDEU A CAUSA**
+Explicação do que significa...
+
+Se ganhou parcialmente:
+⚠️ **VOCÊ GANHOU PARCIALMENTE**
+Explicação do que significa...
 
 **TEXTO ORIGINAL A SER SIMPLIFICADO:**
 """
