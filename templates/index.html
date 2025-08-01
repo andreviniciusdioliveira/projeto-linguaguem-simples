@@ -487,7 +487,57 @@
             }
         }
 
-        /* Responsive */
+        /* Estilos para os ícones de resultado */
+        .result-icon {
+            font-size: 2rem;
+            margin-right: 0.5rem;
+            vertical-align: middle;
+        }
+        
+        .result-header {
+            font-size: 1.25rem;
+            font-weight: bold;
+            margin-bottom: 1rem;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            text-align: center;
+        }
+        
+        .result-success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .result-error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .result-warning {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeeba;
+        }
+        
+        body.dark-mode .result-success {
+            background-color: #1b4332;
+            color: #52b788;
+            border-color: #2d6a4f;
+        }
+        
+        body.dark-mode .result-error {
+            background-color: #6a040f;
+            color: #dc2f02;
+            border-color: #9d0208;
+        }
+        
+        body.dark-mode .result-warning {
+            background-color: #7b5e00;
+            color: #ffc107;
+            border-color: #a67c00;
+        }
         @media (max-width: 768px) {
             .container {
                 padding: 1rem;
@@ -963,8 +1013,9 @@
             document.getElementById('simplifiedChars').textContent = data.caracteres_simplificado?.toLocaleString() || '-';
             document.getElementById('reduction').textContent = data.reducao_percentual ? data.reducao_percentual + '%' : '-';
             
-            // Show text
-            document.getElementById('outputText').textContent = data.texto;
+            // Show text with proper formatting for icons
+            const formattedText = formatResultText(data.texto);
+            document.getElementById('outputText').innerHTML = formattedText;
             
             // Show download button if PDF was processed
             if (data.caracteres_original) {
@@ -990,9 +1041,46 @@
             showToast('Tudo limpo!', 'info');
         }
 
-        // Copy text
+        // Format result text to properly display icons and styling
+        function formatResultText(text) {
+            // Replace emoji patterns with styled versions
+            const patterns = [
+                { regex: /✅\s*\*\*([^*]+)\*\*/g, class: 'result-success', icon: '✅' },
+                { regex: /❌\s*\*\*([^*]+)\*\*/g, class: 'result-error', icon: '❌' },
+                { regex: /⚠️\s*\*\*([^*]+)\*\*/g, class: 'result-warning', icon: '⚠️' }
+            ];
+            
+            let formattedText = text;
+            
+            // Check for result headers
+            patterns.forEach(pattern => {
+                formattedText = formattedText.replace(pattern.regex, (match, p1) => {
+                    return `<div class="result-header ${pattern.class}">
+                        <span class="result-icon">${pattern.icon}</span>
+                        ${p1}
+                    </div>`;
+                });
+            });
+            
+            // Format bold text
+            formattedText = formattedText.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+            
+            // Format section headers
+            formattedText = formattedText.replace(/^([A-Z\s]+:)$/gm, '<h3 style="color: var(--primary); margin-top: 1.5rem; margin-bottom: 0.5rem;">$1</h3>');
+            
+            // Format bullet points
+            formattedText = formattedText.replace(/•/g, '▶');
+            
+            // Convert line breaks to HTML
+            formattedText = formattedText.replace(/\n/g, '<br>');
+            
+            return formattedText;
+        }
+
+        // Copy text (updated to handle HTML)
         function copyText() {
-            const text = document.getElementById('outputText').textContent;
+            const element = document.getElementById('outputText');
+            const text = element.innerText || element.textContent;
             
             if (!text) {
                 showToast('Nenhum texto para copiar', 'warning');
