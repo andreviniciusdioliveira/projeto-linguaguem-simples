@@ -21,10 +21,17 @@ body {
     transition: background 0.4s, color 0.4s;
 }
 
+.api-indicator {
+    font-size: 0.9rem;
+    color: #555;
+    margin-top: -10px;
+    margin-bottom: 20px;
+}
+
 h1 {
     color: #0073e6;
     font-size: 2rem;
-    margin-bottom: 20px;
+    margin-bottom: 10px;
 }
 
 #drop-area {
