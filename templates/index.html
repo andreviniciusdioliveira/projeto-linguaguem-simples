@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agente de Linguagem Simples</title>
+    <title>Agente de Linguagem Simples (ChatGPT)</title>
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
@@ -17,6 +17,7 @@
 
     <div class="container">
         <h1>Agente de Linguagem Simples</h1>
+        <p class="api-indicator">Usando API: ChatGPT (OpenAI)</p>
 
         <div id="drop-area">
             <p>Arraste e solte seu PDF aqui ou clique para selecionar</p>
@@ -44,7 +45,6 @@
 
     <!-- Toast notifications -->
     <div id="toast"></div>
-
     <audio id="toastSound" src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg"></audio>
 
     <script>
@@ -54,7 +54,7 @@
             document.body.classList.toggle('dark-mode', themeSwitch.checked);
         });
 
-        // ---- Leitura em voz alta com botão de parar ----
+        // ---- Leitura em voz alta ----
         let isSpeaking = false;
         let synth = window.speechSynthesis;
         function toggleSpeak() {
