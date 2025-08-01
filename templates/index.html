@@ -26,18 +26,23 @@
             <label class="button" for="fileElem">Selecionar PDF</label>
         </div>
 
-        <!-- Campo de texto -->
+        <!-- Campo de texto manual -->
         <textarea id="manualText" placeholder="Ou cole seu texto aqui..." rows="6"></textarea>
         <button class="button" onclick="processManualText()">Simplificar Texto</button>
 
         <div id="loading">Simplificando, aguarde...</div>
         <div id="erroMsg"></div>
 
+        <!-- Resultado -->
         <div id="output">
             <div id="textoSimplificado" class="output-text"></div>
-            <a id="downloadLink" class="button download-animate" style="display:none" download="pdf_simplificado.pdf">Baixar PDF Simplificado</a>
+            <div class="result-buttons">
+                <a id="downloadLink" class="button download-animate" style="display:none" download="pdf_simplificado.pdf">Baixar PDF Simplificado</a>
+                <button class="button" id="copyButton" style="display:none" onclick="copyText()">📋 Copiar Resultado</button>
+            </div>
         </div>
 
+        <!-- Avatar -->
         <div id="avatarContainer" class="avatar-animate">
             <iframe id="avatarFrame"
                     src="https://my.readyplayer.me/avatar?frameApi"
@@ -95,6 +100,20 @@
             }, 3500);
         }
 
+        // ---- Copiar texto ----
+        function copyText() {
+            let text = document.getElementById("textoSimplificado").innerText;
+            if (!text) {
+                showToast("Não há texto para copiar!", "error");
+                return;
+            }
+            navigator.clipboard.writeText(text).then(() => {
+                showToast("Texto copiado para a área de transferência!", "success");
+            }).catch(() => {
+                showToast("Erro ao copiar texto.", "error");
+            });
+        }
+
         // ---- Processar texto manual ----
         function processManualText() {
             let text = document.getElementById("manualText").value.trim();
@@ -116,6 +135,8 @@
                     return;
                 }
                 document.getElementById("textoSimplificado").innerText = result.body.texto;
+                document.getElementById("output").classList.add("show");
+                document.getElementById("copyButton").style.display = "inline-block";
                 showToast("Texto simplificado com sucesso!", "success");
             })
             .catch(() => {
@@ -160,9 +181,11 @@
                         return;
                     }
                     document.getElementById("textoSimplificado").innerText = result.body.texto;
+                    document.getElementById("output").classList.add("show");
                     let link = document.getElementById("downloadLink");
                     link.href = "/download_pdf";
                     link.style.display = "inline-block";
+                    document.getElementById("copyButton").style.display = "inline-block";
                     link.classList.add('pulse');
                     setTimeout(() => link.classList.remove('pulse'), 1000);
                     showToast("PDF simplificado com sucesso!", "success");
