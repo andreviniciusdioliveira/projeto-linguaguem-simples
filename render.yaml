@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: simplificador-juridico
+    runtime: python
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120"
+    envVars:
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: PYTHON_VERSION
+        value: 3.11.0
+    autoDeploy: true
+    healthCheckPath: /health
+    
+    # Recursos recomendados para processamento de PDF
+    plan: standard  # ou "free" para testes
+    
+    # Configurações adicionais
+    dockerCommand: |
+      apt-get update && apt-get install -y \
+        tesseract-ocr \
+        tesseract-ocr-por \
+        poppler-utils \
+        && rm -rf /var/lib/apt/lists/*
