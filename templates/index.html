@@ -5,80 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Agente de Linguagem Simples</title>
     <link rel="stylesheet" href="/static/style.css">
-    <style>
-        body.dark-mode {
-            background: #1a1a1a;
-            color: #f0f0f0;
-        }
-        body.dark-mode .container {
-            background: #2a2a2a;
-            color: #fff;
-        }
-        body.dark-mode #drop-area {
-            border-color: #66b3ff;
-            background: #333;
-        }
-        body.dark-mode .button {
-            background: #3399ff;
-        }
-        #loading {
-            display: none;
-            font-size: 16px;
-            font-weight: bold;
-            color: #0073e6;
-            margin-top: 10px;
-        }
-        #erroMsg {
-            display: none;
-            color: red;
-            font-weight: bold;
-            margin-top: 15px;
-        }
-        .switch-container {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-        }
-        .switch {
-            position: relative;
-            display: inline-block;
-            width: 50px;
-            height: 24px;
-        }
-        .switch input {
-            opacity: 0;
-            width: 0;
-            height: 0;
-        }
-        .slider {
-            position: absolute;
-            cursor: pointer;
-            top: 0; left: 0;
-            right: 0; bottom: 0;
-            background-color: #ccc;
-            transition: .4s;
-            border-radius: 34px;
-        }
-        .slider:before {
-            position: absolute;
-            content: "";
-            height: 18px;
-            width: 18px;
-            left: 3px;
-            bottom: 3px;
-            background-color: white;
-            transition: .4s;
-            border-radius: 50%;
-        }
-        input:checked + .slider {
-            background-color: #0073e6;
-        }
-        input:checked + .slider:before {
-            transform: translateX(26px);
-        }
-    </style>
 </head>
 <body>
+    <!-- Switch para modo escuro -->
     <div class="switch-container">
         <label class="switch">
             <input type="checkbox" id="themeSwitch">
@@ -100,10 +29,10 @@
 
         <div id="output">
             <div id="textoSimplificado" class="output-text"></div>
-            <a id="downloadLink" class="button" style="display:none" download="pdf_simplificado.pdf">Baixar PDF Simplificado</a>
+            <a id="downloadLink" class="button download-animate" style="display:none" download="pdf_simplificado.pdf">Baixar PDF Simplificado</a>
         </div>
 
-        <div id="avatarContainer">
+        <div id="avatarContainer" class="avatar-animate">
             <iframe id="avatarFrame"
                     src="https://my.readyplayer.me/avatar?frameApi"
                     allow="camera *; microphone *"
@@ -112,6 +41,11 @@
             <button class="button" id="speakButton" onclick="toggleSpeak()">🔊 Ler em voz alta</button>
         </div>
     </div>
+
+    <!-- Toast notifications -->
+    <div id="toast"></div>
+
+    <audio id="toastSound" src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg"></audio>
 
     <script>
         // ---- Tema escuro/claro ----
@@ -123,7 +57,6 @@
         // ---- Leitura em voz alta com botão de parar ----
         let isSpeaking = false;
         let synth = window.speechSynthesis;
-
         function toggleSpeak() {
             const button = document.getElementById("speakButton");
             if (isSpeaking) {
@@ -143,6 +76,18 @@
                 button.innerText = "⏹ Parar leitura";
                 isSpeaking = true;
             }
+        }
+
+        // ---- Toast Notifications ----
+        function showToast(message, type = "info") {
+            const toast = document.getElementById("toast");
+            const toastSound = document.getElementById("toastSound");
+            toast.innerText = message;
+            toast.className = "show " + type;
+            toastSound.play();
+            setTimeout(() => {
+                toast.className = toast.className.replace("show", "");
+            }, 3500);
         }
 
         // ---- Drag & Drop ----
@@ -177,19 +122,20 @@
                 .then(result => {
                     document.getElementById("loading").style.display = "none";
                     if (result.status !== 200) {
-                        document.getElementById("erroMsg").innerText = result.body.erro || "Erro desconhecido ao processar o PDF.";
-                        document.getElementById("erroMsg").style.display = "block";
+                        showToast(result.body.erro || "Erro desconhecido ao processar o PDF.", "error");
                         return;
                     }
                     document.getElementById("textoSimplificado").innerText = result.body.texto;
                     let link = document.getElementById("downloadLink");
                     link.href = "/download_pdf";
                     link.style.display = "inline-block";
+                    link.classList.add('pulse');
+                    setTimeout(() => link.classList.remove('pulse'), 1000);
+                    showToast("PDF simplificado com sucesso!", "success");
                 })
                 .catch(() => {
                     document.getElementById("loading").style.display = "none";
-                    document.getElementById("erroMsg").innerText = "Erro ao enviar ou processar o PDF.";
-                    document.getElementById("erroMsg").style.display = "block";
+                    showToast("Erro ao enviar ou processar o PDF.", "error");
                 });
         }
     </script>
