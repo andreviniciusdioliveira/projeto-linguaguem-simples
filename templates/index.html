@@ -20,16 +20,21 @@
         <h1>🔹 Agente de Linguagem Simples</h1>
         <p class="api-indicator">Usando API: ChatGPT (OpenAI)</p>
 
-        <!-- Área PDF -->
+        <!-- Envio de PDF -->
+        <h2>Enviar PDF</h2>
         <div id="drop-area">
             <p>Arraste e solte seu PDF aqui ou clique para selecionar</p>
             <input type="file" id="fileElem" accept="application/pdf" style="display:none">
             <label class="button" for="fileElem">Selecionar PDF</label>
         </div>
 
-        <!-- Campo de texto manual -->
-        <textarea id="manualText" placeholder="Ou cole seu texto aqui..." rows="6"></textarea>
-        <button class="button" onclick="processManualText()">Simplificar Texto</button>
+        <!-- Texto Manual -->
+        <h2>Ou Colar Texto Manualmente</h2>
+        <textarea id="manualText" placeholder="Cole aqui o texto que deseja simplificar..." rows="6"></textarea>
+        <div class="manual-buttons">
+            <button class="button" onclick="processManualText()">Simplificar Texto</button>
+            <button class="button clear" onclick="clearAll()">🧹 Limpar Tudo</button>
+        </div>
 
         <div id="loading">Simplificando, aguarde...</div>
         <div id="erroMsg"></div>
@@ -99,6 +104,16 @@
             setTimeout(() => {
                 toast.className = toast.className.replace("show", "");
             }, 3500);
+        }
+
+        // ---- Limpar tudo ----
+        function clearAll() {
+            document.getElementById("manualText").value = "";
+            document.getElementById("textoSimplificado").innerText = "";
+            document.getElementById("output").classList.remove("show");
+            document.getElementById("downloadLink").style.display = "none";
+            document.getElementById("copyButton").style.display = "none";
+            showToast("Tudo limpo!", "info");
         }
 
         // ---- Copiar texto ----
