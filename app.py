@@ -12,29 +12,9 @@ import logging
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
 
-# --- Verificação da chave API ---
+# --- Configuração API Gemini ---
 API_KEY = os.getenv("GOOGLE_API_KEY")
 MODEL_NAME = "models/gemini-1.5-pro-latest"
-
-if not API_KEY:
-    logging.error("Nenhuma chave de API encontrada! Defina GOOGLE_API_KEY no ambiente.")
-    GEMINI_OK = False
-else:
-    try:
-        genai.configure(api_key=API_KEY)
-        logging.info(f"Validando chave do Gemini com modelo {MODEL_NAME}...")
-        test_model = genai.GenerativeModel(MODEL_NAME)
-        test_response = test_model.generate_content("Teste rápido da API Gemini")
-        if test_response and hasattr(test_response, 'text'):
-            logging.info("Chave do Gemini válida!")
-            GEMINI_OK = True
-        else:
-            logging.error("Chave fornecida não retornou resposta válida.")
-            GEMINI_OK = False
-    except Exception as e:
-        logging.error(f"Erro ao validar chave Gemini: {e}")
-        GEMINI_OK = False
-
 PROMPT_SIMPLIFICACAO = """
 Você é um especialista em linguagem cidadã.
 Reescreva o texto abaixo de forma simples, clara e acessível,
@@ -42,6 +22,13 @@ sem termos técnicos difíceis, mantendo o sentido original.
 
 Texto:
 """
+
+if not API_KEY:
+    logging.error("Nenhuma chave de API encontrada! Defina GOOGLE_API_KEY no ambiente.")
+    GEMINI_OK = False
+else:
+    genai.configure(api_key=API_KEY)
+    GEMINI_OK = True  # Validação apenas durante uso
 
 def extrair_texto_pdf(pdf_bytes):
     texto = ""
@@ -56,15 +43,13 @@ def extrair_texto_pdf(pdf_bytes):
     return texto
 
 def simplificar_com_gemini(texto):
-    if not GEMINI_OK:
-        return None, "A chave do Gemini é inválida ou não foi configurada corretamente."
     try:
         model = genai.GenerativeModel(MODEL_NAME)
         response = model.generate_content(PROMPT_SIMPLIFICACAO + texto)
         return response.text, None
     except Exception as e:
         logging.error(f"Erro ao chamar o Gemini: {e}")
-        return None, "Erro ao processar texto com o Gemini."
+        return None, "Erro ao processar texto com o Gemini. Verifique a chave ou a API."
 
 def gerar_pdf_simplificado(texto):
     output_path = "pdf_simplificado.pdf"
