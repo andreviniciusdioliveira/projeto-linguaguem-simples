@@ -5,7 +5,8 @@ from PIL import Image
 import io
 import os
 import logging
-import anthropic
+import requests
+import time
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 
@@ -14,9 +15,7 @@ logging.basicConfig(level=logging.INFO)
 
 # --- Configuração Claude ---
 CLAUDE_API_KEY = os.getenv("ANTHROPIC_API_KEY")
-if not CLAUDE_API_KEY:
-    logging.error("Nenhuma chave de API do Claude encontrada! Defina ANTHROPIC_API_KEY no ambiente.")
-client = anthropic.Anthropic(api_key=CLAUDE_API_KEY)
+CLAUDE_API_URL = "https://api.anthropic.com/v1/messages"
 
 PROMPT_SIMPLIFICACAO = """
 Você é um especialista em linguagem cidadã.
@@ -39,17 +38,26 @@ def extrair_texto_pdf(pdf_bytes):
     return texto
 
 def simplificar_com_claude(texto):
+    start_time = time.time()
+    headers = {
+        "x-api-key": CLAUDE_API_KEY,
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json"
+    }
+    payload = {
+        "model": "claude-3-opus-20240229",
+        "max_tokens": 1000,
+        "messages": [{"role": "user", "content": PROMPT_SIMPLIFICACAO + texto}]
+    }
     try:
-        response = client.messages.create(
-            model="claude-3-opus-20240229",
-            max_tokens=2000,
-            messages=[
-                {"role": "user", "content": PROMPT_SIMPLIFICACAO + texto}
-            ]
-        )
-        return response.content[0].text, None
+        response = requests.post(CLAUDE_API_URL, headers=headers, json=payload, timeout=60)
+        response.raise_for_status()
+        data = response.json()
+        elapsed = round(time.time() - start_time, 2)
+        logging.info(f"[Claude] Texto enviado: {len(texto)} caracteres | Tempo: {elapsed}s")
+        return data["content"][0]["text"], None
     except Exception as e:
-        logging.error(f"Erro ao chamar o Claude: {e}")
+        logging.error(f"Erro ao chamar Claude: {e}")
         return None, "Erro ao processar texto com Claude. Verifique a chave ou a API."
 
 def gerar_pdf_simplificado(texto):
