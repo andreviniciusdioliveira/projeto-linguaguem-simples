@@ -6,6 +6,21 @@
     <title>Agente de Linguagem Simples</title>
     <link rel="stylesheet" href="/static/style.css">
     <style>
+        body.dark-mode {
+            background: #1a1a1a;
+            color: #f0f0f0;
+        }
+        body.dark-mode .container {
+            background: #2a2a2a;
+            color: #fff;
+        }
+        body.dark-mode #drop-area {
+            border-color: #66b3ff;
+            background: #333;
+        }
+        body.dark-mode .button {
+            background: #3399ff;
+        }
         #loading {
             display: none;
             font-size: 16px;
@@ -19,18 +34,60 @@
             font-weight: bold;
             margin-top: 15px;
         }
+        .switch-container {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+        }
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0;
+            right: 0; bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider {
+            background-color: #0073e6;
+        }
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
     </style>
 </head>
 <body>
+    <div class="switch-container">
+        <label class="switch">
+            <input type="checkbox" id="themeSwitch">
+            <span class="slider"></span>
+        </label>
+    </div>
+
     <div class="container">
         <h1>Agente de Linguagem Simples</h1>
-        
-        {% if not gemini_ok %}
-        <div style="color:red; font-weight:bold; margin:20px;">
-            ⚠ Chave do Google Gemini inválida ou não configurada.<br>
-            Verifique a variável de ambiente <b>GOOGLE_API_KEY</b> no Render.
-        </div>
-        {% endif %}
 
         <div id="drop-area">
             <p>Arraste e solte seu PDF aqui ou clique para selecionar</p>
@@ -52,19 +109,43 @@
                     allow="camera *; microphone *"
                     style="width:300px;height:400px;border:none;">
             </iframe>
-            <button class="button" onclick="speakText()">🔊 Ler em voz alta</button>
+            <button class="button" id="speakButton" onclick="toggleSpeak()">🔊 Ler em voz alta</button>
         </div>
     </div>
 
     <script>
-        function speakText() {
-            let text = document.getElementById('textoSimplificado').innerText;
-            if(!text) return;
-            let speech = new SpeechSynthesisUtterance(text);
-            speech.lang = "pt-BR";
-            window.speechSynthesis.speak(speech);
+        // ---- Tema escuro/claro ----
+        const themeSwitch = document.getElementById('themeSwitch');
+        themeSwitch.addEventListener('change', () => {
+            document.body.classList.toggle('dark-mode', themeSwitch.checked);
+        });
+
+        // ---- Leitura em voz alta com botão de parar ----
+        let isSpeaking = false;
+        let synth = window.speechSynthesis;
+
+        function toggleSpeak() {
+            const button = document.getElementById("speakButton");
+            if (isSpeaking) {
+                synth.cancel();
+                button.innerText = "🔊 Ler em voz alta";
+                isSpeaking = false;
+            } else {
+                let text = document.getElementById('textoSimplificado').innerText;
+                if (!text) return;
+                let utter = new SpeechSynthesisUtterance(text);
+                utter.lang = "pt-BR";
+                utter.onend = () => {
+                    button.innerText = "🔊 Ler em voz alta";
+                    isSpeaking = false;
+                };
+                synth.speak(utter);
+                button.innerText = "⏹ Parar leitura";
+                isSpeaking = true;
+            }
         }
 
+        // ---- Drag & Drop ----
         let dropArea = document.getElementById('drop-area');
         let fileInput = document.getElementById('fileElem');
 
@@ -104,7 +185,6 @@
                     let link = document.getElementById("downloadLink");
                     link.href = "/download_pdf";
                     link.style.display = "inline-block";
-                    speakText();
                 })
                 .catch(() => {
                     document.getElementById("loading").style.display = "none";
