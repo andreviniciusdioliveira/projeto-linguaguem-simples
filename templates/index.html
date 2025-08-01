@@ -3,13 +3,615 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🔹 Agente de Linguagem Simples (Claude AI)</title>
-    <link rel="stylesheet" href="/static/style.css">
-    <link rel="icon" href="https://cdn-icons-png.flaticon.com/512/5356/5356211.png" type="image/png">
+    <title>Linguagem Simples nos Documentos Jurídicos - Powered by Claude AI</title>
+    <meta name="description" content="Transforme documentos jurídicos complexos em linguagem simples e acessível usando inteligência artificial">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='50%' x='50%' text-anchor='middle' font-size='80'>⚖️</text></svg>">
+    
+    <style>
+        :root {
+            --primary: #0073e6;
+            --primary-dark: #005bb5;
+            --secondary: #28a745;
+            --danger: #dc3545;
+            --dark: #343a40;
+            --light: #f8f9fa;
+            --border: #dee2e6;
+            --shadow: rgba(0,0,0,0.1);
+            --text: #212529;
+            --text-muted: #6c757d;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            color: var(--text);
+            line-height: 1.6;
+            transition: all 0.3s ease;
+        }
+
+        /* Dark mode */
+        body.dark-mode {
+            --primary: #4da3ff;
+            --primary-dark: #66b3ff;
+            --light: #1a1a1a;
+            --text: #f0f0f0;
+            --border: #404040;
+            --shadow: rgba(255,255,255,0.1);
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            margin-bottom: 3rem;
+            animation: fadeInDown 0.8s ease;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+            font-weight: 700;
+        }
+
+        .header p {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+        }
+
+        .badge {
+            display: inline-block;
+            background: var(--primary);
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 1rem;
+            font-size: 0.875rem;
+            margin-top: 0.5rem;
+        }
+
+        /* Cards */
+        .card {
+            background: white;
+            border-radius: 1rem;
+            box-shadow: 0 4px 6px var(--shadow);
+            padding: 2rem;
+            margin-bottom: 2rem;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            animation: fadeInUp 0.8s ease;
+        }
+
+        body.dark-mode .card {
+            background: #2a2a2a;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px var(--shadow);
+        }
+
+        .card h2 {
+            color: var(--primary);
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        /* File upload area */
+        #drop-area {
+            border: 2px dashed var(--primary);
+            border-radius: 1rem;
+            padding: 3rem 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: var(--light);
+            position: relative;
+            overflow: hidden;
+        }
+
+        #drop-area:hover, #drop-area.hover {
+            background: rgba(0, 115, 230, 0.05);
+            border-color: var(--primary-dark);
+            transform: scale(1.02);
+        }
+
+        #drop-area p {
+            margin-bottom: 1rem;
+            font-size: 1.1rem;
+            color: var(--text-muted);
+        }
+
+        #drop-area .icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            color: var(--primary);
+        }
+
+        /* Textarea */
+        textarea {
+            width: 100%;
+            padding: 1rem;
+            border: 2px solid var(--border);
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            resize: vertical;
+            min-height: 150px;
+            font-family: inherit;
+            transition: border-color 0.3s ease;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        body.dark-mode textarea {
+            background: #333;
+            color: white;
+            border-color: #555;
+        }
+
+        /* Buttons */
+        .button {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.75rem 2rem;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            text-decoration: none;
+            box-shadow: 0 2px 4px rgba(0, 115, 230, 0.2);
+        }
+
+        .button:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 115, 230, 0.3);
+        }
+
+        .button:active {
+            transform: translateY(0);
+        }
+
+        .button.secondary {
+            background: var(--secondary);
+        }
+
+        .button.secondary:hover {
+            background: #218838;
+        }
+
+        .button.danger {
+            background: var(--danger);
+        }
+
+        .button.danger:hover {
+            background: #bd2130;
+        }
+
+        .button:disabled {
+            background: var(--text-muted);
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Button group */
+        .button-group {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin-top: 1rem;
+        }
+
+        /* Output area */
+        #output {
+            display: none;
+            animation: fadeIn 0.5s ease;
+        }
+
+        #output.show {
+            display: block;
+        }
+
+        .output-text {
+            background: var(--light);
+            border: 1px solid var(--border);
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            max-height: 400px;
+            overflow-y: auto;
+            font-size: 1rem;
+            line-height: 1.8;
+        }
+
+        body.dark-mode .output-text {
+            background: #333;
+            border-color: #555;
+        }
+
+        /* Statistics */
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .stat-card {
+            background: var(--light);
+            border: 1px solid var(--border);
+            border-radius: 0.5rem;
+            padding: 1rem;
+            text-align: center;
+        }
+
+        body.dark-mode .stat-card {
+            background: #333;
+            border-color: #555;
+        }
+
+        .stat-card .value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .stat-card .label {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+        }
+
+        /* Loading */
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 50px;
+            height: 50px;
+            border: 3px solid var(--border);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            margin-top: 1rem;
+            color: var(--text-muted);
+        }
+
+        /* Toast notifications */
+        .toast {
+            position: fixed;
+            bottom: -100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--dark);
+            color: white;
+            padding: 1rem 2rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px var(--shadow);
+            transition: bottom 0.3s ease;
+            z-index: 1000;
+            max-width: 90%;
+            text-align: center;
+        }
+
+        .toast.show {
+            bottom: 2rem;
+        }
+
+        .toast.success {
+            background: var(--secondary);
+        }
+
+        .toast.error {
+            background: var(--danger);
+        }
+
+        .toast.warning {
+            background: #ffc107;
+            color: var(--dark);
+        }
+
+        /* Theme switch */
+        .theme-switch {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            z-index: 100;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 30px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 30px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "☀️";
+            height: 22px;
+            width: 22px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+
+        input:checked + .slider {
+            background-color: var(--primary);
+        }
+
+        input:checked + .slider:before {
+            content: "🌙";
+            transform: translateX(30px);
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.05);
+            }
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        /* Progress bar */
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background: var(--border);
+            border-radius: 2px;
+            overflow: hidden;
+            margin-top: 1rem;
+            display: none;
+        }
+
+        .progress-bar.show {
+            display: block;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--primary);
+            width: 0%;
+            transition: width 0.3s ease;
+            animation: progressPulse 2s ease-in-out infinite;
+        }
+
+        @keyframes progressPulse {
+            0% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.7;
+            }
+            100% {
+                opacity: 1;
+            }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .card {
+                padding: 1.5rem;
+            }
+
+            .button {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .button-group {
+                flex-direction: column;
+            }
+
+            .stats {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* File info */
+        .file-info {
+            background: var(--light);
+            border: 1px solid var(--border);
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-top: 1rem;
+            display: none;
+        }
+
+        .file-info.show {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        body.dark-mode .file-info {
+            background: #333;
+            border-color: #555;
+        }
+
+        .file-info p {
+            margin: 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .file-info .filename {
+            font-weight: 600;
+            color: var(--primary);
+        }
+
+        .file-info .size {
+            color: var(--text-muted);
+            font-size: 0.875rem;
+        }
+
+        /* Error message */
+        .error-message {
+            background: rgba(220, 53, 69, 0.1);
+            border: 1px solid var(--danger);
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-top: 1rem;
+            color: var(--danger);
+            display: none;
+        }
+
+        .error-message.show {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        /* Features section */
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 3rem;
+        }
+
+        .feature {
+            text-align: center;
+            padding: 1.5rem;
+            background: white;
+            border-radius: 1rem;
+            box-shadow: 0 2px 4px var(--shadow);
+            transition: transform 0.3s ease;
+        }
+
+        body.dark-mode .feature {
+            background: #2a2a2a;
+        }
+
+        .feature:hover {
+            transform: translateY(-5px);
+        }
+
+        .feature-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        .feature h3 {
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .feature p {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+    </style>
 </head>
 <body>
-    <!-- Switch para modo escuro -->
-    <div class="switch-container">
+    <!-- Theme Switch -->
+    <div class="theme-switch">
         <label class="switch">
             <input type="checkbox" id="themeSwitch">
             <span class="slider"></span>
@@ -17,200 +619,454 @@
     </div>
 
     <div class="container">
-        <h1>🔹 Agente de Linguagem Simples</h1>
-        <p class="api-indicator">Usando API: Claude AI (Anthropic)</p>
+        <!-- Header -->
+        <header class="header">
+            <h1>⚖️ Linguagem Simples nos Documentos Jurídicos</h1>
+            <p>Transforme documentos complexos em linguagem clara e acessível</p>
+            <span class="badge">Powered by Claude AI</span>
+        </header>
 
-        <!-- Envio de PDF -->
-        <h2>Enviar PDF</h2>
-        <div id="drop-area">
-            <p>Arraste e solte seu PDF aqui ou clique para selecionar</p>
-            <input type="file" id="fileElem" accept="application/pdf" style="display:none">
-            <label class="button" for="fileElem">Selecionar PDF</label>
+        <!-- Upload Card -->
+        <div class="card">
+            <h2>📤 Enviar PDF</h2>
+            <div id="drop-area">
+                <div class="icon">📁</div>
+                <p>Arraste seu PDF aqui ou clique para selecionar</p>
+                <input type="file" id="fileInput" accept=".pdf" style="display: none;">
+                <button class="button" onclick="document.getElementById('fileInput').click()">
+                    Escolher Arquivo
+                </button>
+            </div>
+            <div class="file-info" id="fileInfo">
+                <p>
+                    <span class="filename" id="fileName"></span>
+                    <span class="size" id="fileSize"></span>
+                </p>
+            </div>
+            <div class="error-message" id="uploadError"></div>
         </div>
 
-        <!-- Texto Manual -->
-        <h2>Ou Colar Texto Manualmente</h2>
-        <textarea id="manualText" placeholder="Cole aqui o texto que deseja simplificar..." rows="6"></textarea>
-        <div class="manual-buttons">
-            <button class="button" onclick="processManualText()">Simplificar Texto</button>
-            <button class="button clear" onclick="clearAll()">🧹 Limpar Tudo</button>
+        <!-- Manual Text Card -->
+        <div class="card">
+            <h2>✍️ Texto Manual</h2>
+            <textarea id="manualText" placeholder="Cole aqui o texto jurídico que deseja simplificar..."></textarea>
+            <div class="button-group">
+                <button class="button" onclick="processManualText()">
+                    <span>🔄</span> Simplificar Texto
+                </button>
+                <button class="button danger" onclick="clearAll()">
+                    <span>🗑️</span> Limpar
+                </button>
+            </div>
+            <div class="error-message" id="textError"></div>
         </div>
 
-        <div id="loading">Simplificando, aguarde...</div>
-        <div id="erroMsg"></div>
-
-        <!-- Resultado -->
-        <div id="output">
-            <div id="textoSimplificado" class="output-text"></div>
-            <div class="result-buttons">
-                <a id="downloadLink" class="button download-animate" style="display:none" download="pdf_simplificado.pdf">Baixar PDF Simplificado</a>
-                <button class="button" id="copyButton" style="display:none" onclick="copyText()">📋 Copiar Resultado</button>
+        <!-- Loading -->
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p class="loading-text">Processando com Claude AI...</p>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
             </div>
         </div>
 
-        <!-- Avatar -->
-        <div id="avatarContainer" class="avatar-animate">
-            <iframe id="avatarFrame"
-                    src="https://my.readyplayer.me/avatar?frameApi"
-                    allow="camera *; microphone *"
-                    style="width:300px;height:400px;border:none;">
-            </iframe>
-            <button class="button" id="speakButton" onclick="toggleSpeak()">🔊 Ler em voz alta</button>
+        <!-- Output Card -->
+        <div id="output" class="card">
+            <h2>✅ Texto Simplificado</h2>
+            
+            <div class="stats" id="stats">
+                <div class="stat-card">
+                    <div class="value" id="originalChars">-</div>
+                    <div class="label">Caracteres Original</div>
+                </div>
+                <div class="stat-card">
+                    <div class="value" id="simplifiedChars">-</div>
+                    <div class="label">Caracteres Simplificado</div>
+                </div>
+                <div class="stat-card">
+                    <div class="value" id="reduction">-</div>
+                    <div class="label">Redução</div>
+                </div>
+            </div>
+
+            <div class="output-text" id="outputText"></div>
+            
+            <div class="button-group">
+                <a href="#" class="button secondary" id="downloadBtn" style="display: none;">
+                    <span>📥</span> Baixar PDF
+                </a>
+                <button class="button" onclick="copyText()">
+                    <span>📋</span> Copiar Texto
+                </button>
+                <button class="button" onclick="speakText()" id="speakBtn">
+                    <span>🔊</span> Ler em Voz Alta
+                </button>
+            </div>
         </div>
     </div>
 
-    <!-- Toast notifications -->
-    <div id="toast"></div>
-    <audio id="toastSound" src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg"></audio>
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
 
     <script>
-        // ---- Tema escuro/claro ----
-        const themeSwitch = document.getElementById('themeSwitch');
-        themeSwitch.addEventListener('change', () => {
-            document.body.classList.toggle('dark-mode', themeSwitch.checked);
-        });
-
-        // ---- Leitura em voz alta ----
+        // Configurações
+        const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+        let isProcessing = false;
+        let speechSynthesis = window.speechSynthesis;
         let isSpeaking = false;
-        let synth = window.speechSynthesis;
-        function toggleSpeak() {
-            const button = document.getElementById("speakButton");
-            if (isSpeaking) {
-                synth.cancel();
-                button.innerText = "🔊 Ler em voz alta";
-                isSpeaking = false;
+
+        // Theme
+        const themeSwitch = document.getElementById('themeSwitch');
+        const body = document.body;
+
+        // Verificar tema salvo
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme === 'dark') {
+            body.classList.add('dark-mode');
+            themeSwitch.checked = true;
+        }
+
+        themeSwitch.addEventListener('change', () => {
+            if (themeSwitch.checked) {
+                body.classList.add('dark-mode');
+                localStorage.setItem('theme', 'dark');
             } else {
-                let text = document.getElementById('textoSimplificado').innerText;
-                if (!text) return;
-                let utter = new SpeechSynthesisUtterance(text);
-                utter.lang = "pt-BR";
-                utter.onend = () => {
-                    button.innerText = "🔊 Ler em voz alta";
-                    isSpeaking = false;
-                };
-                synth.speak(utter);
-                button.innerText = "⏹ Parar leitura";
-                isSpeaking = true;
+                body.classList.remove('dark-mode');
+                localStorage.setItem('theme', 'light');
             }
-        }
+        });
 
-        // ---- Toast Notifications ----
-        function showToast(message, type = "info") {
-            const toast = document.getElementById("toast");
-            const toastSound = document.getElementById("toastSound");
-            toast.innerText = message;
-            toast.className = "show " + type;
-            toastSound.play();
+        // Toast notifications
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = `toast ${type}`;
+            setTimeout(() => toast.classList.add('show'), 100);
+            
             setTimeout(() => {
-                toast.className = toast.className.replace("show", "");
-            }, 3500);
+                toast.classList.remove('show');
+            }, 3000);
         }
 
-        // ---- Limpar tudo ----
-        function clearAll() {
-            document.getElementById("manualText").value = "";
-            document.getElementById("textoSimplificado").innerText = "";
-            document.getElementById("output").classList.remove("show");
-            document.getElementById("downloadLink").style.display = "none";
-            document.getElementById("copyButton").style.display = "none";
-            showToast("Tudo limpo!", "info");
-        }
+        // File upload
+        const dropArea = document.getElementById('drop-area');
+        const fileInput = document.getElementById('fileInput');
+        const fileInfo = document.getElementById('fileInfo');
+        const fileName = document.getElementById('fileName');
+        const fileSize = document.getElementById('fileSize');
 
-        // ---- Copiar texto ----
-        function copyText() {
-            let text = document.getElementById("textoSimplificado").innerText;
-            if (!text) {
-                showToast("Não há texto para copiar!", "error");
-                return;
-            }
-            navigator.clipboard.writeText(text).then(() => {
-                showToast("Texto copiado para a área de transferência!", "success");
-            }).catch(() => {
-                showToast("Erro ao copiar texto.", "error");
-            });
-        }
-
-        // ---- Processar texto manual ----
-        function processManualText() {
-            let text = document.getElementById("manualText").value.trim();
-            if (!text) {
-                showToast("Cole um texto para simplificar!", "error");
-                return;
-            }
-            document.getElementById("loading").style.display = "block";
-            fetch("/processar_texto", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ texto: text })
-            })
-            .then(res => res.json().then(data => ({status: res.status, body: data})))
-            .then(result => {
-                document.getElementById("loading").style.display = "none";
-                if (result.status !== 200) {
-                    showToast(result.body.erro || "Erro ao processar o texto.", "error");
-                    return;
-                }
-                document.getElementById("textoSimplificado").innerText = result.body.texto;
-                document.getElementById("output").classList.add("show");
-                document.getElementById("copyButton").style.display = "inline-block";
-                showToast("Texto simplificado com sucesso!", "success");
-            })
-            .catch(() => {
-                document.getElementById("loading").style.display = "none";
-                showToast("Erro de comunicação com servidor.", "error");
-            });
-        }
-
-        // ---- Drag & Drop PDF ----
-        let dropArea = document.getElementById('drop-area');
-        let fileInput = document.getElementById('fileElem');
-
-        dropArea.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            dropArea.classList.add('hover');
+        // Prevent default drag behaviors
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, preventDefaults, false);
+            document.body.addEventListener(eventName, preventDefaults, false);
         });
-        dropArea.addEventListener('dragleave', () => dropArea.classList.remove('hover'));
-        dropArea.addEventListener('drop', (e) => {
+
+        function preventDefaults(e) {
             e.preventDefault();
-            dropArea.classList.remove('hover');
-            handleFiles(e.dataTransfer.files);
+            e.stopPropagation();
+        }
+
+        // Highlight drop area when item is dragged over it
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropArea.addEventListener(eventName, () => dropArea.classList.add('hover'), false);
         });
-        fileInput.addEventListener('change', () => handleFiles(fileInput.files));
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, () => dropArea.classList.remove('hover'), false);
+        });
+
+        // Handle dropped files
+        dropArea.addEventListener('drop', handleDrop, false);
+        fileInput.addEventListener('change', handleFileSelect, false);
+
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            handleFiles(files);
+        }
+
+        function handleFileSelect(e) {
+            const files = e.target.files;
+            handleFiles(files);
+        }
 
         function handleFiles(files) {
-            if (files.length > 0) {
-                uploadFile(files[0]);
+            if (files.length === 0) return;
+            
+            const file = files[0];
+            
+            // Validações
+            if (file.type !== 'application/pdf') {
+                showError('uploadError', 'Por favor, selecione apenas arquivos PDF');
+                return;
             }
+            
+            if (file.size > MAX_FILE_SIZE) {
+                showError('uploadError', `Arquivo muito grande. Máximo: ${MAX_FILE_SIZE / 1024 / 1024}MB`);
+                return;
+            }
+            
+            // Mostrar info do arquivo
+            fileName.textContent = file.name;
+            fileSize.textContent = formatFileSize(file.size);
+            fileInfo.classList.add('show');
+            hideError('uploadError');
+            
+            // Processar arquivo
+            uploadFile(file);
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
         }
 
         function uploadFile(file) {
-            document.getElementById("loading").style.display = "block";
-            document.getElementById("erroMsg").style.display = "none";
-            let formData = new FormData();
-            formData.append("file", file);
-            fetch("/processar", { method: "POST", body: formData })
-                .then(res => res.json().then(data => ({status: res.status, body: data})))
-                .then(result => {
-                    document.getElementById("loading").style.display = "none";
-                    if (result.status !== 200) {
-                        showToast(result.body.erro || "Erro desconhecido ao processar o PDF.", "error");
-                        return;
-                    }
-                    document.getElementById("textoSimplificado").innerText = result.body.texto;
-                    document.getElementById("output").classList.add("show");
-                    let link = document.getElementById("downloadLink");
-                    link.href = "/download_pdf";
-                    link.style.display = "inline-block";
-                    document.getElementById("copyButton").style.display = "inline-block";
-                    link.classList.add('pulse');
-                    setTimeout(() => link.classList.remove('pulse'), 1000);
-                    showToast("PDF simplificado com sucesso!", "success");
+            if (isProcessing) {
+                showToast('Aguarde o processamento atual terminar', 'warning');
+                return;
+            }
+            
+            isProcessing = true;
+            showLoading();
+            
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            // Simular progresso
+            let progress = 0;
+            const progressInterval = setInterval(() => {
+                progress += Math.random() * 15;
+                if (progress > 90) progress = 90;
+                updateProgress(progress);
+            }, 500);
+            
+            fetch('/processar', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                clearInterval(progressInterval);
+                updateProgress(100);
+                
+                if (!response.ok) {
+                    return response.json().then(data => {
+                        throw new Error(data.erro || 'Erro ao processar arquivo');
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                showResult(data);
+                showToast('PDF processado com sucesso!', 'success');
+            })
+            .catch(error => {
+                showToast(error.message || 'Erro ao processar PDF', 'error');
+                console.error('Erro:', error);
+            })
+            .finally(() => {
+                isProcessing = false;
+                hideLoading();
+                clearInterval(progressInterval);
+            });
+        }
+
+        // Process manual text
+        function processManualText() {
+            const text = document.getElementById('manualText').value.trim();
+            
+            if (!text) {
+                showError('textError', 'Por favor, insira algum texto');
+                return;
+            }
+            
+            if (text.length < 20) {
+                showError('textError', 'Texto muito curto. Mínimo: 20 caracteres');
+                return;
+            }
+            
+            if (text.length > 10000) {
+                showError('textError', 'Texto muito longo. Máximo: 10.000 caracteres');
+                return;
+            }
+            
+            if (isProcessing) {
+                showToast('Aguarde o processamento atual terminar', 'warning');
+                return;
+            }
+            
+            hideError('textError');
+            isProcessing = true;
+            showLoading();
+            
+            fetch('/processar_texto', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ texto: text })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(data => {
+                        throw new Error(data.erro || 'Erro ao processar texto');
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                showResult(data);
+                showToast('Texto processado com sucesso!', 'success');
+            })
+            .catch(error => {
+                showToast(error.message || 'Erro ao processar texto', 'error');
+                console.error('Erro:', error);
+            })
+            .finally(() => {
+                isProcessing = false;
+                hideLoading();
+            });
+        }
+
+        // Show/hide functions
+        function showLoading() {
+            document.getElementById('loading').classList.add('show');
+            document.querySelector('.progress-bar').classList.add('show');
+            updateProgress(0);
+        }
+
+        function hideLoading() {
+            document.getElementById('loading').classList.remove('show');
+            document.querySelector('.progress-bar').classList.remove('show');
+        }
+
+        function updateProgress(percent) {
+            document.getElementById('progressFill').style.width = percent + '%';
+        }
+
+        function showError(elementId, message) {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.classList.add('show');
+        }
+
+        function hideError(elementId) {
+            document.getElementById(elementId).classList.remove('show');
+        }
+
+        function showResult(data) {
+            // Update stats
+            document.getElementById('originalChars').textContent = data.caracteres_original?.toLocaleString() || '-';
+            document.getElementById('simplifiedChars').textContent = data.caracteres_simplificado?.toLocaleString() || '-';
+            document.getElementById('reduction').textContent = data.reducao_percentual ? data.reducao_percentual + '%' : '-';
+            
+            // Show text
+            document.getElementById('outputText').textContent = data.texto;
+            
+            // Show download button if PDF was processed
+            if (data.caracteres_original) {
+                document.getElementById('downloadBtn').style.display = 'inline-flex';
+                document.getElementById('downloadBtn').href = '/download_pdf';
+            }
+            
+            // Show output
+            document.getElementById('output').classList.add('show');
+            
+            // Scroll to result
+            document.getElementById('output').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        // Clear all
+        function clearAll() {
+            document.getElementById('manualText').value = '';
+            document.getElementById('output').classList.remove('show');
+            document.getElementById('fileInfo').classList.remove('show');
+            fileInput.value = '';
+            hideError('uploadError');
+            hideError('textError');
+            showToast('Tudo limpo!', 'info');
+        }
+
+        // Copy text
+        function copyText() {
+            const text = document.getElementById('outputText').textContent;
+            
+            if (!text) {
+                showToast('Nenhum texto para copiar', 'warning');
+                return;
+            }
+            
+            navigator.clipboard.writeText(text)
+                .then(() => {
+                    showToast('Texto copiado!', 'success');
                 })
                 .catch(() => {
-                    document.getElementById("loading").style.display = "none";
-                    showToast("Erro ao enviar ou processar o PDF.", "error");
+                    // Fallback
+                    const textarea = document.createElement('textarea');
+                    textarea.value = text;
+                    document.body.appendChild(textarea);
+                    textarea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textarea);
+                    showToast('Texto copiado!', 'success');
                 });
         }
+
+        // Text to speech
+        function speakText() {
+            const text = document.getElementById('outputText').textContent;
+            const btn = document.getElementById('speakBtn');
+            
+            if (!text) {
+                showToast('Nenhum texto para ler', 'warning');
+                return;
+            }
+            
+            if (isSpeaking) {
+                speechSynthesis.cancel();
+                btn.innerHTML = '<span>🔊</span> Ler em Voz Alta';
+                isSpeaking = false;
+                return;
+            }
+            
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'pt-BR';
+            utterance.rate = 0.9;
+            
+            utterance.onend = () => {
+                btn.innerHTML = '<span>🔊</span> Ler em Voz Alta';
+                isSpeaking = false;
+            };
+            
+            utterance.onerror = () => {
+                showToast('Erro ao ler o texto', 'error');
+                btn.innerHTML = '<span>🔊</span> Ler em Voz Alta';
+                isSpeaking = false;
+            };
+            
+            speechSynthesis.speak(utterance);
+            btn.innerHTML = '<span>⏹️</span> Parar Leitura';
+            isSpeaking = true;
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            // Ctrl/Cmd + Enter para processar
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                const manualText = document.getElementById('manualText').value;
+                if (manualText) {
+                    processManualText();
+                }
+            }
+            
+            // Esc para limpar
+            if (e.key === 'Escape') {
+                clearAll();
+            }
+        });
     </script>
 </body>
 </html>
