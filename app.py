@@ -5,18 +5,18 @@ from PIL import Image
 import io
 import os
 import logging
-import openai
+import anthropic
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
 
-# --- Configuração OpenAI ---
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-if not OPENAI_API_KEY:
-    logging.error("Nenhuma chave de API do OpenAI encontrada! Defina OPENAI_API_KEY no ambiente.")
-openai.api_key = OPENAI_API_KEY
+# --- Configuração Claude ---
+CLAUDE_API_KEY = os.getenv("ANTHROPIC_API_KEY")
+if not CLAUDE_API_KEY:
+    logging.error("Nenhuma chave de API do Claude encontrada! Defina ANTHROPIC_API_KEY no ambiente.")
+client = anthropic.Anthropic(api_key=CLAUDE_API_KEY)
 
 PROMPT_SIMPLIFICACAO = """
 Você é um especialista em linguagem cidadã.
@@ -38,19 +38,19 @@ def extrair_texto_pdf(pdf_bytes):
             texto += conteudo + "\n"
     return texto
 
-def simplificar_com_chatgpt(texto):
+def simplificar_com_claude(texto):
     try:
-        response = openai.ChatCompletion.create(
-            model="gpt-4o",  # você pode trocar para "gpt-3.5-turbo" se quiser reduzir custo
+        response = client.messages.create(
+            model="claude-3-opus-20240229",
+            max_tokens=2000,
             messages=[
-                {"role": "system", "content": "Você é um especialista em linguagem simples."},
                 {"role": "user", "content": PROMPT_SIMPLIFICACAO + texto}
             ]
         )
-        return response.choices[0].message["content"], None
+        return response.content[0].text, None
     except Exception as e:
-        logging.error(f"Erro ao chamar o ChatGPT: {e}")
-        return None, "Erro ao processar texto com ChatGPT. Verifique a chave ou a API."
+        logging.error(f"Erro ao chamar o Claude: {e}")
+        return None, "Erro ao processar texto com Claude. Verifique a chave ou a API."
 
 def gerar_pdf_simplificado(texto):
     output_path = "pdf_simplificado.pdf"
@@ -76,7 +76,7 @@ def processar():
     pdf_bytes = file.read()
     texto_original = extrair_texto_pdf(pdf_bytes)
 
-    texto_simplificado, erro = simplificar_com_chatgpt(texto_original)
+    texto_simplificado, erro = simplificar_com_claude(texto_original)
     if erro:
         return jsonify({"erro": erro}), 500
 
@@ -90,7 +90,7 @@ def processar_texto():
     if not texto:
         return jsonify({"erro": "Nenhum texto recebido"}), 400
 
-    texto_simplificado, erro = simplificar_com_chatgpt(texto)
+    texto_simplificado, erro = simplificar_com_claude(texto)
     if erro:
         return jsonify({"erro": erro}), 500
 
