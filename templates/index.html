@@ -3,21 +3,49 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agente Simplificador</title>
+    <title>Agente de Linguagem Simples</title>
     <link rel="stylesheet" href="/static/style.css">
+    <style>
+        #loading {
+            display: none;
+            font-size: 16px;
+            font-weight: bold;
+            color: #0073e6;
+            margin-top: 10px;
+        }
+        #erroMsg {
+            display: none;
+            color: red;
+            font-weight: bold;
+            margin-top: 15px;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
         <h1>Agente de Linguagem Simples</h1>
+        
+        {% if not gemini_ok %}
+        <div style="color:red; font-weight:bold; margin:20px;">
+            ⚠ Chave do Google Gemini inválida ou não configurada.<br>
+            Verifique a variável de ambiente <b>GOOGLE_API_KEY</b> no Render.
+        </div>
+        {% endif %}
+
         <div id="drop-area">
             <p>Arraste e solte seu PDF aqui ou clique para selecionar</p>
             <input type="file" id="fileElem" accept="application/pdf" style="display:none">
             <label class="button" for="fileElem">Selecionar PDF</label>
         </div>
+
+        <div id="loading">Simplificando seu PDF, aguarde...</div>
+        <div id="erroMsg"></div>
+
         <div id="output">
             <div id="textoSimplificado" class="output-text"></div>
             <a id="downloadLink" class="button" style="display:none" download="pdf_simplificado.pdf">Baixar PDF Simplificado</a>
         </div>
+
         <div id="avatarContainer">
             <iframe id="avatarFrame"
                     src="https://my.readyplayer.me/avatar?frameApi"
@@ -27,6 +55,63 @@
             <button class="button" onclick="speakText()">🔊 Ler em voz alta</button>
         </div>
     </div>
-    <script src="/static/avatar.js"></script>
+
+    <script>
+        function speakText() {
+            let text = document.getElementById('textoSimplificado').innerText;
+            if(!text) return;
+            let speech = new SpeechSynthesisUtterance(text);
+            speech.lang = "pt-BR";
+            window.speechSynthesis.speak(speech);
+        }
+
+        let dropArea = document.getElementById('drop-area');
+        let fileInput = document.getElementById('fileElem');
+
+        dropArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropArea.classList.add('hover');
+        });
+        dropArea.addEventListener('dragleave', () => dropArea.classList.remove('hover'));
+        dropArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropArea.classList.remove('hover');
+            handleFiles(e.dataTransfer.files);
+        });
+        fileInput.addEventListener('change', () => handleFiles(fileInput.files));
+
+        function handleFiles(files) {
+            if (files.length > 0) {
+                uploadFile(files[0]);
+            }
+        }
+
+        function uploadFile(file) {
+            document.getElementById("loading").style.display = "block";
+            document.getElementById("erroMsg").style.display = "none";
+            let formData = new FormData();
+            formData.append("file", file);
+            fetch("/processar", { method: "POST", body: formData })
+                .then(res => res.json().then(data => ({status: res.status, body: data})))
+                .then(result => {
+                    document.getElementById("loading").style.display = "none";
+                    if (result.status !== 200) {
+                        document.getElementById("erroMsg").innerText = result.body.erro || "Erro desconhecido ao processar o PDF.";
+                        document.getElementById("erroMsg").style.display = "block";
+                        return;
+                    }
+                    document.getElementById("textoSimplificado").innerText = result.body.texto;
+                    let link = document.getElementById("downloadLink");
+                    link.href = "/download_pdf";
+                    link.style.display = "inline-block";
+                    speakText();
+                })
+                .catch(() => {
+                    document.getElementById("loading").style.display = "none";
+                    document.getElementById("erroMsg").innerText = "Erro ao enviar ou processar o PDF.";
+                    document.getElementById("erroMsg").style.display = "block";
+                });
+        }
+    </script>
 </body>
 </html>
