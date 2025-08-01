@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agente Simplificador</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Agente de Linguagem Simples</h1>
+        <div id="drop-area">
+            <p>Arraste e solte seu PDF aqui ou clique para selecionar</p>
+            <input type="file" id="fileElem" accept="application/pdf" style="display:none">
+            <label class="button" for="fileElem">Selecionar PDF</label>
+        </div>
+        <div id="output">
+            <div id="textoSimplificado" class="output-text"></div>
+            <a id="downloadLink" class="button" style="display:none" download="pdf_simplificado.pdf">Baixar PDF Simplificado</a>
+        </div>
+        <div id="avatarContainer">
+            <iframe id="avatarFrame"
+                    src="https://my.readyplayer.me/avatar?frameApi"
+                    allow="camera *; microphone *"
+                    style="width:300px;height:400px;border:none;">
+            </iframe>
+            <button class="button" onclick="speakText()">🔊 Ler em voz alta</button>
+        </div>
+    </div>
+    <script src="/static/avatar.js"></script>
+</body>
+</html>
