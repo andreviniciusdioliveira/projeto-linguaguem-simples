@@ -109,14 +109,30 @@ PROMPT_SIMPLIFICACAO = """**Papel:** Você é um especialista em linguagem simpl
 * Sucumbência → Perda do processo
 * Ultra petita → Mais do que foi pedido
 
+**ÍCONES VISUAIS (use sempre no início do resumo):**
+Use estes ícones para indicar visualmente o resultado da decisão:
+
+✅ **DECISÃO FAVORÁVEL** - Quando a parte GANHOU a causa (procedente/deferido)
+❌ **DECISÃO DESFAVORÁVEL** - Quando a parte PERDEU a causa (improcedente/indeferido)
+⚠️ **DECISÃO PARCIAL** - Quando a parte ganhou PARCIALMENTE (procedente em parte)
+⏳ **AGUARDANDO DECISÃO** - Quando ainda não há decisão final
+📋 **DESPACHO/ANDAMENTO** - Para despachos de mero expediente
+🤝 **ACORDO REALIZADO** - Quando houve acordo entre as partes
+⚖️ **SENTENÇA** - Para indicar que é uma sentença judicial
+
 **Formato de saída:**
 Por favor, apresente o resultado no seguinte formato:
 
 **RESUMO EM LINGUAGEM SIMPLES:**
-[Explicação breve do que a decisão significa para quem não é da área jurídica]
+[Inicie com o ícone apropriado] [Explicação breve do que a decisão significa, começando sempre com: "Você ganhou", "Você perdeu", "Você ganhou parcialmente", etc., quando aplicável]
 
 **VERSÃO SIMPLIFICADA OFICIAL:**
 [Texto em linguagem simples, mantendo tom formal e respeitoso]
+
+**INFORMAÇÕES IMPORTANTES:**
+• Valor da causa: [se houver]
+• Próximos passos: [se houver]
+• Prazos: [se houver]
 
 **TEXTO ORIGINAL A SER SIMPLIFICADO:**
 """
