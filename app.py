@@ -71,31 +71,54 @@ def rate_limit(f):
     return decorated_function
 
 # Prompt otimizado para simplificação
-PROMPT_SIMPLIFICACAO = """Você é um especialista em linguagem cidadã e acessibilidade textual.
+PROMPT_SIMPLIFICACAO = """**Papel:** Você é um especialista em linguagem simples aplicada ao Poder Judiciário, com experiência em transformar textos jurídicos complexos em comunicações claras e acessíveis.
 
-TAREFA: Reescreva o texto jurídico abaixo seguindo estas diretrizes:
+**Objetivo:** Reescrever sentenças, despachos, decisões e acórdãos jurídicos em linguagem simples, mantendo o conteúdo jurídico essencial, mas tornando-o mais fácil de entender para qualquer cidadão.
 
-1. **Linguagem simples e direta**:
-   - Use palavras do dia a dia
-   - Frases curtas (máximo 20 palavras quando possível)
-   - Voz ativa sempre que possível
-   - Evite jargões e termos técnicos
+**Diretrizes obrigatórias:**
+1. **Empatia:** considere quem vai ler; explique termos técnicos ou siglas quando necessário.
+2. **Hierarquia da informação:** apresente primeiro as informações principais e depois as complementares.
+3. **Palavras conhecidas:** substitua termos jurídicos difíceis por equivalentes comuns (use o mini dicionário abaixo).
+4. **Palavras concretas:** use verbos de ação e substantivos concretos; evite abstrações excessivas.
+5. **Frases curtas:** prefira frases com até 20 a 25 palavras.
+6. **Ordem direta:** siga a estrutura sujeito + verbo + complemento, evitando voz passiva desnecessária.
+7. **Clareza:** elimine jargões, expressões rebuscadas e termos em latim sem explicação.
 
-2. **Estrutura clara**:
-   - Organize em parágrafos curtos
-   - Use listas quando apropriado
-   - Destaque informações importantes
+**Mini Dicionário Jurídico Simplificado (substituições automáticas):**
+* Autos → Processo
+* Carta Magna → Constituição Federal
+* Conciliação infrutífera → Não houve acordo
+* Concluso → Aguardando decisão do juiz
+* Dano emergente → Prejuízo imediato
+* Data vênia → Com todo respeito
+* Dilação → Prorrogação ou adiamento
+* Egrégio → Respeitável
+* Exordial → Petição inicial (documento que inicia o processo)
+* Extra petita → Diferente do que foi pedido
+* Impugnar → Contestar ou se opor
+* Inaudita altera pars → Sem ouvir a outra parte
+* Indubitável → Evidente
+* Intempestivo → Fora do prazo
+* Jurisprudência → Decisões anteriores sobre o tema
+* Não obstante → Apesar de
+* Óbice → Impedimento
+* Outrossim → Além disso
+* Pleitear / Postular → Pedir
+* Preliminares → Alegações iniciais
+* Pugnar → Defender
+* Sucumbência → Perda do processo
+* Ultra petita → Mais do que foi pedido
 
-3. **Mantenha a precisão**:
-   - Preserve o significado legal
-   - Não omita informações essenciais
-   - Quando um termo técnico for inevitável, explique-o
+**Formato de saída:**
+Por favor, apresente o resultado no seguinte formato:
 
-4. **Formatação**:
-   - Use títulos e subtítulos quando necessário
-   - Destaque datas, valores e prazos importantes
+**VERSÃO SIMPLIFICADA OFICIAL:**
+[Texto em linguagem simples, mantendo tom formal e respeitoso]
 
-TEXTO ORIGINAL:
+**RESUMO PARA LEIGOS:**
+[Explicação breve do que a decisão significa para quem não é da área jurídica]
+
+**TEXTO ORIGINAL A SER SIMPLIFICADO:**
 """
 
 def allowed_file(filename):
@@ -155,8 +178,8 @@ def simplificar_com_claude(texto, max_retries=3):
     
     payload = {
         "model": "claude-3-opus-20240229",
-        "max_tokens": 2000,
-        "temperature": 0.3,  # Mais consistência
+        "max_tokens": 3000,  # Aumentado para acomodar a resposta em dois formatos
+        "temperature": 0.2,  # Ainda mais consistência para textos jurídicos
         "messages": [{
             "role": "user", 
             "content": PROMPT_SIMPLIFICACAO + texto
@@ -170,7 +193,7 @@ def simplificar_com_claude(texto, max_retries=3):
                 CLAUDE_API_URL, 
                 headers=headers, 
                 json=payload, 
-                timeout=90
+                timeout=120  # Aumentado para 2 minutos
             )
             response.raise_for_status()
             
@@ -226,7 +249,7 @@ def gerar_pdf_simplificado(texto, filename="documento_simplificado.pdf"):
         
         # Título
         c.setFont("Helvetica-Bold", 16)
-        c.drawString(margem_esq, y, "Documento Simplificado")
+        c.drawString(margem_esq, y, "Documento em Linguagem Simples")
         y -= 30
         
         # Data
@@ -244,17 +267,30 @@ def gerar_pdf_simplificado(texto, filename="documento_simplificado.pdf"):
         c.setFont("Helvetica", 11)
         c.setFillColorRGB(0, 0, 0)
         
-        # Divide o texto em parágrafos
-        paragrafos = texto.split('\n')
+        # Processa o texto separando por seções
+        linhas = texto.split('\n')
         
-        for paragrafo in paragrafos:
-            if not paragrafo.strip():
+        for linha in linhas:
+            if not linha.strip():
                 y -= altura_linha
                 continue
-                
+            
+            # Detecta títulos de seção
+            if linha.strip().startswith('**') and linha.strip().endswith('**'):
+                # Remove os asteriscos e formata como título
+                titulo = linha.strip()[2:-2]
+                c.setFont("Helvetica-Bold", 12)
+                if y < margem_bottom + altura_linha * 2:
+                    c.showPage()
+                    y = altura - margem_top
+                c.drawString(margem_esq, y, titulo)
+                c.setFont("Helvetica", 11)
+                y -= altura_linha * 1.5
+                continue
+            
             # Quebra o parágrafo em linhas
-            palavras = paragrafo.split()
-            linhas = []
+            palavras = linha.split()
+            linhas_formatadas = []
             linha_atual = []
             
             for palavra in palavras:
@@ -263,28 +299,28 @@ def gerar_pdf_simplificado(texto, filename="documento_simplificado.pdf"):
                     linha_atual.append(palavra)
                 else:
                     if linha_atual:
-                        linhas.append(' '.join(linha_atual))
+                        linhas_formatadas.append(' '.join(linha_atual))
                         linha_atual = [palavra]
                     else:
-                        linhas.append(palavra)
+                        linhas_formatadas.append(palavra)
             
             if linha_atual:
-                linhas.append(' '.join(linha_atual))
+                linhas_formatadas.append(' '.join(linha_atual))
             
             # Desenha as linhas
-            for linha in linhas:
+            for linha_formatada in linhas_formatadas:
                 if y < margem_bottom + altura_linha:
                     c.showPage()
                     y = altura - margem_top
                     c.setFont("Helvetica", 11)
                 
-                c.drawString(margem_esq, y, linha)
+                c.drawString(margem_esq, y, linha_formatada)
                 y -= altura_linha
         
         # Rodapé
         c.setFont("Helvetica", 8)
         c.setFillColorRGB(0.6, 0.6, 0.6)
-        c.drawString(margem_esq, 30, "Documento processado pelo Simplificador de Textos Jurídicos")
+        c.drawString(margem_esq, 30, "Processado pelo Sistema de Linguagem Simples - INOVASSOL")
         
         c.save()
         return output_path
