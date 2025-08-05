@@ -25,8 +25,8 @@ app.secret_key = os.getenv("SECRET_KEY", os.urandom(24))
 logging.basicConfig(level=logging.INFO)
 
 # --- Configurações ---
-CLAUDE_API_KEY = os.getenv("ANTHROPIC_API_KEY")
-CLAUDE_API_URL = "https://api.anthropic.com/v1/messages"
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
 ALLOWED_EXTENSIONS = {'pdf'}
 TEMP_DIR = tempfile.gettempdir()
@@ -196,46 +196,60 @@ def extrair_texto_pdf(pdf_bytes):
     
     return texto
 
-def simplificar_com_claude(texto, max_retries=3):
-    """Chama a API do Claude com retry e melhor tratamento de erros"""
+def simplificar_com_gemini(texto, max_retries=3):
+    """Chama a API do Gemini com retry e melhor tratamento de erros"""
     # Limita o tamanho do texto para evitar tokens excessivos
     if len(texto) > 15000:
         texto = texto[:15000] + "\n\n[Texto truncado devido ao tamanho...]"
     
     headers = {
-        "x-api-key": CLAUDE_API_KEY,
-        "anthropic-version": "2023-06-01",
-        "content-type": "application/json"
+        "Content-Type": "application/json",
+        "X-goog-api-key": GEMINI_API_KEY
     }
     
+    # Constrói o prompt completo
+    prompt_completo = PROMPT_SIMPLIFICACAO + texto
+    
     payload = {
-        "model": "claude-3-opus-20240229",
-        "max_tokens": 3000,  # Aumentado para acomodar a resposta em dois formatos
-        "temperature": 0.2,  # Ainda mais consistência para textos jurídicos
-        "messages": [{
-            "role": "user", 
-            "content": PROMPT_SIMPLIFICACAO + texto
-        }]
+        "contents": [
+            {
+                "parts": [
+                    {
+                        "text": prompt_completo
+                    }
+                ]
+            }
+        ],
+        "generationConfig": {
+            "temperature": 0.2,
+            "maxOutputTokens": 3000,
+            "topP": 0.8,
+            "topK": 10
+        }
     }
     
     for attempt in range(max_retries):
         try:
             start_time = time.time()
             response = requests.post(
-                CLAUDE_API_URL, 
+                GEMINI_API_URL, 
                 headers=headers, 
                 json=payload, 
-                timeout=120  # Aumentado para 2 minutos
+                timeout=120
             )
             response.raise_for_status()
             
             data = response.json()
             elapsed = round(time.time() - start_time, 2)
             
-            logging.info(f"Claude API - Sucesso em {elapsed}s | Tokens: ~{len(texto)//4}")
+            logging.info(f"Gemini API - Sucesso em {elapsed}s | Caracteres: {len(texto)}")
             
-            texto_simplificado = data["content"][0]["text"]
-            return texto_simplificado, None
+            # Extrai o texto da resposta do Gemini
+            if "candidates" in data and len(data["candidates"]) > 0:
+                texto_simplificado = data["candidates"][0]["content"]["parts"][0]["text"]
+                return texto_simplificado, None
+            else:
+                return None, "Resposta vazia do Gemini"
             
         except requests.exceptions.Timeout:
             if attempt < max_retries - 1:
@@ -245,14 +259,16 @@ def simplificar_com_claude(texto, max_retries=3):
             
         except requests.exceptions.HTTPError as e:
             if e.response.status_code == 429:
-                return None, "Limite de taxa da API excedido. Tente novamente mais tarde."
+                return None, "Limite de requisições excedido. Tente novamente mais tarde."
             elif e.response.status_code == 401:
-                return None, "Erro de autenticação. Verifique a chave da API."
+                return None, "Erro de autenticação. Verifique a chave da API do Gemini."
+            elif e.response.status_code == 400:
+                return None, "Requisição inválida. Verifique o formato do texto."
             else:
                 return None, f"Erro HTTP: {e.response.status_code}"
                 
         except Exception as e:
-            logging.error(f"Erro ao chamar Claude (tentativa {attempt+1}): {e}")
+            logging.error(f"Erro ao chamar Gemini (tentativa {attempt+1}): {e}")
             if attempt < max_retries - 1:
                 time.sleep(1)
                 continue
@@ -401,7 +417,7 @@ def processar():
         if len(texto_original) < 10:
             return jsonify({"erro": "PDF não contém texto suficiente para processar"}), 400
         
-        texto_simplificado, erro = simplificar_com_claude(texto_original)
+        texto_simplificado, erro = simplificar_com_gemini(texto_original)
         
         if erro:
             return jsonify({"erro": erro}), 500
@@ -442,7 +458,7 @@ def processar_texto():
         if len(texto) > 10000:
             return jsonify({"erro": "Texto muito longo. Máximo: 10.000 caracteres"}), 400
         
-        texto_simplificado, erro = simplificar_com_claude(texto)
+        texto_simplificado, erro = simplificar_com_gemini(texto)
         
         if erro:
             return jsonify({"erro": erro}), 500
@@ -483,7 +499,7 @@ def health():
     return jsonify({
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
-        "api_configured": bool(CLAUDE_API_KEY)
+        "api_configured": bool(GEMINI_API_KEY)
     })
 
 @app.errorhandler(404)
