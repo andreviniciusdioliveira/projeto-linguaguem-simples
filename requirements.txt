@@ -24,3 +24,5 @@ python-dotenv==1.0.1
 # Cache (opcional, para futuras melhorias)
 # redis==5.0.1
 # Flask-Caching==2.1.0
+
+# Nota: A API do Gemini não requer SDK específico, apenas requests
