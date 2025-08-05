@@ -159,6 +159,16 @@ def allowed_file(filename):
 def extrair_texto_pdf(pdf_bytes):
     """Extrai texto de PDF com melhor tratamento de erros e OCR otimizado"""
     texto = ""
+    ocr_disponivel = True
+    
+    # Verifica se o Tesseract está disponível
+    try:
+        import subprocess
+        subprocess.run(['tesseract', '--version'], capture_output=True, check=True)
+    except:
+        ocr_disponivel = False
+        logging.warning("Tesseract não está instalado. OCR desabilitado.")
+    
     try:
         with fitz.open(stream=pdf_bytes, filetype="pdf") as doc:
             total_pages = len(doc)
@@ -169,8 +179,8 @@ def extrair_texto_pdf(pdf_bytes):
                     # Primeiro tenta extrair texto normal
                     conteudo = page.get_text()
                     
-                    # Se não há texto, tenta OCR
-                    if not conteudo.strip():
+                    # Se não há texto e OCR está disponível, tenta OCR
+                    if not conteudo.strip() and ocr_disponivel:
                         logging.info(f"Aplicando OCR na página {i+1}")
                         pix = page.get_pixmap(dpi=150)  # DPI reduzido para performance
                         img = Image.open(io.BytesIO(pix.tobytes()))
@@ -178,6 +188,9 @@ def extrair_texto_pdf(pdf_bytes):
                         # Configurações otimizadas do Tesseract
                         custom_config = r'--oem 3 --psm 6 -l por'
                         conteudo = pytesseract.image_to_string(img, config=custom_config)
+                    elif not conteudo.strip():
+                        logging.warning(f"Página {i+1} não contém texto e OCR não está disponível")
+                        conteudo = "[Página sem texto - OCR não disponível]"
                     
                     texto += f"\n--- Página {i+1} ---\n{conteudo}\n"
                     
