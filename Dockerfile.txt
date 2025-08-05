@@ -1,10 +1,11 @@
 # Use Python 3.11 slim image
 FROM python:3.11-slim
 
-# Install system dependencies
+# Install system dependencies including Tesseract
 RUN apt-get update && apt-get install -y \
     tesseract-ocr \
     tesseract-ocr-por \
+    tesseract-ocr-eng \
     poppler-utils \
     libgomp1 \
     wget \
@@ -22,8 +23,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application files
 COPY . .
 
-# Create static directory if it doesn't exist
-RUN mkdir -p static
+# Create directories
+RUN mkdir -p static templates
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
