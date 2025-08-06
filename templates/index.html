@@ -53,6 +53,23 @@
             padding: 2rem;
         }
 
+        /* Logo */
+        .logo-container {
+            text-align: center;
+            margin-bottom: 1.5rem;
+            animation: fadeInDown 0.8s ease;
+        }
+        
+        .logo {
+            max-width: 200px;
+            height: auto;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+        }
+        
+        body.dark-mode .logo {
+            filter: drop-shadow(0 2px 4px rgba(255,255,255,0.1));
+        }
+
         /* Header */
         .header {
             text-align: center;
@@ -671,6 +688,9 @@
     <div class="container">
         <!-- Header -->
         <header class="header">
+            <div class="logo-container">
+                <img src="/static/logoinovassol.jpg" alt="INOVASSOL - Centro de Inovação" class="logo" onerror="this.style.display='none'">
+            </div>
             <h1>⚖️ Linguagem Simples nos Documentos Jurídicos</h1>
             <p>Transforme documentos complexos em linguagem clara e acessível</p>
             <span class="badge">Desenvolvido por INOVASSOL - Centro de Inovação</span>
