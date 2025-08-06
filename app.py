@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, send_file, jsonify, session
+from flask import Flask, render_template, request, send_file, jsonify, session, send_from_directory
 from werkzeug.utils import secure_filename
 import fitz
 import pytesseract
@@ -513,6 +513,11 @@ def download_pdf():
     except Exception as e:
         logging.error(f"Erro ao fazer download: {e}")
         return jsonify({"erro": "Erro ao baixar o arquivo"}), 500
+
+@app.route("/static/<path:filename>")
+def serve_static(filename):
+    """Serve arquivos estáticos"""
+    return send_from_directory('static', filename)
 
 @app.route("/health")
 def health():
