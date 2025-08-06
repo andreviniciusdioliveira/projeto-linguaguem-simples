@@ -768,10 +768,35 @@
                 <button class="button" onclick="copyText()">
                     <span>📋</span> Copiar Texto
                 </button>
-                <button class="button" onclick="speakText()" id="speakBtn">
-                    <span>🔊</span> Ler em Voz Alta
-                </button>
             </div>
+        </div>
+    </div>
+
+    <!-- Avatar Assistant -->
+    <div class="avatar-container">
+        <div class="avatar-wrapper" onclick="toggleAudioControls()">
+            <div class="avatar-icon">🤖</div>
+            <div class="speaking-indicator" id="speakingIndicator">
+                <span style="color: white;">🔊</span>
+            </div>
+            <div class="avatar-tooltip">Clique para ouvir o texto</div>
+        </div>
+    </div>
+    
+    <!-- Audio Controls -->
+    <div class="audio-controls" id="audioControls">
+        <h4>Assistente de Voz</h4>
+        <button class="audio-control-btn" onclick="startReading()">▶️ Iniciar Leitura</button>
+        <button class="audio-control-btn" onclick="pauseReading()">⏸️ Pausar</button>
+        <button class="audio-control-btn stop" onclick="stopReading()">⏹️ Parar</button>
+        <div class="speed-control">
+            <label>Velocidade:</label>
+            <select id="speedControl" onchange="updateSpeed()">
+                <option value="0.75">Devagar</option>
+                <option value="1" selected>Normal</option>
+                <option value="1.25">Rápido</option>
+                <option value="1.5">Muito Rápido</option>
+            </select>
         </div>
     </div>
 
@@ -1121,43 +1146,6 @@
                     document.body.removeChild(textarea);
                     showToast('Texto copiado!', 'success');
                 });
-        }
-
-        // Text to speech
-        function speakText() {
-            const text = document.getElementById('outputText').textContent;
-            const btn = document.getElementById('speakBtn');
-            
-            if (!text) {
-                showToast('Nenhum texto para ler', 'warning');
-                return;
-            }
-            
-            if (isSpeaking) {
-                speechSynthesis.cancel();
-                btn.innerHTML = '<span>🔊</span> Ler em Voz Alta';
-                isSpeaking = false;
-                return;
-            }
-            
-            const utterance = new SpeechSynthesisUtterance(text);
-            utterance.lang = 'pt-BR';
-            utterance.rate = 0.9;
-            
-            utterance.onend = () => {
-                btn.innerHTML = '<span>🔊</span> Ler em Voz Alta';
-                isSpeaking = false;
-            };
-            
-            utterance.onerror = () => {
-                showToast('Erro ao ler o texto', 'error');
-                btn.innerHTML = '<span>🔊</span> Ler em Voz Alta';
-                isSpeaking = false;
-            };
-            
-            speechSynthesis.speak(utterance);
-            btn.innerHTML = '<span>⏹️</span> Parar Leitura';
-            isSpeaking = true;
         }
 
         // Keyboard shortcuts
