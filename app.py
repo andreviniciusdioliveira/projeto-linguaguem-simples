@@ -158,11 +158,6 @@ Por favor, apresente o resultado no seguinte formato:
 • Próximos passos: [se houver]
 • Prazos: [se houver]
 
-**ALERTA FINAL:** 
-- SEMPRE verifique o DISPOSITIVO final da sentença
-- NUNCA se baseie apenas no relatório ou argumentos das partes
-- Em caso de dúvida sobre quem ganhou, procure por "CONDENO" e veja quem foi condenado
-
 **TEXTO ORIGINAL A SER SIMPLIFICADO:**
 """
 
