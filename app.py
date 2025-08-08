@@ -19,6 +19,8 @@ import hashlib
 import tempfile
 import threading
 import queue
+import json
+import re
 
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", os.urandom(24))
@@ -26,7 +28,29 @@ logging.basicConfig(level=logging.INFO)
 
 # --- Configurações ---
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
+
+# Modelos Gemini disponíveis (do mais barato/rápido ao mais caro/potente)
+GEMINI_MODELS = [
+    {
+        "name": "gemini-1.5-flash-8b",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-8b:generateContent",
+        "max_tokens": 8192,
+        "priority": 1
+    },
+    {
+        "name": "gemini-1.5-flash",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent",
+        "max_tokens": 32000,
+        "priority": 2
+    },
+    {
+        "name": "gemini-2.0-flash-exp",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent",
+        "max_tokens": 40000,
+        "priority": 3
+    }
+]
+
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
 ALLOWED_EXTENSIONS = {'pdf'}
 TEMP_DIR = tempfile.gettempdir()
@@ -36,7 +60,13 @@ request_counts = {}
 RATE_LIMIT = 10  # requisições por minuto
 cleanup_lock = threading.Lock()
 
-# Limpar contadores antigos a cada 5 minutos
+# Cache de resultados processados
+results_cache = {}
+CACHE_EXPIRATION = 3600  # 1 hora
+
+# Estatísticas de uso dos modelos
+model_usage_stats = {model["name"]: {"attempts": 0, "successes": 0, "failures": 0} for model in GEMINI_MODELS}
+
 def cleanup_old_requests():
     with cleanup_lock:
         now = datetime.now()
@@ -70,106 +100,91 @@ def rate_limit(f):
         return f(*args, **kwargs)
     return decorated_function
 
-# Prompt otimizado para simplificação
+# Prompt otimizado e estruturado
 PROMPT_SIMPLIFICACAO = """**Papel:** Você é um especialista em linguagem simples aplicada ao Poder Judiciário, com experiência em transformar textos jurídicos complexos em comunicações claras e acessíveis.
 
-**ATENÇÃO CRÍTICA - IDENTIFICAÇÃO DO RESULTADO:**
-1. SEMPRE procure pela seção "DISPOSITIVO" ou "DECIDE" - é onde está a decisão real do juiz
-2. IGNORE argumentos das partes no "RELATÓRIO" - isso NÃO é a decisão
-3. Palavras-chave da decisão FAVORÁVEL: "JULGO PROCEDENTE", "CONDENO o réu/requerido", "DEFIRO"
-4. Palavras-chave da decisão DESFAVORÁVEL: "JULGO IMPROCEDENTE", "CONDENO o autor/requerente", "INDEFIRO"
-5. Palavras-chave de decisão PARCIAL: "JULGO PARCIALMENTE PROCEDENTE", "PROCEDENTE EM PARTE"
-6. NUNCA confunda o relatório dos argumentos com a decisão final
+**ESTRUTURA DE ANÁLISE OBRIGATÓRIA:**
 
-**Objetivo:** Reescrever sentenças, despachos, decisões e acórdãos jurídicos em linguagem simples, mantendo o conteúdo jurídico essencial, mas tornando-o mais fácil de entender para qualquer cidadão.
+## 1. IDENTIFICAÇÃO DO DOCUMENTO
+- Tipo: [Sentença/Despacho/Decisão/Acórdão]
+- Número do processo: [identificar]
+- Partes envolvidas: [Autor x Réu]
+- Assunto principal: [identificar]
 
-**Diretrizes obrigatórias:**
-1. **Empatia:** considere quem vai ler; explique termos técnicos ou siglas quando necessário.
-2. **Hierarquia da informação:** apresente primeiro as informações principais e depois as complementares.
-3. **Palavras conhecidas:** substitua termos jurídicos difíceis por equivalentes comuns (use o mini dicionário abaixo).
-4. **Palavras concretas:** use verbos de ação e substantivos concretos; evite abstrações excessivas.
-5. **Frases curtas:** prefira frases com até 20 a 25 palavras.
-6. **Ordem direta:** siga a estrutura sujeito + verbo + complemento, evitando voz passiva desnecessária.
-7. **Clareza:** elimine jargões, expressões rebuscadas e termos em latim sem explicação.
+## 2. ANÁLISE DO RESULTADO (MAIS IMPORTANTE)
+**ATENÇÃO:** Procure SEMPRE pela seção "DISPOSITIVO", "DECIDE", "ANTE O EXPOSTO" ou "DIANTE DO EXPOSTO"
 
-**PROCESSO DE ANÁLISE (SIGA SEMPRE ESTA ORDEM):**
-1. Localize a seção "DISPOSITIVO", "DECIDE", "ANTE O EXPOSTO" ou "DIANTE DO EXPOSTO"
-2. Identifique se o juiz JULGOU PROCEDENTE, IMPROCEDENTE ou PARCIALMENTE PROCEDENTE
-3. Verifique QUEM FOI CONDENADO (se foi o réu/requerido = autor ganhou; se foi o autor = autor perdeu)
-4. Liste os valores e obrigações determinadas
-5. Só então elabore o resumo
+### Identificação do Vencedor:
+- ✅ AUTOR GANHOU se encontrar: "JULGO PROCEDENTE", "CONDENO o réu/requerido", "DEFIRO"
+- ❌ AUTOR PERDEU se encontrar: "JULGO IMPROCEDENTE", "CONDENO o autor/requerente", "INDEFIRO"  
+- ⚠️ PARCIAL se encontrar: "JULGO PARCIALMENTE PROCEDENTE"
 
-**Mini Dicionário Jurídico Simplificado (substituições automáticas):**
-* Autos → Processo
-* Carta Magna → Constituição Federal
-* Conciliação infrutífera → Não houve acordo
-* Concluso → Aguardando decisão do juiz
-* Dano emergente → Prejuízo imediato
-* Data vênia → Com todo respeito
-* Dilação → Prorrogação ou adiamento
-* Egrégio → Respeitável
-* Exordial → Petição inicial (documento que inicia o processo)
-* Extra petita → Diferente do que foi pedido
-* Impugnar → Contestar ou se opor
-* Inaudita altera pars → Sem ouvir a outra parte
-* Indubitável → Evidente
-* Intempestivo → Fora do prazo
-* Jurisprudência → Decisões anteriores sobre o tema
-* Não obstante → Apesar de
-* Óbice → Impedimento
-* Outrossim → Além disso
-* Pleitear / Postular → Pedir
-* Preliminares → Alegações iniciais
-* Pugnar → Defender
-* Sucumbência → Perda do processo
-* Ultra petita → Mais do que foi pedido
-* Procedente → Pedido aceito/aprovado
-* Improcedente → Pedido negado/rejeitado
-* Condenar → Obrigar a fazer ou pagar algo
-* Deferir → Aprovar/conceder
-* Indeferir → Negar/rejeitar
+## 3. FORMATAÇÃO DA RESPOSTA
 
-**ÍCONES VISUAIS (use sempre no início do resumo):**
-Use estes ícones para indicar visualmente o resultado da decisão:
+### 📊 RESUMO EXECUTIVO
+[Use sempre um dos ícones abaixo]
+✅ **VITÓRIA TOTAL** - Você ganhou completamente a causa
+❌ **DERROTA** - Você perdeu a causa
+⚠️ **VITÓRIA PARCIAL** - Você ganhou parte do que pediu
+⏳ **AGUARDANDO** - Ainda não há decisão final
+📋 **ANDAMENTO** - Apenas um despacho processual
 
-✅ **DECISÃO FAVORÁVEL** - Quando a parte GANHOU a causa (procedente/deferido)
-❌ **DECISÃO DESFAVORÁVEL** - Quando a parte PERDEU a causa (improcedente/indeferido)
-⚠️ **DECISÃO PARCIAL** - Quando a parte ganhou PARCIALMENTE (procedente em parte)
-⏳ **AGUARDANDO DECISÃO** - Quando ainda não há decisão final
-📋 **DESPACHO/ANDAMENTO** - Para despachos de mero expediente
-🤝 **ACORDO REALIZADO** - Quando houve acordo entre as partes
-⚖️ **SENTENÇA** - Para indicar que é uma sentença judicial
+**Em uma frase:** [Explicar o resultado em linguagem muito simples]
 
-**Formato de saída:**
-Por favor, apresente o resultado no seguinte formato:
+### 📑 O QUE ACONTECEU
+[Explicar em 3-4 linhas o contexto do processo]
 
-**RESUMO EM LINGUAGEM SIMPLES:**
+### ⚖️ O QUE O JUIZ DECIDIU
+[Detalhar a decisão em linguagem simples, usando parágrafos curtos]
 
-[ÍCONE] **[RESULTADO EM DESTAQUE]**
+### 💰 VALORES E OBRIGAÇÕES
+• Valor da causa: R$ [valor]
+• Valores a receber: R$ [detalhar]
+• Valores a pagar: R$ [detalhar]
+• Honorários: [percentual e valor]
+• Custas processuais: [quem paga]
 
-[Explicação breve do que a decisão significa, começando sempre com: "Você ganhou", "Você perdeu", "Você ganhou parcialmente", etc., quando aplicável]
+### 📅 PRÓXIMOS PASSOS
+1. [Ação necessária com prazo]
+2. [Segunda ação se houver]
+3. [Orientação sobre recursos]
 
-**VERSÃO SIMPLIFICADA OFICIAL:**
-[Texto em linguagem simples, mantendo tom formal e respeitoso]
+### ⚠️ ATENÇÃO IMPORTANTE
+[Alertas sobre prazos críticos ou consequências]
 
-**INFORMAÇÕES IMPORTANTES:**
-• Valor da causa: [se houver]
-• Valores a receber/pagar: [detalhar todos]
-• Próximos passos: [se houver]
-• Prazos: [se houver]
+### 💡 DICA PRÁTICA
+[Sugestão de ação imediata que a parte pode tomar]
 
-**TEXTO ORIGINAL A SER SIMPLIFICADO:**
+**Mini Dicionário dos Termos Usados:**
+[Listar apenas os termos jurídicos que aparecem no texto com explicação simples]
+
+---
+*Documento processado em: [data/hora]*
+*Este é um resumo simplificado. Consulte seu advogado para orientações específicas.*
+
+**REGRAS DE SIMPLIFICAÇÃO:**
+1. Use frases com máximo 20 palavras
+2. Substitua jargões por palavras comuns
+3. Explique siglas na primeira vez que aparecem
+4. Use exemplos concretos quando possível
+5. Mantenha tom respeitoso mas acessível
+6. Destaque informações críticas com formatação
+
+**TEXTO ORIGINAL A SIMPLIFICAR:**
 """
-
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def extrair_texto_pdf(pdf_bytes):
     """Extrai texto de PDF com melhor tratamento de erros e OCR otimizado"""
     texto = ""
+    metadados = {
+        "total_paginas": 0,
+        "tem_texto": False,
+        "usou_ocr": False,
+        "paginas_com_ocr": []
+    }
+    
     ocr_disponivel = True
     
-    # Verifica se o Tesseract está disponível
     try:
         import subprocess
         subprocess.run(['tesseract', '--version'], capture_output=True, check=True)
@@ -180,6 +195,7 @@ def extrair_texto_pdf(pdf_bytes):
     try:
         with fitz.open(stream=pdf_bytes, filetype="pdf") as doc:
             total_pages = len(doc)
+            metadados["total_paginas"] = total_pages
             logging.info(f"Processando PDF com {total_pages} páginas")
             
             for i, page in enumerate(doc):
@@ -187,10 +203,16 @@ def extrair_texto_pdf(pdf_bytes):
                     # Primeiro tenta extrair texto normal
                     conteudo = page.get_text()
                     
+                    if conteudo.strip():
+                        metadados["tem_texto"] = True
+                    
                     # Se não há texto e OCR está disponível, tenta OCR
                     if not conteudo.strip() and ocr_disponivel:
                         logging.info(f"Aplicando OCR na página {i+1}")
-                        pix = page.get_pixmap(dpi=150)  # DPI reduzido para performance
+                        metadados["usou_ocr"] = True
+                        metadados["paginas_com_ocr"].append(i+1)
+                        
+                        pix = page.get_pixmap(dpi=150)
                         img = Image.open(io.BytesIO(pix.tobytes()))
                         
                         # Configurações otimizadas do Tesseract
@@ -206,7 +228,6 @@ def extrair_texto_pdf(pdf_bytes):
                     logging.error(f"Erro ao processar página {i+1}: {e}")
                     texto += f"\n--- Erro ao processar página {i+1} ---\n"
             
-            # Limpa o texto
             texto = texto.strip()
             if not texto:
                 raise ValueError("Nenhum texto foi extraído do PDF")
@@ -215,88 +236,190 @@ def extrair_texto_pdf(pdf_bytes):
         logging.error(f"Erro ao extrair texto do PDF: {e}")
         raise
     
-    return texto
+    return texto, metadados
+
+def analisar_complexidade_texto(texto):
+    """Analisa a complexidade do texto para escolher o modelo apropriado"""
+    complexidade = {
+        "caracteres": len(texto),
+        "palavras": len(texto.split()),
+        "termos_tecnicos": 0,
+        "citacoes": 0,
+        "nivel": "baixo"  # baixo, médio, alto
+    }
+    
+    # Termos técnicos comuns em documentos jurídicos
+    termos_tecnicos = [
+        "exordial", "sucumbência", "litispendência", "coisa julgada",
+        "tutela antecipada", "liminar", "agravo", "embargo", "mandamus",
+        "quantum", "extra petita", "ultra petita", "iura novit curia"
+    ]
+    
+    texto_lower = texto.lower()
+    for termo in termos_tecnicos:
+        complexidade["termos_tecnicos"] += texto_lower.count(termo)
+    
+    # Contar citações de leis/artigos
+    complexidade["citacoes"] = len(re.findall(r'art\.\s*\d+|artigo\s*\d+|§\s*\d+|lei\s*n[º°]\s*[\d\.]+', texto_lower))
+    
+    # Determinar nível de complexidade
+    if complexidade["caracteres"] > 10000 or complexidade["termos_tecnicos"] > 20 or complexidade["citacoes"] > 15:
+        complexidade["nivel"] = "alto"
+    elif complexidade["caracteres"] > 5000 or complexidade["termos_tecnicos"] > 10 or complexidade["citacoes"] > 8:
+        complexidade["nivel"] = "médio"
+    
+    return complexidade
+
+def escolher_modelo_gemini(complexidade, tentativa=0):
+    """Escolhe o modelo Gemini mais apropriado baseado na complexidade"""
+    if complexidade["nivel"] == "baixo" and tentativa == 0:
+        return GEMINI_MODELS[0]  # Modelo mais leve
+    elif complexidade["nivel"] == "médio" or tentativa == 1:
+        return GEMINI_MODELS[1]  # Modelo intermediário
+    else:
+        return GEMINI_MODELS[2] if tentativa < len(GEMINI_MODELS) else GEMINI_MODELS[-1]  # Modelo mais potente
 
 def simplificar_com_gemini(texto, max_retries=3):
-    """Chama a API do Gemini com retry e melhor tratamento de erros"""
-    # Limita o tamanho do texto para evitar tokens excessivos
+    """Chama a API do Gemini com fallback automático entre modelos"""
+    
+    # Verificar cache
+    texto_hash = hashlib.md5(texto.encode()).hexdigest()
+    if texto_hash in results_cache:
+        cache_entry = results_cache[texto_hash]
+        if time.time() - cache_entry["timestamp"] < CACHE_EXPIRATION:
+            logging.info(f"Resultado encontrado no cache para hash {texto_hash[:8]}")
+            return cache_entry["result"], None
+    
+    # Analisar complexidade
+    complexidade = analisar_complexidade_texto(texto)
+    logging.info(f"Complexidade do texto: {complexidade}")
+    
+    # Preparar o texto (truncar se necessário)
+    texto_truncado = texto
     if len(texto) > 15000:
-        texto = texto[:15000] + "\n\n[Texto truncado devido ao tamanho...]"
+        texto_truncado = texto[:15000] + "\n\n[Texto truncado devido ao tamanho...]"
+    
+    prompt_completo = PROMPT_SIMPLIFICACAO + texto_truncado
     
     headers = {
         "Content-Type": "application/json",
         "X-goog-api-key": GEMINI_API_KEY
     }
     
-    # Constrói o prompt completo
-    prompt_completo = PROMPT_SIMPLIFICACAO + texto
+    errors = []
     
-    payload = {
-        "contents": [
-            {
-                "parts": [
-                    {
-                        "text": prompt_completo
-                    }
-                ]
-            }
-        ],
-        "generationConfig": {
-            "temperature": 0.2,
-            "maxOutputTokens": 3000,
-            "topP": 0.8,
-            "topK": 10
+    # Tentar com diferentes modelos
+    for tentativa in range(len(GEMINI_MODELS)):
+        modelo = escolher_modelo_gemini(complexidade, tentativa)
+        logging.info(f"Tentativa {tentativa + 1}: Usando modelo {modelo['name']}")
+        
+        model_usage_stats[modelo["name"]]["attempts"] += 1
+        
+        # Ajustar tokens baseado no modelo
+        max_tokens = min(3000, modelo["max_tokens"] // 2)
+        
+        payload = {
+            "contents": [
+                {
+                    "parts": [
+                        {
+                            "text": prompt_completo
+                        }
+                    ]
+                }
+            ],
+            "generationConfig": {
+                "temperature": 0.3,
+                "maxOutputTokens": max_tokens,
+                "topP": 0.8,
+                "topK": 10
+            },
+            "safetySettings": [
+                {
+                    "category": "HARM_CATEGORY_HARASSMENT",
+                    "threshold": "BLOCK_NONE"
+                },
+                {
+                    "category": "HARM_CATEGORY_HATE_SPEECH",
+                    "threshold": "BLOCK_NONE"
+                },
+                {
+                    "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+                    "threshold": "BLOCK_NONE"
+                },
+                {
+                    "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
+                    "threshold": "BLOCK_NONE"
+                }
+            ]
         }
-    }
-    
-    for attempt in range(max_retries):
-        try:
-            start_time = time.time()
-            response = requests.post(
-                GEMINI_API_URL, 
-                headers=headers, 
-                json=payload, 
-                timeout=120
-            )
-            response.raise_for_status()
-            
-            data = response.json()
-            elapsed = round(time.time() - start_time, 2)
-            
-            logging.info(f"Gemini API - Sucesso em {elapsed}s | Caracteres: {len(texto)}")
-            
-            # Extrai o texto da resposta do Gemini
-            if "candidates" in data and len(data["candidates"]) > 0:
-                texto_simplificado = data["candidates"][0]["content"]["parts"][0]["text"]
-                return texto_simplificado, None
-            else:
-                return None, "Resposta vazia do Gemini"
-            
-        except requests.exceptions.Timeout:
-            if attempt < max_retries - 1:
-                time.sleep(2 ** attempt)  # Backoff exponencial
-                continue
-            return None, "Timeout ao processar. O texto pode ser muito longo."
-            
-        except requests.exceptions.HTTPError as e:
-            if e.response.status_code == 429:
-                return None, "Limite de requisições excedido. Tente novamente mais tarde."
-            elif e.response.status_code == 401:
-                return None, "Erro de autenticação. Verifique a chave da API do Gemini."
-            elif e.response.status_code == 400:
-                return None, "Requisição inválida. Verifique o formato do texto."
-            else:
-                return None, f"Erro HTTP: {e.response.status_code}"
+        
+        for retry in range(max_retries):
+            try:
+                start_time = time.time()
+                response = requests.post(
+                    modelo["url"],
+                    headers=headers,
+                    json=payload,
+                    timeout=120
+                )
                 
-        except Exception as e:
-            logging.error(f"Erro ao chamar Gemini (tentativa {attempt+1}): {e}")
-            if attempt < max_retries - 1:
-                time.sleep(1)
-                continue
-            return None, "Erro ao processar texto. Verifique os logs."
+                if response.status_code == 200:
+                    data = response.json()
+                    elapsed = round(time.time() - start_time, 2)
+                    
+                    if "candidates" in data and len(data["candidates"]) > 0:
+                        texto_simplificado = data["candidates"][0]["content"]["parts"][0]["text"]
+                        
+                        # Adicionar ao cache
+                        results_cache[texto_hash] = {
+                            "result": texto_simplificado,
+                            "timestamp": time.time(),
+                            "modelo": modelo["name"]
+                        }
+                        
+                        model_usage_stats[modelo["name"]]["successes"] += 1
+                        logging.info(f"Sucesso com {modelo['name']} em {elapsed}s")
+                        
+                        return texto_simplificado, None
+                    else:
+                        errors.append(f"{modelo['name']}: Resposta vazia")
+                        
+                elif response.status_code == 429:
+                    # Rate limit - tentar próximo modelo
+                    errors.append(f"{modelo['name']}: Limite de requisições excedido")
+                    model_usage_stats[modelo["name"]]["failures"] += 1
+                    break  # Sair do loop de retry, tentar próximo modelo
+                    
+                elif response.status_code == 400:
+                    # Bad request - pode ser tokens demais
+                    errors.append(f"{modelo['name']}: Requisição inválida (possível excesso de tokens)")
+                    model_usage_stats[modelo["name"]]["failures"] += 1
+                    break
+                    
+                else:
+                    errors.append(f"{modelo['name']}: Erro HTTP {response.status_code}")
+                    
+            except requests.exceptions.Timeout:
+                errors.append(f"{modelo['name']}: Timeout")
+                if retry < max_retries - 1:
+                    time.sleep(2 ** retry)
+                    
+            except Exception as e:
+                errors.append(f"{modelo['name']}: {str(e)}")
+                logging.error(f"Erro com {modelo['name']}: {e}")
+        
+        # Pequena pausa antes de tentar próximo modelo
+        if tentativa < len(GEMINI_MODELS) - 1:
+            time.sleep(1)
+    
+    # Se todos os modelos falharam
+    error_summary = " | ".join(errors)
+    logging.error(f"Todos os modelos falharam: {error_summary}")
+    return None, f"Erro ao processar. Tentativas: {error_summary}"
 
-def gerar_pdf_simplificado(texto, filename="documento_simplificado.pdf"):
-    """Gera PDF com melhor formatação e suporte a UTF-8"""
+def gerar_pdf_simplificado(texto, metadados=None, filename="documento_simplificado.pdf"):
+    """Gera PDF com melhor formatação e metadados"""
     output_path = os.path.join(TEMP_DIR, filename)
     
     try:
@@ -316,27 +439,34 @@ def gerar_pdf_simplificado(texto, filename="documento_simplificado.pdf"):
         
         y = altura - margem_top
         
-        # Título
+        # Cabeçalho
         c.setFont("Helvetica-Bold", 16)
         c.drawString(margem_esq, y, "Documento em Linguagem Simples")
         y -= 30
         
-        # Data
-        c.setFont("Helvetica", 10)
+        # Informações do processamento
+        c.setFont("Helvetica", 9)
         c.setFillColorRGB(0.5, 0.5, 0.5)
         c.drawString(margem_esq, y, f"Gerado em: {datetime.now().strftime('%d/%m/%Y às %H:%M')}")
-        y -= 20
+        y -= 15
+        
+        if metadados:
+            if metadados.get("modelo"):
+                c.drawString(margem_esq, y, f"Processado com: {metadados['modelo']}")
+                y -= 15
+            if metadados.get("paginas"):
+                c.drawString(margem_esq, y, f"Páginas do original: {metadados['paginas']}")
+                y -= 15
         
         # Linha separadora
         c.setStrokeColorRGB(0.8, 0.8, 0.8)
         c.line(margem_esq, y, largura - margem_dir, y)
         y -= 20
         
-        # Texto principal
+        # Processar texto com formatação especial para ícones
         c.setFont("Helvetica", 11)
         c.setFillColorRGB(0, 0, 0)
         
-        # Processa o texto separando por seções
         linhas = texto.split('\n')
         
         for linha in linhas:
@@ -344,9 +474,21 @@ def gerar_pdf_simplificado(texto, filename="documento_simplificado.pdf"):
                 y -= altura_linha
                 continue
             
-            # Detecta títulos de seção
+            # Detectar e formatar linhas com ícones especiais
+            if any(icon in linha for icon in ['✅', '❌', '⚠️', '📊', '📑', '⚖️', '💰', '📅', '💡']):
+                c.setFont("Helvetica-Bold", 12)
+                # Remover asteriscos do texto para PDF
+                linha_limpa = linha.replace('**', '')
+                if y < margem_bottom + altura_linha * 2:
+                    c.showPage()
+                    y = altura - margem_top
+                c.drawString(margem_esq, y, linha_limpa)
+                c.setFont("Helvetica", 11)
+                y -= altura_linha * 1.5
+                continue
+            
+            # Detectar títulos de seção
             if linha.strip().startswith('**') and linha.strip().endswith('**'):
-                # Remove os asteriscos e formata como título
                 titulo = linha.strip()[2:-2]
                 c.setFont("Helvetica-Bold", 12)
                 if y < margem_bottom + altura_linha * 2:
@@ -357,7 +499,7 @@ def gerar_pdf_simplificado(texto, filename="documento_simplificado.pdf"):
                 y -= altura_linha * 1.5
                 continue
             
-            # Quebra o parágrafo em linhas
+            # Processar linha normal com quebra
             palavras = linha.split()
             linhas_formatadas = []
             linha_atual = []
@@ -376,7 +518,6 @@ def gerar_pdf_simplificado(texto, filename="documento_simplificado.pdf"):
             if linha_atual:
                 linhas_formatadas.append(' '.join(linha_atual))
             
-            # Desenha as linhas
             for linha_formatada in linhas_formatadas:
                 if y < margem_bottom + altura_linha:
                     c.showPage()
@@ -389,7 +530,8 @@ def gerar_pdf_simplificado(texto, filename="documento_simplificado.pdf"):
         # Rodapé
         c.setFont("Helvetica", 8)
         c.setFillColorRGB(0.6, 0.6, 0.6)
-        c.drawString(margem_esq, 30, "Processado pelo Sistema de Linguagem Simples - INOVASSOL")
+        c.drawString(margem_esq, 30, "Desenvolvido pelo INOVASSOL - Centro de Inovação | Powered by Gemini AI")
+        c.drawString(largura - margem_dir - 150, 30, "Consulte seu advogado para orientações")
         
         c.save()
         return output_path
@@ -405,9 +547,8 @@ def index():
 @app.route("/processar", methods=["POST"])
 @rate_limit
 def processar():
-    """Processa upload de PDF com validações aprimoradas"""
+    """Processa upload de PDF com análise aprimorada"""
     try:
-        # Validação do arquivo
         if 'file' not in request.files:
             return jsonify({"erro": "Nenhum arquivo enviado"}), 400
             
@@ -429,33 +570,48 @@ def processar():
         # Processa o PDF
         pdf_bytes = file.read()
         
-        # Hash do arquivo para cache (futuro)
+        # Hash do arquivo para cache
         file_hash = hashlib.md5(pdf_bytes).hexdigest()
         logging.info(f"Processando arquivo: {secure_filename(file.filename)} ({size/1024:.1f}KB) - Hash: {file_hash}")
         
-        texto_original = extrair_texto_pdf(pdf_bytes)
+        # Extrair texto e metadados
+        texto_original, metadados_pdf = extrair_texto_pdf(pdf_bytes)
         
         if len(texto_original) < 10:
             return jsonify({"erro": "PDF não contém texto suficiente para processar"}), 400
         
+        # Simplificar com Gemini
         texto_simplificado, erro = simplificar_com_gemini(texto_original)
         
         if erro:
             return jsonify({"erro": erro}), 500
         
-        # Gera PDF simplificado
-        pdf_filename = f"simplificado_{file_hash[:8]}.pdf"
-        pdf_path = gerar_pdf_simplificado(texto_simplificado, pdf_filename)
+        # Preparar metadados para o PDF
+        metadados_geracao = {
+            "modelo": results_cache.get(file_hash, {}).get("modelo", "Gemini"),
+            "paginas": metadados_pdf["total_paginas"],
+            "usou_ocr": metadados_pdf["usou_ocr"]
+        }
         
-        # Salva o caminho na sessão para download posterior
+        # Gerar PDF simplificado
+        pdf_filename = f"simplificado_{file_hash[:8]}.pdf"
+        pdf_path = gerar_pdf_simplificado(texto_simplificado, metadados_geracao, pdf_filename)
+        
+        # Salvar o caminho na sessão
         session['pdf_path'] = pdf_path
         session['pdf_filename'] = pdf_filename
+        
+        # Análise adicional do resultado
+        analise = analisar_resultado_judicial(texto_simplificado)
         
         return jsonify({
             "texto": texto_simplificado,
             "caracteres_original": len(texto_original),
             "caracteres_simplificado": len(texto_simplificado),
-            "reducao_percentual": round((1 - len(texto_simplificado)/len(texto_original)) * 100, 1)
+            "reducao_percentual": round((1 - len(texto_simplificado)/len(texto_original)) * 100, 1),
+            "metadados": metadados_pdf,
+            "analise": analise,
+            "modelo_usado": metadados_geracao.get("modelo", "Gemini")
         })
         
     except Exception as e:
@@ -465,7 +621,7 @@ def processar():
 @app.route("/processar_texto", methods=["POST"])
 @rate_limit
 def processar_texto():
-    """Processa texto manual com validações"""
+    """Processa texto manual com análise aprimorada"""
     try:
         data = request.get_json()
         texto = data.get("texto", "").strip()
@@ -484,15 +640,68 @@ def processar_texto():
         if erro:
             return jsonify({"erro": erro}), 500
         
+        # Análise adicional
+        analise = analisar_resultado_judicial(texto_simplificado)
+        
         return jsonify({
             "texto": texto_simplificado,
             "caracteres_original": len(texto),
-            "caracteres_simplificado": len(texto_simplificado)
+            "caracteres_simplificado": len(texto_simplificado),
+            "reducao_percentual": round((1 - len(texto_simplificado)/len(texto)) * 100, 1),
+            "analise": analise
         })
         
     except Exception as e:
         logging.error(f"Erro ao processar texto: {e}")
         return jsonify({"erro": "Erro ao processar o texto"}), 500
+
+def analisar_resultado_judicial(texto):
+    """Analisa o texto simplificado para extrair informações estruturadas"""
+    analise = {
+        "tipo_resultado": "indefinido",
+        "tem_valores": False,
+        "tem_prazos": False,
+        "tem_recursos": False,
+        "sentimento": "neutro",
+        "palavras_chave": []
+    }
+    
+    texto_lower = texto.lower()
+    
+    # Identificar tipo de resultado
+    if "✅" in texto or "vitória" in texto_lower or "procedente" in texto_lower:
+        analise["tipo_resultado"] = "vitoria"
+        analise["sentimento"] = "positivo"
+    elif "❌" in texto or "derrota" in texto_lower or "improcedente" in texto_lower:
+        analise["tipo_resultado"] = "derrota"
+        analise["sentimento"] = "negativo"
+    elif "⚠️" in texto or "parcial" in texto_lower:
+        analise["tipo_resultado"] = "parcial"
+        analise["sentimento"] = "neutro"
+    
+    # Verificar presença de elementos importantes
+    if "r$" in texto_lower or "valor" in texto_lower or "💰" in texto:
+        analise["tem_valores"] = True
+        analise["palavras_chave"].append("valores")
+    
+    if "prazo" in texto_lower or "dias" in texto_lower or "📅" in texto:
+        analise["tem_prazos"] = True
+        analise["palavras_chave"].append("prazos")
+    
+    if "recurso" in texto_lower or "apelação" in texto_lower or "agravo" in texto_lower:
+        analise["tem_recursos"] = True
+        analise["palavras_chave"].append("recursos")
+    
+    return analise
+
+@app.route("/estatisticas")
+def estatisticas():
+    """Retorna estatísticas de uso dos modelos"""
+    return jsonify({
+        "modelos": model_usage_stats,
+        "cache_size": len(results_cache),
+        "timestamp": datetime.now().isoformat()
+    })
 
 @app.route("/download_pdf")
 def download_pdf():
@@ -514,6 +723,23 @@ def download_pdf():
         logging.error(f"Erro ao fazer download: {e}")
         return jsonify({"erro": "Erro ao baixar o arquivo"}), 500
 
+@app.route("/feedback", methods=["POST"])
+def feedback():
+    """Recebe feedback do usuário sobre a simplificação"""
+    try:
+        data = request.get_json()
+        rating = data.get("rating")
+        comment = data.get("comment", "")
+        resultado_hash = data.get("hash", "")
+        
+        # Aqui você pode salvar em um banco de dados ou arquivo
+        logging.info(f"Feedback recebido - Rating: {rating}, Hash: {resultado_hash[:8]}, Comentário: {comment}")
+        
+        return jsonify({"sucesso": True, "mensagem": "Obrigado pelo seu feedback!"})
+    except Exception as e:
+        logging.error(f"Erro ao processar feedback: {e}")
+        return jsonify({"erro": "Erro ao processar feedback"}), 500
+
 @app.route("/static/<path:filename>")
 def serve_static(filename):
     """Serve arquivos estáticos"""
@@ -525,7 +751,9 @@ def health():
     return jsonify({
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
-        "api_configured": bool(GEMINI_API_KEY)
+        "api_configured": bool(GEMINI_API_KEY),
+        "models_available": len(GEMINI_MODELS),
+        "cache_entries": len(results_cache)
     })
 
 @app.errorhandler(404)
@@ -537,18 +765,36 @@ def server_error(e):
     logging.error(f"Erro interno: {e}")
     return jsonify({"erro": "Erro interno do servidor"}), 500
 
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
 # Limpa arquivos temporários antigos periodicamente
 def cleanup_temp_files():
     while True:
         try:
             time.sleep(3600)  # A cada hora
             now = time.time()
+            
+            # Limpar arquivos temporários
             for filename in os.listdir(TEMP_DIR):
                 if filename.startswith('simplificado_'):
                     filepath = os.path.join(TEMP_DIR, filename)
                     if os.stat(filepath).st_mtime < now - 3600:  # Arquivos com mais de 1 hora
                         os.remove(filepath)
                         logging.info(f"Arquivo temporário removido: {filename}")
+            
+            # Limpar cache antigo
+            to_remove = []
+            for key, value in results_cache.items():
+                if time.time() - value["timestamp"] > CACHE_EXPIRATION:
+                    to_remove.append(key)
+            
+            for key in to_remove:
+                del results_cache[key]
+            
+            if to_remove:
+                logging.info(f"Removidos {len(to_remove)} itens do cache")
+                
         except Exception as e:
             logging.error(f"Erro na limpeza de arquivos: {e}")
 
