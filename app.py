@@ -149,6 +149,12 @@ PROMPT_SIMPLIFICACAO = """**Papel:** Você é um especialista em linguagem simpl
 2. [Segunda ação se houver]
 3. [Orientação sobre recursos]
 
+### ⚠️ ATENÇÃO IMPORTANTE
+[Alertas sobre prazos críticos ou consequências]
+
+### 💡 DICA PRÁTICA
+[Sugestão de ação imediata que a parte pode tomar]
+
 **Mini Dicionário dos Termos Usados:**
 [Listar apenas os termos jurídicos que aparecem no texto com explicação simples]
 
@@ -824,4 +830,3 @@ cleanup_thread.start()
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8080))
     app.run(host="0.0.0.0", port=port, debug=False)
-
