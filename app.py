@@ -198,6 +198,9 @@ def extrair_texto_pdf(pdf_bytes):
             metadados["total_paginas"] = total_pages
             logging.info(f"Processando PDF com {total_pages} páginas")
             
+            # Processar todas as páginas de uma vez para textos grandes
+            texto_completo = ""
+            
             for i, page in enumerate(doc):
                 try:
                     # Primeiro tenta extrair texto normal
@@ -205,9 +208,9 @@ def extrair_texto_pdf(pdf_bytes):
                     
                     if conteudo.strip():
                         metadados["tem_texto"] = True
-                    
+                        texto_completo += conteudo + "\n"
                     # Se não há texto e OCR está disponível, tenta OCR
-                    if not conteudo.strip() and ocr_disponivel:
+                    elif ocr_disponivel:
                         logging.info(f"Aplicando OCR na página {i+1}")
                         metadados["usou_ocr"] = True
                         metadados["paginas_com_ocr"].append(i+1)
@@ -218,17 +221,12 @@ def extrair_texto_pdf(pdf_bytes):
                         # Configurações otimizadas do Tesseract
                         custom_config = r'--oem 3 --psm 6 -l por'
                         conteudo = pytesseract.image_to_string(img, config=custom_config)
-                    elif not conteudo.strip():
-                        logging.warning(f"Página {i+1} não contém texto e OCR não está disponível")
-                        conteudo = "[Página sem texto - OCR não disponível]"
-                    
-                    texto += f"\n--- Página {i+1} ---\n{conteudo}\n"
+                        texto_completo += conteudo + "\n"
                     
                 except Exception as e:
                     logging.error(f"Erro ao processar página {i+1}: {e}")
-                    texto += f"\n--- Erro ao processar página {i+1} ---\n"
             
-            texto = texto.strip()
+            texto = texto_completo.strip()
             if not texto:
                 raise ValueError("Nenhum texto foi extraído do PDF")
                 
@@ -282,6 +280,38 @@ def escolher_modelo_gemini(complexidade, tentativa=0):
 def simplificar_com_gemini(texto, max_retries=3):
     """Chama a API do Gemini com fallback automático entre modelos"""
     
+    # Para textos muito grandes, dividir em chunks se necessário
+    MAX_CHUNK_SIZE = 30000  # Aumentado para processar textos maiores
+    
+    # Se o texto for muito grande, processar em partes
+    if len(texto) > MAX_CHUNK_SIZE:
+        # Dividir o texto preservando a estrutura
+        chunks = []
+        current_chunk = ""
+        paragrafos = texto.split('\n\n')
+        
+        for paragrafo in paragrafos:
+            if len(current_chunk) + len(paragrafo) < MAX_CHUNK_SIZE:
+                current_chunk += paragrafo + "\n\n"
+            else:
+                if current_chunk:
+                    chunks.append(current_chunk)
+                current_chunk = paragrafo + "\n\n"
+        
+        if current_chunk:
+            chunks.append(current_chunk)
+        
+        # Processar o chunk mais importante (geralmente o que contém o dispositivo)
+        texto_principal = chunks[-1] if "DISPOSITIVO" in chunks[-1] or "JULGO" in chunks[-1] else chunks[0]
+        
+        # Adicionar contexto dos outros chunks
+        if len(chunks) > 1:
+            texto_contexto = "\n\n[CONTEXTO ADICIONAL DO PROCESSO]\n"
+            for i, chunk in enumerate(chunks):
+                if chunk != texto_principal:
+                    texto_contexto += f"\nParte {i+1}: " + chunk[:500] + "...\n"
+            texto = texto_principal + texto_contexto
+    
     # Verificar cache
     texto_hash = hashlib.md5(texto.encode()).hexdigest()
     if texto_hash in results_cache:
@@ -294,12 +324,7 @@ def simplificar_com_gemini(texto, max_retries=3):
     complexidade = analisar_complexidade_texto(texto)
     logging.info(f"Complexidade do texto: {complexidade}")
     
-    # Preparar o texto (truncar se necessário)
-    texto_truncado = texto
-    if len(texto) > 15000:
-        texto_truncado = texto[:15000] + "\n\n[Texto truncado devido ao tamanho...]"
-    
-    prompt_completo = PROMPT_SIMPLIFICACAO + texto_truncado
+    prompt_completo = PROMPT_SIMPLIFICACAO + texto
     
     headers = {
         "Content-Type": "application/json",
@@ -316,7 +341,7 @@ def simplificar_com_gemini(texto, max_retries=3):
         model_usage_stats[modelo["name"]]["attempts"] += 1
         
         # Ajustar tokens baseado no modelo
-        max_tokens = min(3000, modelo["max_tokens"] // 2)
+        max_tokens = min(4000, modelo["max_tokens"] // 2)
         
         payload = {
             "contents": [
