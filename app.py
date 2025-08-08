@@ -1,1455 +1,832 @@
-<!DOCTYPE html>
-<html lang="pt-br">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Linguagem Simples Jurídica - Powered by Gemini AI</title>
-    <meta name="description" content="Transforme documentos jurídicos complexos em linguagem simples e acessível usando inteligência artificial">
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='50%' x='50%' text-anchor='middle' font-size='80'>⚖️</text></svg>">
+from flask import Flask, render_template, request, send_file, jsonify, session, send_from_directory
+from werkzeug.utils import secure_filename
+import fitz
+import pytesseract
+from PIL import Image
+import io
+import os
+import logging
+import requests
+import time
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.utils import simpleSplit
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.pdfbase import pdfmetrics
+from functools import wraps
+from datetime import datetime, timedelta
+import hashlib
+import tempfile
+import threading
+import queue
+import json
+import re
+
+app = Flask(__name__)
+app.secret_key = os.getenv("SECRET_KEY", os.urandom(24))
+logging.basicConfig(level=logging.INFO)
+
+# --- Configurações ---
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+
+# Modelos Gemini disponíveis (do mais barato/rápido ao mais caro/potente)
+GEMINI_MODELS = [
+    {
+        "name": "gemini-1.5-flash-8b",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-8b:generateContent",
+        "max_tokens": 8192,
+        "priority": 1
+    },
+    {
+        "name": "gemini-1.5-flash",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent",
+        "max_tokens": 32000,
+        "priority": 2
+    },
+    {
+        "name": "gemini-2.0-flash-exp",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent",
+        "max_tokens": 40000,
+        "priority": 3
+    }
+]
+
+MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+ALLOWED_EXTENSIONS = {'pdf'}
+TEMP_DIR = tempfile.gettempdir()
+
+# Rate limiting
+request_counts = {}
+RATE_LIMIT = 10  # requisições por minuto
+cleanup_lock = threading.Lock()
+
+# Cache de resultados processados
+results_cache = {}
+CACHE_EXPIRATION = 3600  # 1 hora
+
+# Estatísticas de uso dos modelos
+model_usage_stats = {model["name"]: {"attempts": 0, "successes": 0, "failures": 0} for model in GEMINI_MODELS}
+
+def cleanup_old_requests():
+    with cleanup_lock:
+        now = datetime.now()
+        to_remove = []
+        for ip, (count, timestamp) in request_counts.items():
+            if now - timestamp > timedelta(minutes=1):
+                to_remove.append(ip)
+        for ip in to_remove:
+            del request_counts[ip]
+
+def rate_limit(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        ip = request.remote_addr
+        now = datetime.now()
+        
+        cleanup_old_requests()
+        
+        with cleanup_lock:
+            if ip in request_counts:
+                count, first_request = request_counts[ip]
+                if now - first_request < timedelta(minutes=1):
+                    if count >= RATE_LIMIT:
+                        return jsonify({"erro": "Limite de requisições excedido. Tente novamente em alguns minutos."}), 429
+                    request_counts[ip] = (count + 1, first_request)
+                else:
+                    request_counts[ip] = (1, now)
+            else:
+                request_counts[ip] = (1, now)
+        
+        return f(*args, **kwargs)
+    return decorated_function
+
+# Prompt otimizado e estruturado
+PROMPT_SIMPLIFICACAO = """**Papel:** Você é um especialista em linguagem simples aplicada ao Poder Judiciário, com experiência em transformar textos jurídicos complexos em comunicações claras e acessíveis.
+
+**ESTRUTURA DE ANÁLISE OBRIGATÓRIA:**
+
+## 1. IDENTIFICAÇÃO DO DOCUMENTO
+- Tipo: [Sentença/Despacho/Decisão/Acórdão]
+- Número do processo: [identificar]
+- Partes envolvidas: [Autor x Réu]
+- Assunto principal: [identificar]
+
+## 2. ANÁLISE DO RESULTADO (MAIS IMPORTANTE)
+**ATENÇÃO:** Procure SEMPRE pela seção "DISPOSITIVO", "DECIDE", "ANTE O EXPOSTO" ou "DIANTE DO EXPOSTO"
+
+### Identificação do Vencedor:
+- ✅ AUTOR GANHOU se encontrar: "JULGO PROCEDENTE", "CONDENO o réu/requerido", "DEFIRO"
+- ❌ AUTOR PERDEU se encontrar: "JULGO IMPROCEDENTE", "CONDENO o autor/requerente", "INDEFIRO"  
+- ⚠️ PARCIAL se encontrar: "JULGO PARCIALMENTE PROCEDENTE"
+
+## 3. FORMATAÇÃO DA RESPOSTA
+
+### 📊 RESUMO EXECUTIVO
+[Use sempre um dos ícones abaixo]
+✅ **VITÓRIA TOTAL** - Você ganhou completamente a causa
+❌ **DERROTA** - Você perdeu a causa
+⚠️ **VITÓRIA PARCIAL** - Você ganhou parte do que pediu
+⏳ **AGUARDANDO** - Ainda não há decisão final
+📋 **ANDAMENTO** - Apenas um despacho processual
+
+**Em uma frase:** [Explicar o resultado em linguagem muito simples]
+
+### 📑 O QUE ACONTECEU
+[Explicar em 3-4 linhas o contexto do processo]
+
+### ⚖️ O QUE O JUIZ DECIDIU
+[Detalhar a decisão em linguagem simples, usando parágrafos curtos]
+
+### 💰 VALORES E OBRIGAÇÕES
+• Valor da causa: R$ [valor]
+• Valores a receber: R$ [detalhar]
+• Valores a pagar: R$ [detalhar]
+• Honorários: [percentual e valor]
+• Custas processuais: [quem paga]
+
+### 📅 PRÓXIMOS PASSOS
+1. [Ação necessária com prazo]
+2. [Segunda ação se houver]
+3. [Orientação sobre recursos]
+
+### ⚠️ ATENÇÃO IMPORTANTE
+[Alertas sobre prazos críticos ou consequências]
+
+### 💡 DICA PRÁTICA
+[Sugestão de ação imediata que a parte pode tomar]
+
+**Mini Dicionário dos Termos Usados:**
+[Listar apenas os termos jurídicos que aparecem no texto com explicação simples]
+
+---
+*Documento processado em: [data/hora]*
+*Este é um resumo simplificado. Consulte seu advogado para orientações específicas.*
+
+**REGRAS DE SIMPLIFICAÇÃO:**
+1. Use frases com máximo 20 palavras
+2. Substitua jargões por palavras comuns
+3. Explique siglas na primeira vez que aparecem
+4. Use exemplos concretos quando possível
+5. Mantenha tom respeitoso mas acessível
+6. Destaque informações críticas com formatação
+
+**TEXTO ORIGINAL A SIMPLIFICAR:**
+"""
+
+def extrair_texto_pdf(pdf_bytes):
+    """Extrai texto de PDF com melhor tratamento de erros e OCR otimizado"""
+    texto = ""
+    metadados = {
+        "total_paginas": 0,
+        "tem_texto": False,
+        "usou_ocr": False,
+        "paginas_com_ocr": []
+    }
     
-    <style>
-        :root {
-            --primary: #1a73e8;
-            --primary-dark: #1557b0;
-            --secondary: #34a853;
-            --danger: #ea4335;
-            --warning: #fbbc04;
-            --dark: #202124;
-            --light: #f8f9fa;
-            --border: #dadce0;
-            --shadow: rgba(0,0,0,0.1);
-            --text: #202124;
-            --text-muted: #5f6368;
-            --success-bg: #e6f4ea;
-            --error-bg: #fce8e6;
-            --warning-bg: #fef7e0;
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Google Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
-            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-            min-height: 100vh;
-            color: var(--text);
-            line-height: 1.6;
-            transition: all 0.3s ease;
-        }
-
-        /* Dark mode */
-        body.dark-mode {
-            --primary: #4da3ff;
-            --primary-dark: #66b3ff;
-            --light: #1a1a1a;
-            --text: #e8eaed;
-            --text-muted: #9aa0a6;
-            --border: #3c4043;
-            --shadow: rgba(255,255,255,0.1);
-            --success-bg: #1e3a2e;
-            --error-bg: #3c1f1f;
-            --warning-bg: #3a3319;
-            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 2rem;
-        }
-
-        /* Header aprimorado */
-        .header {
-            text-align: center;
-            margin-bottom: 3rem;
-            animation: fadeInDown 0.8s ease;
-        }
-
-        .header h1 {
-            font-size: 2.5rem;
-            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            margin-bottom: 0.5rem;
-            font-weight: 700;
-        }
-
-        .header p {
-            color: var(--text-muted);
-            font-size: 1.1rem;
-        }
-
-        /* Cards com glassmorphism */
-        .card {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            border-radius: 16px;
-            box-shadow: 0 8px 32px var(--shadow);
-            padding: 2rem;
-            margin-bottom: 2rem;
-            transition: all 0.3s ease;
-            animation: fadeInUp 0.8s ease;
-            border: 1px solid var(--border);
-        }
-
-        body.dark-mode .card {
-            background: rgba(42, 42, 42, 0.95);
-            border-color: var(--border);
-        }
-
-        .card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 12px 48px var(--shadow);
-        }
-
-        /* Progress Steps */
-        .progress-steps {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 3rem;
-            position: relative;
-        }
-
-        .progress-steps::before {
-            content: '';
-            position: absolute;
-            top: 20px;
-            left: 0;
-            width: 100%;
-            height: 2px;
-            background: var(--border);
-            z-index: -1;
-        }
-
-        .step {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            flex: 1;
-            position: relative;
-        }
-
-        .step-circle {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: white;
-            border: 2px solid var(--border);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            transition: all 0.3s ease;
-            z-index: 1;
-        }
-
-        .step.active .step-circle {
-            background: var(--primary);
-            color: white;
-            border-color: var(--primary);
-            transform: scale(1.1);
-        }
-
-        .step.completed .step-circle {
-            background: var(--secondary);
-            color: white;
-            border-color: var(--secondary);
-        }
-
-        .step-label {
-            margin-top: 0.5rem;
-            font-size: 0.875rem;
-            color: var(--text-muted);
-            text-align: center;
-        }
-
-        /* File upload area melhorada */
-        #drop-area {
-            border: 2px dashed var(--primary);
-            border-radius: 12px;
-            padding: 3rem 2rem;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            background: linear-gradient(135deg, rgba(26, 115, 232, 0.05) 0%, rgba(26, 115, 232, 0.1) 100%);
-            position: relative;
-            overflow: hidden;
-        }
-
-        #drop-area::before {
-            content: '';
-            position: absolute;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
-            background: radial-gradient(circle, var(--primary) 0%, transparent 70%);
-            opacity: 0;
-            transition: opacity 0.3s ease;
-            pointer-events: none;
-        }
-
-        #drop-area:hover::before,
-        #drop-area.hover::before {
-            opacity: 0.1;
-        }
-
-        #drop-area:hover,
-        #drop-area.hover {
-            border-color: var(--primary-dark);
-            transform: scale(1.02);
-        }
-
-        /* Botões melhorados */
-        .button {
-            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
-            color: white;
-            border: none;
-            padding: 0.75rem 2rem;
-            border-radius: 8px;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            text-decoration: none;
-            box-shadow: 0 4px 12px rgba(26, 115, 232, 0.3);
-            position: relative;
-            overflow: hidden;
-        }
-
-        .button::before {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 0;
-            height: 0;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.3);
-            transform: translate(-50%, -50%);
-            transition: width 0.6s, height 0.6s;
-        }
-
-        .button:hover::before {
-            width: 300px;
-            height: 300px;
-        }
-
-        .button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(26, 115, 232, 0.4);
-        }
-
-        /* Resultado com animações */
-        .result-card {
-            background: white;
-            border-radius: 12px;
-            padding: 1.5rem;
-            margin-bottom: 1rem;
-            box-shadow: 0 2px 8px var(--shadow);
-            transition: all 0.3s ease;
-            position: relative;
-            overflow: hidden;
-        }
-
-        body.dark-mode .result-card {
-            background: #333;
-        }
-
-        .result-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 4px;
-            height: 100%;
-            background: var(--primary);
-        }
-
-        .result-success::before {
-            background: var(--secondary);
-        }
-
-        .result-error::before {
-            background: var(--danger);
-        }
-
-        .result-warning::before {
-            background: var(--warning);
-        }
-
-        /* Animação de digitação */
-        @keyframes typing {
-            from { width: 0; }
-            to { width: 100%; }
-        }
-
-        .typing-effect {
-            overflow: hidden;
-            white-space: nowrap;
-            animation: typing 2s steps(40, end);
-        }
-
-        /* Modal de feedback */
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.5);
-            animation: fadeIn 0.3s ease;
-        }
-
-        .modal.show {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .modal-content {
-            background: white;
-            border-radius: 16px;
-            padding: 2rem;
-            max-width: 500px;
-            width: 90%;
-            animation: slideUp 0.3s ease;
-        }
-
-        body.dark-mode .modal-content {
-            background: #2a2a2a;
-        }
-
-        /* Rating stars */
-        .rating {
-            display: flex;
-            gap: 0.5rem;
-            font-size: 2rem;
-            justify-content: center;
-            margin: 1rem 0;
-        }
-
-        .star {
-            cursor: pointer;
-            transition: all 0.2s ease;
-            color: #ddd;
-        }
-
-        .star:hover,
-        .star.active {
-            color: #ffd700;
-            transform: scale(1.1);
-        }
-
-        /* Estatísticas em tempo real */
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1rem;
-            margin-bottom: 2rem;
-        }
-
-        .stat-box {
-            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
-            color: white;
-            border-radius: 12px;
-            padding: 1.5rem;
-            text-align: center;
-            transition: all 0.3s ease;
-        }
-
-        .stat-box:hover {
-            transform: scale(1.05);
-        }
-
-        .stat-value {
-            font-size: 2rem;
-            font-weight: bold;
-            display: block;
-        }
-
-        .stat-label {
-            font-size: 0.875rem;
-            opacity: 0.9;
-        }
-
-        /* Loading avançado */
-        .loading-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.7);
-            z-index: 9999;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .loading-overlay.show {
-            display: flex;
-        }
-
-        .loading-content {
-            background: white;
-            border-radius: 16px;
-            padding: 2rem;
-            text-align: center;
-            max-width: 400px;
-        }
-
-        body.dark-mode .loading-content {
-            background: #2a2a2a;
-        }
-
-        .loading-spinner {
-            width: 60px;
-            height: 60px;
-            margin: 0 auto 1rem;
-            border: 4px solid var(--border);
-            border-top: 4px solid var(--primary);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        .loading-text {
-            color: var(--text);
-            margin-bottom: 1rem;
-        }
-
-        .loading-progress {
-            width: 100%;
-            height: 8px;
-            background: var(--border);
-            border-radius: 4px;
-            overflow: hidden;
-        }
-
-        .loading-progress-bar {
-            height: 100%;
-            background: linear-gradient(90deg, var(--primary) 0%, var(--primary-dark) 100%);
-            width: 0%;
-            transition: width 0.3s ease;
-            animation: shimmer 1.5s infinite;
-        }
-
-        @keyframes shimmer {
-            0% { opacity: 0.8; }
-            50% { opacity: 1; }
-            100% { opacity: 0.8; }
-        }
-
-        /* Tooltips */
-        .tooltip {
-            position: relative;
-            display: inline-block;
-        }
-
-        .tooltip .tooltiptext {
-            visibility: hidden;
-            width: 200px;
-            background: var(--dark);
-            color: white;
-            text-align: center;
-            border-radius: 6px;
-            padding: 0.5rem;
-            position: absolute;
-            z-index: 1;
-            bottom: 125%;
-            left: 50%;
-            margin-left: -100px;
-            opacity: 0;
-            transition: opacity 0.3s;
-            font-size: 0.875rem;
-        }
-
-        .tooltip:hover .tooltiptext {
-            visibility: visible;
-            opacity: 1;
-        }
-
-        /* Animations */
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        @keyframes fadeInDown {
-            from {
-                opacity: 0;
-                transform: translateY(-20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        @keyframes slideUp {
-            from {
-                transform: translateY(50px);
-                opacity: 0;
-            }
-            to {
-                transform: translateY(0);
-                opacity: 1;
-            }
-        }
-
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-            100% { transform: scale(1); }
-        }
-
-        /* Responsive */
-        @media (max-width: 768px) {
-            .container {
-                padding: 1rem;
-            }
-
-            .header h1 {
-                font-size: 1.8rem;
-            }
-
-            .progress-steps {
-                flex-direction: column;
-                gap: 1rem;
-            }
-
-            .progress-steps::before {
-                display: none;
-            }
-
-            .stats-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        /* Toast notifications melhoradas */
-        .toast {
-            position: fixed;
-            bottom: -100px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: var(--dark);
-            color: white;
-            padding: 1rem 2rem;
-            border-radius: 8px;
-            box-shadow: 0 8px 32px var(--shadow);
-            transition: bottom 0.3s ease;
-            z-index: 10000;
-            max-width: 90%;
-            text-align: center;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .toast.show {
-            bottom: 2rem;
-        }
-
-        .toast.success {
-            background: var(--secondary);
-        }
-
-        .toast.error {
-            background: var(--danger);
-        }
-
-        .toast.warning {
-            background: var(--warning);
-            color: var(--dark);
-        }
-
-        /* Switch de tema aprimorado */
-        .theme-switch {
-            position: fixed;
-            top: 1rem;
-            right: 1rem;
-            z-index: 100;
-        }
-
-        .switch {
-            position: relative;
-            display: inline-block;
-            width: 60px;
-            height: 30px;
-        }
-
-        .switch input {
-            opacity: 0;
-            width: 0;
-            height: 0;
-        }
-
-        .slider {
-            position: absolute;
-            cursor: pointer;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            transition: .4s;
-            border-radius: 30px;
-        }
-
-        .slider:before {
-            position: absolute;
-            content: "☀️";
-            height: 22px;
-            width: 22px;
-            left: 4px;
-            bottom: 4px;
-            background: white;
-            transition: .4s;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 14px;
-        }
-
-        input:checked + .slider {
-            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
-        }
-
-        input:checked + .slider:before {
-            content: "🌙";
-            transform: translateX(30px);
-        }
-    </style>
-</head>
-<body>
-    <!-- Theme Switch -->
-    <div class="theme-switch">
-        <label class="switch">
-            <input type="checkbox" id="themeSwitch">
-            <span class="slider"></span>
-        </label>
-    </div>
-
-    <!-- Loading Overlay -->
-    <div class="loading-overlay" id="loadingOverlay">
-        <div class="loading-content">
-            <div class="loading-spinner"></div>
-            <div class="loading-text" id="loadingText">Processando com IA...</div>
-            <div class="loading-progress">
-                <div class="loading-progress-bar" id="loadingProgress"></div>
-            </div>
-            <small id="modelInfo" style="color: var(--text-muted); margin-top: 0.5rem;"></small>
-        </div>
-    </div>
-
-    <div class="container">
-        <!-- Header -->
-        <header class="header">
-            <div style="display: flex; align-items: center; justify-content: center; gap: 2rem; margin-bottom: 2rem;">
-                <img src="/static/logoinovassol.png" alt="INOVASSOL - Centro de Inovação" 
-                     style="height: 80px; width: auto; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.1));">
-                <div style="text-align: left;">
-                    <h1 style="margin-bottom: 0.25rem;">⚖️ Linguagem Simples Jurídica</h1>
-                    <p style="margin: 0;">Transforme documentos complexos em linguagem clara com IA</p>
-                </div>
-            </div>
-            <div style="text-align: center;">
-                <p style="color: var(--text-muted); font-size: 1rem; margin-bottom: 0.5rem;">
-                    <strong>Desenvolvido pelo INOVASSOL - Centro de Inovação</strong>
-                </p>
-                <p style="color: var(--text-muted); font-size: 0.9rem; max-width: 600px; margin: 0 auto; line-height: 1.5;">
-                    ⚠️ Queremos facilitar sua vida com informações mais simples, mas só um advogado ou defensor público pode te dar uma orientação certa para o seu caso. Sempre que precisar, procure esse apoio!
-                </p>
-            </div>
-        </header>
-
-        <!-- Progress Steps -->
-        <div class="progress-steps">
-            <div class="step active" id="step1">
-                <div class="step-circle">1</div>
-                <div class="step-label">Enviar Documento</div>
-            </div>
-            <div class="step" id="step2">
-                <div class="step-circle">2</div>
-                <div class="step-label">Processar com IA</div>
-            </div>
-            <div class="step" id="step3">
-                <div class="step-circle">3</div>
-                <div class="step-label">Resultado Simplificado</div>
-            </div>
-        </div>
-
-        <!-- Statistics -->
-        <div class="stats-grid" id="statsGrid" style="display: none;">
-            <div class="stat-box">
-                <span class="stat-value" id="totalProcessed">0</span>
-                <span class="stat-label">Documentos Processados</span>
-            </div>
-            <div class="stat-box">
-                <span class="stat-value" id="avgReduction">0%</span>
-                <span class="stat-label">Redução Média</span>
-            </div>
-            <div class="stat-box">
-                <span class="stat-value" id="currentModel">-</span>
-                <span class="stat-label">Modelo Atual</span>
-            </div>
-        </div>
-
-        <!-- Upload Card -->
-        <div class="card">
-            <h2 style="color: var(--primary); margin-bottom: 1.5rem;">📤 Enviar Documento PDF</h2>
-            <div id="drop-area">
-                <div style="font-size: 3rem; margin-bottom: 1rem;">📁</div>
-                <p style="font-size: 1.1rem; color: var(--text); margin-bottom: 1rem;">
-                    Arraste seu PDF aqui ou clique para selecionar
-                </p>
-                <input type="file" id="fileInput" accept=".pdf" style="display: none;">
-                <button class="button" onclick="document.getElementById('fileInput').click()">
-                    <span>📎</span> Escolher Arquivo
-                </button>
-                <p style="font-size: 0.875rem; color: var(--text-muted); margin-top: 1rem;">
-                    Máximo: 10MB | Formato: PDF
-                </p>
-            </div>
-            <div id="fileInfo" style="display: none; margin-top: 1rem; padding: 1rem; background: var(--success-bg); border-radius: 8px;">
-                <p style="margin: 0; display: flex; justify-content: space-between; align-items: center;">
-                    <span id="fileName" style="font-weight: 600;"></span>
-                    <span id="fileSize" style="font-size: 0.875rem; color: var(--text-muted);"></span>
-                </p>
-            </div>
-        </div>
-
-        <!-- Manual Text Card -->
-        <div class="card">
-            <h2 style="color: var(--primary); margin-bottom: 1.5rem;">✍️ Ou Cole o Texto</h2>
-            <textarea id="manualText" placeholder="Cole aqui o texto jurídico que deseja simplificar..." 
-                style="width: 100%; min-height: 150px; padding: 1rem; border: 2px solid var(--border); border-radius: 8px; font-family: inherit; font-size: 1rem; resize: vertical; transition: border-color 0.3s;"></textarea>
-            <div style="display: flex; gap: 1rem; margin-top: 1rem;">
-                <button class="button" onclick="processManualText()">
-                    <span>🔄</span> Simplificar Texto
-                </button>
-                <button class="button" style="background: var(--danger);" onclick="clearAll()">
-                    <span>🗑️</span> Limpar Tudo
-                </button>
-                <div class="tooltip" style="margin-left: auto;">
-                    <button class="button" style="background: var(--warning); color: var(--dark);" onclick="loadExample()">
-                        <span>📝</span> Exemplo
-                    </button>
-                    <span class="tooltiptext">Carregar um exemplo de texto jurídico</span>
-                </div>
-            </div>
-        </div>
-
-        <!-- Result Card -->
-        <div id="resultSection" style="display: none;">
-            <div class="card">
-                <h2 style="color: var(--primary); margin-bottom: 1.5rem;">✅ Resultado Simplificado</h2>
-                
-                <!-- Result Analysis -->
-                <div id="resultAnalysis" style="margin-bottom: 1.5rem;">
-                    <!-- Filled dynamically -->
-                </div>
-                
-                <!-- Simplified Text -->
-                <div id="simplifiedText" style="background: var(--light); padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem; max-height: 500px; overflow-y: auto;">
-                    <!-- Filled dynamically -->
-                </div>
-                
-                <!-- Action Buttons -->
-                <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
-                    <a href="#" class="button" id="downloadBtn" style="display: none;">
-                        <span>📥</span> Baixar PDF
-                    </a>
-                    <button class="button" onclick="copyText()">
-                        <span>📋</span> Copiar Texto
-                    </button>
-                    <button class="button" onclick="speakText()" id="speakBtn">
-                        <span>🔊</span> Ler em Voz Alta
-                    </button>
-                    <button class="button" style="background: var(--secondary);" onclick="showFeedbackModal()">
-                        <span>⭐</span> Avaliar
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Feedback Modal -->
-        <div id="feedbackModal" class="modal">
-            <div class="modal-content">
-                <h2 style="color: var(--primary); margin-bottom: 1rem;">Como foi sua experiência?</h2>
-                <div class="rating" id="rating">
-                    <span class="star" data-rating="1">⭐</span>
-                    <span class="star" data-rating="2">⭐</span>
-                    <span class="star" data-rating="3">⭐</span>
-                    <span class="star" data-rating="4">⭐</span>
-                    <span class="star" data-rating="5">⭐</span>
-                </div>
-                <textarea id="feedbackComment" placeholder="Deixe um comentário (opcional)" 
-                    style="width: 100%; min-height: 100px; padding: 0.75rem; border: 2px solid var(--border); border-radius: 8px; margin: 1rem 0; font-family: inherit;"></textarea>
-                <div style="display: flex; gap: 1rem; justify-content: flex-end;">
-                    <button class="button" style="background: var(--text-muted);" onclick="closeFeedbackModal()">
-                        Cancelar
-                    </button>
-                    <button class="button" onclick="submitFeedback()">
-                        Enviar Avaliação
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Toast -->
-    <div class="toast" id="toast"></div>
-
-    <script>
-        // Configurações
-        const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-        let isProcessing = false;
-        let currentResultHash = '';
-        let selectedRating = 0;
-        let processedCount = 0;
-        let totalReduction = 0;
-        let currentModel = '-';
-
-        // Theme
-        const themeSwitch = document.getElementById('themeSwitch');
-        const body = document.body;
-
-        // Check saved theme
-        const savedTheme = localStorage.getItem('theme');
-        if (savedTheme === 'dark') {
-            body.classList.add('dark-mode');
-            themeSwitch.checked = true;
-        }
-
-        themeSwitch.addEventListener('change', () => {
-            if (themeSwitch.checked) {
-                body.classList.add('dark-mode');
-                localStorage.setItem('theme', 'dark');
-            } else {
-                body.classList.remove('dark-mode');
-                localStorage.setItem('theme', 'light');
-            }
-        });
-
-        // Initialize stats from localStorage
-        function initializeStats() {
-            processedCount = parseInt(localStorage.getItem('processedCount') || '0');
-            totalReduction = parseFloat(localStorage.getItem('totalReduction') || '0');
-            updateStatsDisplay();
-        }
-
-        function updateStatsDisplay() {
-            document.getElementById('totalProcessed').textContent = processedCount;
-            const avgReduction = processedCount > 0 ? (totalReduction / processedCount).toFixed(1) : 0;
-            document.getElementById('avgReduction').textContent = avgReduction + '%';
-            document.getElementById('currentModel').textContent = currentModel;
+    ocr_disponivel = True
+    
+    try:
+        import subprocess
+        subprocess.run(['tesseract', '--version'], capture_output=True, check=True)
+    except:
+        ocr_disponivel = False
+        logging.warning("Tesseract não está instalado. OCR desabilitado.")
+    
+    try:
+        with fitz.open(stream=pdf_bytes, filetype="pdf") as doc:
+            total_pages = len(doc)
+            metadados["total_paginas"] = total_pages
+            logging.info(f"Processando PDF com {total_pages} páginas")
             
-            if (processedCount > 0) {
-                document.getElementById('statsGrid').style.display = 'grid';
-            }
-        }
-
-        // Progress steps
-        function updateProgressSteps(step) {
-            document.querySelectorAll('.step').forEach(s => {
-                s.classList.remove('active', 'completed');
-            });
+            # Processar todas as páginas de uma vez para textos grandes
+            texto_completo = ""
             
-            for (let i = 1; i <= step; i++) {
-                const stepEl = document.getElementById(`step${i}`);
-                if (i < step) {
-                    stepEl.classList.add('completed');
-                } else {
-                    stepEl.classList.add('active');
+            for i, page in enumerate(doc):
+                try:
+                    # Primeiro tenta extrair texto normal
+                    conteudo = page.get_text()
+                    
+                    if conteudo.strip():
+                        metadados["tem_texto"] = True
+                        texto_completo += conteudo + "\n"
+                    # Se não há texto e OCR está disponível, tenta OCR
+                    elif ocr_disponivel:
+                        logging.info(f"Aplicando OCR na página {i+1}")
+                        metadados["usou_ocr"] = True
+                        metadados["paginas_com_ocr"].append(i+1)
+                        
+                        pix = page.get_pixmap(dpi=150)
+                        img = Image.open(io.BytesIO(pix.tobytes()))
+                        
+                        # Configurações otimizadas do Tesseract
+                        custom_config = r'--oem 3 --psm 6 -l por'
+                        conteudo = pytesseract.image_to_string(img, config=custom_config)
+                        texto_completo += conteudo + "\n"
+                    
+                except Exception as e:
+                    logging.error(f"Erro ao processar página {i+1}: {e}")
+            
+            texto = texto_completo.strip()
+            if not texto:
+                raise ValueError("Nenhum texto foi extraído do PDF")
+                
+    except Exception as e:
+        logging.error(f"Erro ao extrair texto do PDF: {e}")
+        raise
+    
+    return texto, metadados
+
+def analisar_complexidade_texto(texto):
+    """Analisa a complexidade do texto para escolher o modelo apropriado"""
+    complexidade = {
+        "caracteres": len(texto),
+        "palavras": len(texto.split()),
+        "termos_tecnicos": 0,
+        "citacoes": 0,
+        "nivel": "baixo"  # baixo, médio, alto
+    }
+    
+    # Termos técnicos comuns em documentos jurídicos
+    termos_tecnicos = [
+        "exordial", "sucumbência", "litispendência", "coisa julgada",
+        "tutela antecipada", "liminar", "agravo", "embargo", "mandamus",
+        "quantum", "extra petita", "ultra petita", "iura novit curia"
+    ]
+    
+    texto_lower = texto.lower()
+    for termo in termos_tecnicos:
+        complexidade["termos_tecnicos"] += texto_lower.count(termo)
+    
+    # Contar citações de leis/artigos
+    complexidade["citacoes"] = len(re.findall(r'art\.\s*\d+|artigo\s*\d+|§\s*\d+|lei\s*n[º°]\s*[\d\.]+', texto_lower))
+    
+    # Determinar nível de complexidade
+    if complexidade["caracteres"] > 10000 or complexidade["termos_tecnicos"] > 20 or complexidade["citacoes"] > 15:
+        complexidade["nivel"] = "alto"
+    elif complexidade["caracteres"] > 5000 or complexidade["termos_tecnicos"] > 10 or complexidade["citacoes"] > 8:
+        complexidade["nivel"] = "médio"
+    
+    return complexidade
+
+def escolher_modelo_gemini(complexidade, tentativa=0):
+    """Escolhe o modelo Gemini mais apropriado baseado na complexidade"""
+    if complexidade["nivel"] == "baixo" and tentativa == 0:
+        return GEMINI_MODELS[0]  # Modelo mais leve
+    elif complexidade["nivel"] == "médio" or tentativa == 1:
+        return GEMINI_MODELS[1]  # Modelo intermediário
+    else:
+        return GEMINI_MODELS[2] if tentativa < len(GEMINI_MODELS) else GEMINI_MODELS[-1]  # Modelo mais potente
+
+def simplificar_com_gemini(texto, max_retries=3):
+    """Chama a API do Gemini com fallback automático entre modelos"""
+    
+    # Para textos muito grandes, dividir em chunks se necessário
+    MAX_CHUNK_SIZE = 30000  # Aumentado para processar textos maiores
+    
+    # Se o texto for muito grande, processar em partes
+    if len(texto) > MAX_CHUNK_SIZE:
+        # Dividir o texto preservando a estrutura
+        chunks = []
+        current_chunk = ""
+        paragrafos = texto.split('\n\n')
+        
+        for paragrafo in paragrafos:
+            if len(current_chunk) + len(paragrafo) < MAX_CHUNK_SIZE:
+                current_chunk += paragrafo + "\n\n"
+            else:
+                if current_chunk:
+                    chunks.append(current_chunk)
+                current_chunk = paragrafo + "\n\n"
+        
+        if current_chunk:
+            chunks.append(current_chunk)
+        
+        # Processar o chunk mais importante (geralmente o que contém o dispositivo)
+        texto_principal = chunks[-1] if "DISPOSITIVO" in chunks[-1] or "JULGO" in chunks[-1] else chunks[0]
+        
+        # Adicionar contexto dos outros chunks
+        if len(chunks) > 1:
+            texto_contexto = "\n\n[CONTEXTO ADICIONAL DO PROCESSO]\n"
+            for i, chunk in enumerate(chunks):
+                if chunk != texto_principal:
+                    texto_contexto += f"\nParte {i+1}: " + chunk[:500] + "...\n"
+            texto = texto_principal + texto_contexto
+    
+    # Verificar cache
+    texto_hash = hashlib.md5(texto.encode()).hexdigest()
+    if texto_hash in results_cache:
+        cache_entry = results_cache[texto_hash]
+        if time.time() - cache_entry["timestamp"] < CACHE_EXPIRATION:
+            logging.info(f"Resultado encontrado no cache para hash {texto_hash[:8]}")
+            return cache_entry["result"], None
+    
+    # Analisar complexidade
+    complexidade = analisar_complexidade_texto(texto)
+    logging.info(f"Complexidade do texto: {complexidade}")
+    
+    prompt_completo = PROMPT_SIMPLIFICACAO + texto
+    
+    headers = {
+        "Content-Type": "application/json",
+        "X-goog-api-key": GEMINI_API_KEY
+    }
+    
+    errors = []
+    
+    # Tentar com diferentes modelos
+    for tentativa in range(len(GEMINI_MODELS)):
+        modelo = escolher_modelo_gemini(complexidade, tentativa)
+        logging.info(f"Tentativa {tentativa + 1}: Usando modelo {modelo['name']}")
+        
+        model_usage_stats[modelo["name"]]["attempts"] += 1
+        
+        # Ajustar tokens baseado no modelo
+        max_tokens = min(4000, modelo["max_tokens"] // 2)
+        
+        payload = {
+            "contents": [
+                {
+                    "parts": [
+                        {
+                            "text": prompt_completo
+                        }
+                    ]
                 }
-            }
-        }
-
-        // Toast notifications
-        function showToast(message, type = 'info', duration = 3000) {
-            const toast = document.getElementById('toast');
-            
-            // Add icon based on type
-            let icon = '';
-            switch(type) {
-                case 'success': icon = '✅ '; break;
-                case 'error': icon = '❌ '; break;
-                case 'warning': icon = '⚠️ '; break;
-                default: icon = 'ℹ️ ';
-            }
-            
-            toast.textContent = icon + message;
-            toast.className = `toast ${type}`;
-            setTimeout(() => toast.classList.add('show'), 100);
-            
-            setTimeout(() => {
-                toast.classList.remove('show');
-            }, duration);
-        }
-
-        // File upload
-        const dropArea = document.getElementById('drop-area');
-        const fileInput = document.getElementById('fileInput');
-
-        // Prevent default drag behaviors
-        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-            dropArea.addEventListener(eventName, preventDefaults, false);
-            document.body.addEventListener(eventName, preventDefaults, false);
-        });
-
-        function preventDefaults(e) {
-            e.preventDefault();
-            e.stopPropagation();
-        }
-
-        // Highlight drop area
-        ['dragenter', 'dragover'].forEach(eventName => {
-            dropArea.addEventListener(eventName, () => dropArea.classList.add('hover'), false);
-        });
-
-        ['dragleave', 'drop'].forEach(eventName => {
-            dropArea.addEventListener(eventName, () => dropArea.classList.remove('hover'), false);
-        });
-
-        // Handle dropped files
-        dropArea.addEventListener('drop', handleDrop, false);
-        fileInput.addEventListener('change', handleFileSelect, false);
-
-        function handleDrop(e) {
-            const dt = e.dataTransfer;
-            const files = dt.files;
-            handleFiles(files);
-        }
-
-        function handleFileSelect(e) {
-            const files = e.target.files;
-            handleFiles(files);
-        }
-
-        function handleFiles(files) {
-            if (files.length === 0) return;
-            
-            const file = files[0];
-            
-            // Validations
-            if (file.type !== 'application/pdf') {
-                showToast('Por favor, selecione apenas arquivos PDF', 'error');
-                return;
-            }
-            
-            if (file.size > MAX_FILE_SIZE) {
-                showToast(`Arquivo muito grande. Máximo: ${MAX_FILE_SIZE / 1024 / 1024}MB`, 'error');
-                return;
-            }
-            
-            // Show file info
-            document.getElementById('fileName').textContent = file.name;
-            document.getElementById('fileSize').textContent = formatFileSize(file.size);
-            document.getElementById('fileInfo').style.display = 'block';
-            
-            // Process file
-            uploadFile(file);
-        }
-
-        function formatFileSize(bytes) {
-            if (bytes === 0) return '0 Bytes';
-            const k = 1024;
-            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-            const i = Math.floor(Math.log(bytes) / Math.log(k));
-            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-        }
-
-        function uploadFile(file) {
-            if (isProcessing) {
-                showToast('Aguarde o processamento atual terminar', 'warning');
-                return;
-            }
-            
-            isProcessing = true;
-            showLoading('Enviando documento...');
-            updateProgressSteps(2);
-            
-            const formData = new FormData();
-            formData.append('file', file);
-            
-            // Simulate progress
-            let progress = 0;
-            const progressInterval = setInterval(() => {
-                progress += Math.random() * 20;
-                if (progress > 90) progress = 90;
-                updateLoadingProgress(progress);
-            }, 500);
-            
-            fetch('/processar', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => {
-                clearInterval(progressInterval);
-                updateLoadingProgress(100);
-                
-                if (!response.ok) {
-                    return response.json().then(data => {
-                        throw new Error(data.erro || 'Erro ao processar arquivo');
-                    });
-                }
-                return response.json();
-            })
-            .then(data => {
-                showResult(data);
-                updateProgressSteps(3);
-                showToast('Documento processado com sucesso!', 'success');
-                
-                // Update stats
-                processedCount++;
-                totalReduction += data.reducao_percentual || 0;
-                currentModel = data.modelo_usado || 'Gemini';
-                localStorage.setItem('processedCount', processedCount);
-                localStorage.setItem('totalReduction', totalReduction);
-                updateStatsDisplay();
-            })
-            .catch(error => {
-                showToast(error.message || 'Erro ao processar PDF', 'error');
-                console.error('Erro:', error);
-            })
-            .finally(() => {
-                isProcessing = false;
-                hideLoading();
-                clearInterval(progressInterval);
-            });
-        }
-
-        // Process manual text
-        function processManualText() {
-            const text = document.getElementById('manualText').value.trim();
-            
-            if (!text) {
-                showToast('Por favor, insira algum texto', 'warning');
-                return;
-            }
-            
-            if (text.length < 20) {
-                showToast('Texto muito curto. Mínimo: 20 caracteres', 'warning');
-                return;
-            }
-            
-            if (text.length > 10000) {
-                showToast('Texto muito longo. Máximo: 10.000 caracteres', 'warning');
-                return;
-            }
-            
-            if (isProcessing) {
-                showToast('Aguarde o processamento atual terminar', 'warning');
-                return;
-            }
-            
-            isProcessing = true;
-            showLoading('Processando texto...');
-            updateProgressSteps(2);
-            
-            fetch('/processar_texto', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
+            ],
+            "generationConfig": {
+                "temperature": 0.3,
+                "maxOutputTokens": max_tokens,
+                "topP": 0.8,
+                "topK": 10
+            },
+            "safetySettings": [
+                {
+                    "category": "HARM_CATEGORY_HARASSMENT",
+                    "threshold": "BLOCK_NONE"
                 },
-                body: JSON.stringify({ texto: text })
-            })
-            .then(response => {
-                if (!response.ok) {
-                    return response.json().then(data => {
-                        throw new Error(data.erro || 'Erro ao processar texto');
-                    });
-                }
-                return response.json();
-            })
-            .then(data => {
-                showResult(data);
-                updateProgressSteps(3);
-                showToast('Texto processado com sucesso!', 'success');
-                
-                // Update stats
-                processedCount++;
-                totalReduction += data.reducao_percentual || 0;
-                localStorage.setItem('processedCount', processedCount);
-                localStorage.setItem('totalReduction', totalReduction);
-                updateStatsDisplay();
-            })
-            .catch(error => {
-                showToast(error.message || 'Erro ao processar texto', 'error');
-                console.error('Erro:', error);
-            })
-            .finally(() => {
-                isProcessing = false;
-                hideLoading();
-            });
-        }
-
-        // Loading functions
-        function showLoading(text = 'Processando...') {
-            const overlay = document.getElementById('loadingOverlay');
-            document.getElementById('loadingText').textContent = text;
-            document.getElementById('modelInfo').textContent = 'Selecionando melhor modelo...';
-            overlay.classList.add('show');
-            updateLoadingProgress(0);
-        }
-
-        function hideLoading() {
-            document.getElementById('loadingOverlay').classList.remove('show');
-        }
-
-        function updateLoadingProgress(percent) {
-            document.getElementById('loadingProgress').style.width = percent + '%';
-            
-            // Update loading text based on progress
-            if (percent > 30 && percent < 60) {
-                document.getElementById('loadingText').textContent = 'Analisando documento...';
-            } else if (percent >= 60 && percent < 90) {
-                document.getElementById('loadingText').textContent = 'Simplificando com IA...';
-                document.getElementById('modelInfo').textContent = 'Usando Gemini AI';
-            } else if (percent >= 90) {
-                document.getElementById('loadingText').textContent = 'Finalizando...';
-            }
-        }
-
-        // Show result
-        function showResult(data) {
-            currentResultHash = Date.now().toString();
-            
-            // Format and display simplified text
-            const formattedText = formatResultText(data.texto);
-            document.getElementById('simplifiedText').innerHTML = formattedText;
-            
-            // Show analysis if available
-            if (data.analise) {
-                showResultAnalysis(data.analise);
-            }
-            
-            // Show download button if PDF was processed
-            if (data.caracteres_original) {
-                document.getElementById('downloadBtn').style.display = 'inline-flex';
-                document.getElementById('downloadBtn').href = '/download_pdf';
-            }
-            
-            // Show result section
-            document.getElementById('resultSection').style.display = 'block';
-            
-            // Scroll to result
-            document.getElementById('resultSection').scrollIntoView({ 
-                behavior: 'smooth', 
-                block: 'start' 
-            });
-        }
-
-        function showResultAnalysis(analise) {
-            let html = '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 1rem;">';
-            
-            // Result type card
-            let resultClass = 'result-card';
-            let resultIcon = '📄';
-            let resultText = 'Documento Processado';
-            
-            if (analise.tipo_resultado === 'vitoria') {
-                resultClass += ' result-success';
-                resultIcon = '✅';
-                resultText = 'Resultado Favorável';
-            } else if (analise.tipo_resultado === 'derrota') {
-                resultClass += ' result-error';
-                resultIcon = '❌';
-                resultText = 'Resultado Desfavorável';
-            } else if (analise.tipo_resultado === 'parcial') {
-                resultClass += ' result-warning';
-                resultIcon = '⚠️';
-                resultText = 'Resultado Parcial';
-            }
-            
-            html += `
-                <div class="${resultClass}" style="text-align: center;">
-                    <div style="font-size: 2rem;">${resultIcon}</div>
-                    <div style="font-weight: bold; margin-top: 0.5rem;">${resultText}</div>
-                </div>
-            `;
-            
-            // Info cards
-            if (analise.tem_valores) {
-                html += `
-                    <div class="result-card" style="text-align: center;">
-                        <div style="font-size: 2rem;">💰</div>
-                        <div style="font-weight: bold; margin-top: 0.5rem;">Contém Valores</div>
-                    </div>
-                `;
-            }
-            
-            if (analise.tem_prazos) {
-                html += `
-                    <div class="result-card" style="text-align: center;">
-                        <div style="font-size: 2rem;">📅</div>
-                        <div style="font-weight: bold; margin-top: 0.5rem;">Contém Prazos</div>
-                    </div>
-                `;
-            }
-            
-            if (analise.tem_recursos) {
-                html += `
-                    <div class="result-card" style="text-align: center;">
-                        <div style="font-size: 2rem;">⚖️</div>
-                        <div style="font-weight: bold; margin-top: 0.5rem;">Possível Recurso</div>
-                    </div>
-                `;
-            }
-            
-            html += '</div>';
-            
-            document.getElementById('resultAnalysis').innerHTML = html;
-        }
-
-        function formatResultText(text) {
-            // Format text with proper HTML
-            let formatted = text;
-            
-            // Format bold text
-            formatted = formatted.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-            
-            // Format sections with icons
-            const iconPatterns = [
-                { icon: '📊', color: 'var(--primary)' },
-                { icon: '📑', color: 'var(--secondary)' },
-                { icon: '⚖️', color: 'var(--primary)' },
-                { icon: '💰', color: 'var(--warning)' },
-                { icon: '📅', color: 'var(--primary)' },
-                { icon: '⚠️', color: 'var(--danger)' },
-                { icon: '💡', color: 'var(--secondary)' }
-            ];
-            
-            iconPatterns.forEach(pattern => {
-                const regex = new RegExp(`(${pattern.icon}[^\\n]+)`, 'g');
-                formatted = formatted.replace(regex, `<div style="color: ${pattern.color}; font-weight: bold; margin: 1rem 0;">$1</div>`);
-            });
-            
-            // Format bullet points
-            formatted = formatted.replace(/•/g, '▸');
-            formatted = formatted.replace(/^\d\.\s/gm, '<br><strong>                    <button class="button" onclick="copyText()"</strong>');
-            
-            // Convert line breaks to HTML
-            formatted = formatted.replace(/\n/g, '<br>');
-            
-            return formatted;
-        }
-
-        // Copy text
-        function copyText() {
-            const element = document.getElementById('simplifiedText');
-            const text = element.innerText || element.textContent;
-            
-            if (!text) {
-                showToast('Nenhum texto para copiar', 'warning');
-                return;
-            }
-            
-            navigator.clipboard.writeText(text)
-                .then(() => {
-                    showToast('Texto copiado com sucesso!', 'success');
-                })
-                .catch(() => {
-                    // Fallback
-                    const textarea = document.createElement('textarea');
-                    textarea.value = text;
-                    document.body.appendChild(textarea);
-                    textarea.select();
-                    document.execCommand('copy');
-                    document.body.removeChild(textarea);
-                    showToast('Texto copiado!', 'success');
-                });
-        }
-
-        // Text to speech
-        let isSpeaking = false;
-        function speakText() {
-            const text = document.getElementById('simplifiedText').textContent;
-            const btn = document.getElementById('speakBtn');
-            
-            if (!text) {
-                showToast('Nenhum texto para ler', 'warning');
-                return;
-            }
-            
-            if (isSpeaking) {
-                window.speechSynthesis.cancel();
-                btn.innerHTML = '<span>🔊</span> Ler em Voz Alta';
-                isSpeaking = false;
-                return;
-            }
-            
-            const utterance = new SpeechSynthesisUtterance(text);
-            utterance.lang = 'pt-BR';
-            utterance.rate = 0.9;
-            
-            utterance.onend = () => {
-                btn.innerHTML = '<span>🔊</span> Ler em Voz Alta';
-                isSpeaking = false;
-            };
-            
-            utterance.onerror = () => {
-                showToast('Erro ao ler o texto', 'error');
-                btn.innerHTML = '<span>🔊</span> Ler em Voz Alta';
-                isSpeaking = false;
-            };
-            
-            window.speechSynthesis.speak(utterance);
-            btn.innerHTML = '<span>⏹️</span> Parar Leitura';
-            isSpeaking = true;
-        }
-
-        // Clear all
-        function clearAll() {
-            document.getElementById('manualText').value = '';
-            document.getElementById('resultSection').style.display = 'none';
-            document.getElementById('fileInfo').style.display = 'none';
-            fileInput.value = '';
-            updateProgressSteps(1);
-            showToast('Tudo limpo!', 'info');
-        }
-
-        // Load example
-        function loadExample() {
-            const exampleText = `SENTENÇA
-
-Processo nº 1234567-89.2024.8.26.0100
-
-RELATÓRIO
-Trata-se de ação de cobrança movida por JOÃO DA SILVA em face de EMPRESA XYZ LTDA, alegando inadimplemento contratual no valor de R$ 15.000,00.
-
-FUNDAMENTAÇÃO
-Analisando os autos, verifico que o autor comprovou a existência da dívida através de contrato assinado e notas fiscais. O réu, devidamente citado, não apresentou contestação.
-
-DISPOSITIVO
-Ante o exposto, JULGO PROCEDENTE o pedido para CONDENAR o réu a pagar ao autor a quantia de R$ 15.000,00, corrigida monetariamente desde o vencimento e acrescida de juros de 1% ao mês.
-
-Condeno o réu ao pagamento das custas processuais e honorários advocatícios que fixo em 10% do valor da condenação.
-
-P.R.I.`;
-            
-            document.getElementById('manualText').value = exampleText;
-            showToast('Exemplo carregado! Clique em "Simplificar Texto" para processar', 'info', 4000);
-        }
-
-        // Feedback modal
-        function showFeedbackModal() {
-            document.getElementById('feedbackModal').classList.add('show');
-        }
-
-        function closeFeedbackModal() {
-            document.getElementById('feedbackModal').classList.remove('show');
-            selectedRating = 0;
-            document.querySelectorAll('.star').forEach(star => star.classList.remove('active'));
-            document.getElementById('feedbackComment').value = '';
-        }
-
-        // Rating stars
-        document.querySelectorAll('.star').forEach(star => {
-            star.addEventListener('click', function() {
-                selectedRating = parseInt(this.dataset.rating);
-                updateStars(selectedRating);
-            });
-            
-            star.addEventListener('mouseenter', function() {
-                const rating = parseInt(this.dataset.rating);
-                updateStars(rating);
-            });
-        });
-
-        document.getElementById('rating').addEventListener('mouseleave', function() {
-            updateStars(selectedRating);
-        });
-
-        function updateStars(rating) {
-            document.querySelectorAll('.star').forEach((star, index) => {
-                if (index < rating) {
-                    star.classList.add('active');
-                } else {
-                    star.classList.remove('active');
-                }
-            });
-        }
-
-        function submitFeedback() {
-            if (selectedRating === 0) {
-                showToast('Por favor, selecione uma avaliação', 'warning');
-                return;
-            }
-            
-            const comment = document.getElementById('feedbackComment').value;
-            
-            fetch('/feedback', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
+                {
+                    "category": "HARM_CATEGORY_HATE_SPEECH",
+                    "threshold": "BLOCK_NONE"
                 },
-                body: JSON.stringify({
-                    rating: selectedRating,
-                    comment: comment,
-                    hash: currentResultHash
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                showToast('Obrigado pela sua avaliação!', 'success');
-                closeFeedbackModal();
-            })
-            .catch(error => {
-                showToast('Erro ao enviar avaliação', 'error');
-                console.error('Erro:', error);
-            });
+                {
+                    "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+                    "threshold": "BLOCK_NONE"
+                },
+                {
+                    "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
+                    "threshold": "BLOCK_NONE"
+                }
+            ]
         }
+        
+        for retry in range(max_retries):
+            try:
+                start_time = time.time()
+                response = requests.post(
+                    modelo["url"],
+                    headers=headers,
+                    json=payload,
+                    timeout=120
+                )
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    elapsed = round(time.time() - start_time, 2)
+                    
+                    if "candidates" in data and len(data["candidates"]) > 0:
+                        texto_simplificado = data["candidates"][0]["content"]["parts"][0]["text"]
+                        
+                        # Adicionar ao cache
+                        results_cache[texto_hash] = {
+                            "result": texto_simplificado,
+                            "timestamp": time.time(),
+                            "modelo": modelo["name"]
+                        }
+                        
+                        model_usage_stats[modelo["name"]]["successes"] += 1
+                        logging.info(f"Sucesso com {modelo['name']} em {elapsed}s")
+                        
+                        return texto_simplificado, None
+                    else:
+                        errors.append(f"{modelo['name']}: Resposta vazia")
+                        
+                elif response.status_code == 429:
+                    # Rate limit - tentar próximo modelo
+                    errors.append(f"{modelo['name']}: Limite de requisições excedido")
+                    model_usage_stats[modelo["name"]]["failures"] += 1
+                    break  # Sair do loop de retry, tentar próximo modelo
+                    
+                elif response.status_code == 400:
+                    # Bad request - pode ser tokens demais
+                    errors.append(f"{modelo['name']}: Requisição inválida (possível excesso de tokens)")
+                    model_usage_stats[modelo["name"]]["failures"] += 1
+                    break
+                    
+                else:
+                    errors.append(f"{modelo['name']}: Erro HTTP {response.status_code}")
+                    
+            except requests.exceptions.Timeout:
+                errors.append(f"{modelo['name']}: Timeout")
+                if retry < max_retries - 1:
+                    time.sleep(2 ** retry)
+                    
+            except Exception as e:
+                errors.append(f"{modelo['name']}: {str(e)}")
+                logging.error(f"Erro com {modelo['name']}: {e}")
+        
+        # Pequena pausa antes de tentar próximo modelo
+        if tentativa < len(GEMINI_MODELS) - 1:
+            time.sleep(1)
+    
+    # Se todos os modelos falharam
+    error_summary = " | ".join(errors)
+    logging.error(f"Todos os modelos falharam: {error_summary}")
+    return None, f"Erro ao processar. Tentativas: {error_summary}"
 
-        // Keyboard shortcuts
-        document.addEventListener('keydown', (e) => {
-            // Ctrl/Cmd + Enter to process
-            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-                const manualText = document.getElementById('manualText').value;
-                if (manualText) {
-                    processManualText();
-                }
-            }
+def gerar_pdf_simplificado(texto, metadados=None, filename="documento_simplificado.pdf"):
+    """Gera PDF com melhor formatação e metadados"""
+    output_path = os.path.join(TEMP_DIR, filename)
+    
+    try:
+        c = canvas.Canvas(output_path, pagesize=letter)
+        largura, altura = letter
+        
+        # Margens
+        margem_esq = 50
+        margem_dir = 50
+        margem_top = 50
+        margem_bottom = 50
+        largura_texto = largura - margem_esq - margem_dir
+        
+        # Configurações de fonte
+        c.setFont("Helvetica", 11)
+        altura_linha = 14
+        
+        y = altura - margem_top
+        
+        # Cabeçalho
+        c.setFont("Helvetica-Bold", 16)
+        c.drawString(margem_esq, y, "Documento em Linguagem Simples")
+        y -= 30
+        
+        # Informações do processamento
+        c.setFont("Helvetica", 9)
+        c.setFillColorRGB(0.5, 0.5, 0.5)
+        c.drawString(margem_esq, y, f"Gerado em: {datetime.now().strftime('%d/%m/%Y às %H:%M')}")
+        y -= 15
+        
+        if metadados:
+            if metadados.get("modelo"):
+                c.drawString(margem_esq, y, f"Processado com: {metadados['modelo']}")
+                y -= 15
+            if metadados.get("paginas"):
+                c.drawString(margem_esq, y, f"Páginas do original: {metadados['paginas']}")
+                y -= 15
+        
+        # Linha separadora
+        c.setStrokeColorRGB(0.8, 0.8, 0.8)
+        c.line(margem_esq, y, largura - margem_dir, y)
+        y -= 20
+        
+        # Processar texto com formatação especial para ícones
+        c.setFont("Helvetica", 11)
+        c.setFillColorRGB(0, 0, 0)
+        
+        linhas = texto.split('\n')
+        
+        for linha in linhas:
+            if not linha.strip():
+                y -= altura_linha
+                continue
             
-            // Esc to close modal or clear
-            if (e.key === 'Escape') {
-                if (document.getElementById('feedbackModal').classList.contains('show')) {
-                    closeFeedbackModal();
-                }
-            }
-        });
+            # Detectar e formatar linhas com ícones especiais
+            if any(icon in linha for icon in ['✅', '❌', '⚠️', '📊', '📑', '⚖️', '💰', '📅', '💡']):
+                c.setFont("Helvetica-Bold", 12)
+                # Remover asteriscos do texto para PDF
+                linha_limpa = linha.replace('**', '')
+                if y < margem_bottom + altura_linha * 2:
+                    c.showPage()
+                    y = altura - margem_top
+                c.drawString(margem_esq, y, linha_limpa)
+                c.setFont("Helvetica", 11)
+                y -= altura_linha * 1.5
+                continue
+            
+            # Detectar títulos de seção
+            if linha.strip().startswith('**') and linha.strip().endswith('**'):
+                titulo = linha.strip()[2:-2]
+                c.setFont("Helvetica-Bold", 12)
+                if y < margem_bottom + altura_linha * 2:
+                    c.showPage()
+                    y = altura - margem_top
+                c.drawString(margem_esq, y, titulo)
+                c.setFont("Helvetica", 11)
+                y -= altura_linha * 1.5
+                continue
+            
+            # Processar linha normal com quebra
+            palavras = linha.split()
+            linhas_formatadas = []
+            linha_atual = []
+            
+            for palavra in palavras:
+                linha_teste = ' '.join(linha_atual + [palavra])
+                if c.stringWidth(linha_teste, "Helvetica", 11) <= largura_texto:
+                    linha_atual.append(palavra)
+                else:
+                    if linha_atual:
+                        linhas_formatadas.append(' '.join(linha_atual))
+                        linha_atual = [palavra]
+                    else:
+                        linhas_formatadas.append(palavra)
+            
+            if linha_atual:
+                linhas_formatadas.append(' '.join(linha_atual))
+            
+            for linha_formatada in linhas_formatadas:
+                if y < margem_bottom + altura_linha:
+                    c.showPage()
+                    y = altura - margem_top
+                    c.setFont("Helvetica", 11)
+                
+                c.drawString(margem_esq, y, linha_formatada)
+                y -= altura_linha
+        
+        # Rodapé
+        c.setFont("Helvetica", 8)
+        c.setFillColorRGB(0.6, 0.6, 0.6)
+        c.drawString(margem_esq, 30, "Desenvolvido pelo INOVASSOL - Centro de Inovação")
+        c.drawString(largura - margem_dir - 150, 30, "Consulte seu advogado para orientações")
+        
+        c.save()
+        return output_path
+        
+    except Exception as e:
+        logging.error(f"Erro ao gerar PDF: {e}")
+        raise
 
-        // Initialize on load
-        document.addEventListener('DOMContentLoaded', () => {
-            initializeStats();
-        });
-    </script>
-</body>
-</html>>
+@app.route("/")
+def index():
+    return render_template("index.html")
 
+@app.route("/processar", methods=["POST"])
+@rate_limit
+def processar():
+    """Processa upload de PDF com análise aprimorada"""
+    try:
+        if 'file' not in request.files:
+            return jsonify({"erro": "Nenhum arquivo enviado"}), 400
+            
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({"erro": "Nenhum arquivo selecionado"}), 400
+            
+        if not allowed_file(file.filename):
+            return jsonify({"erro": "Formato inválido. Apenas PDFs são aceitos"}), 400
+        
+        # Verifica tamanho
+        file.seek(0, os.SEEK_END)
+        size = file.tell()
+        file.seek(0)
+        
+        if size > MAX_FILE_SIZE:
+            return jsonify({"erro": f"Arquivo muito grande. Máximo: {MAX_FILE_SIZE//1024//1024}MB"}), 400
+        
+        # Processa o PDF
+        pdf_bytes = file.read()
+        
+        # Hash do arquivo para cache
+        file_hash = hashlib.md5(pdf_bytes).hexdigest()
+        logging.info(f"Processando arquivo: {secure_filename(file.filename)} ({size/1024:.1f}KB) - Hash: {file_hash}")
+        
+        # Extrair texto e metadados
+        texto_original, metadados_pdf = extrair_texto_pdf(pdf_bytes)
+        
+        if len(texto_original) < 10:
+            return jsonify({"erro": "PDF não contém texto suficiente para processar"}), 400
+        
+        # Simplificar com Gemini
+        texto_simplificado, erro = simplificar_com_gemini(texto_original)
+        
+        if erro:
+            return jsonify({"erro": erro}), 500
+        
+        # Preparar metadados para o PDF
+        metadados_geracao = {
+            "modelo": results_cache.get(file_hash, {}).get("modelo", "Gemini"),
+            "paginas": metadados_pdf["total_paginas"],
+            "usou_ocr": metadados_pdf["usou_ocr"]
+        }
+        
+        # Gerar PDF simplificado
+        pdf_filename = f"simplificado_{file_hash[:8]}.pdf"
+        pdf_path = gerar_pdf_simplificado(texto_simplificado, metadados_geracao, pdf_filename)
+        
+        # Salvar o caminho na sessão
+        session['pdf_path'] = pdf_path
+        session['pdf_filename'] = pdf_filename
+        
+        # Análise adicional do resultado
+        analise = analisar_resultado_judicial(texto_simplificado)
+        
+        return jsonify({
+            "texto": texto_simplificado,
+            "caracteres_original": len(texto_original),
+            "caracteres_simplificado": len(texto_simplificado),
+            "reducao_percentual": round((1 - len(texto_simplificado)/len(texto_original)) * 100, 1),
+            "metadados": metadados_pdf,
+            "analise": analise,
+            "modelo_usado": metadados_geracao.get("modelo", "Gemini")
+        })
+        
+    except Exception as e:
+        logging.error(f"Erro ao processar PDF: {e}")
+        return jsonify({"erro": "Erro ao processar o PDF. Verifique se o arquivo não está corrompido"}), 500
+
+@app.route("/processar_texto", methods=["POST"])
+@rate_limit
+def processar_texto():
+    """Processa texto manual com análise aprimorada"""
+    try:
+        data = request.get_json()
+        texto = data.get("texto", "").strip()
+        
+        if not texto:
+            return jsonify({"erro": "Nenhum texto fornecido"}), 400
+            
+        if len(texto) < 20:
+            return jsonify({"erro": "Texto muito curto. Mínimo: 20 caracteres"}), 400
+            
+        if len(texto) > 10000:
+            return jsonify({"erro": "Texto muito longo. Máximo: 10.000 caracteres"}), 400
+        
+        texto_simplificado, erro = simplificar_com_gemini(texto)
+        
+        if erro:
+            return jsonify({"erro": erro}), 500
+        
+        # Análise adicional
+        analise = analisar_resultado_judicial(texto_simplificado)
+        
+        return jsonify({
+            "texto": texto_simplificado,
+            "caracteres_original": len(texto),
+            "caracteres_simplificado": len(texto_simplificado),
+            "reducao_percentual": round((1 - len(texto_simplificado)/len(texto)) * 100, 1),
+            "analise": analise
+        })
+        
+    except Exception as e:
+        logging.error(f"Erro ao processar texto: {e}")
+        return jsonify({"erro": "Erro ao processar o texto"}), 500
+
+def analisar_resultado_judicial(texto):
+    """Analisa o texto simplificado para extrair informações estruturadas"""
+    analise = {
+        "tipo_resultado": "indefinido",
+        "tem_valores": False,
+        "tem_prazos": False,
+        "tem_recursos": False,
+        "sentimento": "neutro",
+        "palavras_chave": []
+    }
+    
+    texto_lower = texto.lower()
+    
+    # Identificar tipo de resultado
+    if "✅" in texto or "vitória" in texto_lower or "procedente" in texto_lower:
+        analise["tipo_resultado"] = "vitoria"
+        analise["sentimento"] = "positivo"
+    elif "❌" in texto or "derrota" in texto_lower or "improcedente" in texto_lower:
+        analise["tipo_resultado"] = "derrota"
+        analise["sentimento"] = "negativo"
+    elif "⚠️" in texto or "parcial" in texto_lower:
+        analise["tipo_resultado"] = "parcial"
+        analise["sentimento"] = "neutro"
+    
+    # Verificar presença de elementos importantes
+    if "r$" in texto_lower or "valor" in texto_lower or "💰" in texto:
+        analise["tem_valores"] = True
+        analise["palavras_chave"].append("valores")
+    
+    if "prazo" in texto_lower or "dias" in texto_lower or "📅" in texto:
+        analise["tem_prazos"] = True
+        analise["palavras_chave"].append("prazos")
+    
+    if "recurso" in texto_lower or "apelação" in texto_lower or "agravo" in texto_lower:
+        analise["tem_recursos"] = True
+        analise["palavras_chave"].append("recursos")
+    
+    return analise
+
+@app.route("/estatisticas")
+def estatisticas():
+    """Retorna estatísticas de uso dos modelos"""
+    return jsonify({
+        "modelos": model_usage_stats,
+        "cache_size": len(results_cache),
+        "timestamp": datetime.now().isoformat()
+    })
+
+@app.route("/download_pdf")
+def download_pdf():
+    """Download do PDF com verificação de sessão"""
+    pdf_path = session.get('pdf_path')
+    pdf_filename = session.get('pdf_filename', 'documento_simplificado.pdf')
+    
+    if not pdf_path or not os.path.exists(pdf_path):
+        return jsonify({"erro": "PDF não encontrado. Por favor, processe um documento primeiro"}), 404
+    
+    try:
+        return send_file(
+            pdf_path, 
+            as_attachment=True, 
+            download_name=pdf_filename,
+            mimetype='application/pdf'
+        )
+    except Exception as e:
+        logging.error(f"Erro ao fazer download: {e}")
+        return jsonify({"erro": "Erro ao baixar o arquivo"}), 500
+
+@app.route("/feedback", methods=["POST"])
+def feedback():
+    """Recebe feedback do usuário sobre a simplificação"""
+    try:
+        data = request.get_json()
+        rating = data.get("rating")
+        comment = data.get("comment", "")
+        resultado_hash = data.get("hash", "")
+        
+        # Aqui você pode salvar em um banco de dados ou arquivo
+        logging.info(f"Feedback recebido - Rating: {rating}, Hash: {resultado_hash[:8]}, Comentário: {comment}")
+        
+        return jsonify({"sucesso": True, "mensagem": "Obrigado pelo seu feedback!"})
+    except Exception as e:
+        logging.error(f"Erro ao processar feedback: {e}")
+        return jsonify({"erro": "Erro ao processar feedback"}), 500
+
+@app.route("/static/<path:filename>")
+def serve_static(filename):
+    """Serve arquivos estáticos"""
+    return send_from_directory('static', filename)
+
+@app.route("/health")
+def health():
+    """Endpoint de health check para o Render"""
+    return jsonify({
+        "status": "healthy",
+        "timestamp": datetime.now().isoformat(),
+        "api_configured": bool(GEMINI_API_KEY),
+        "models_available": len(GEMINI_MODELS),
+        "cache_entries": len(results_cache)
+    })
+
+@app.errorhandler(404)
+def not_found(e):
+    return jsonify({"erro": "Endpoint não encontrado"}), 404
+
+@app.errorhandler(500)
+def server_error(e):
+    logging.error(f"Erro interno: {e}")
+    return jsonify({"erro": "Erro interno do servidor"}), 500
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+# Limpa arquivos temporários antigos periodicamente
+def cleanup_temp_files():
+    while True:
+        try:
+            time.sleep(3600)  # A cada hora
+            now = time.time()
+            
+            # Limpar arquivos temporários
+            for filename in os.listdir(TEMP_DIR):
+                if filename.startswith('simplificado_'):
+                    filepath = os.path.join(TEMP_DIR, filename)
+                    if os.stat(filepath).st_mtime < now - 3600:  # Arquivos com mais de 1 hora
+                        os.remove(filepath)
+                        logging.info(f"Arquivo temporário removido: {filename}")
+            
+            # Limpar cache antigo
+            to_remove = []
+            for key, value in results_cache.items():
+                if time.time() - value["timestamp"] > CACHE_EXPIRATION:
+                    to_remove.append(key)
+            
+            for key in to_remove:
+                del results_cache[key]
+            
+            if to_remove:
+                logging.info(f"Removidos {len(to_remove)} itens do cache")
+                
+        except Exception as e:
+            logging.error(f"Erro na limpeza de arquivos: {e}")
+
+# Inicia thread de limpeza
+cleanup_thread = threading.Thread(target=cleanup_temp_files, daemon=True)
+cleanup_thread.start()
+
+if __name__ == "__main__":
+    port = int(os.getenv("PORT", 8080))
+    app.run(host="0.0.0.0", port=port, debug=False)
