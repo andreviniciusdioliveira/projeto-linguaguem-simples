@@ -3,22 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Linguagem Simples nos Documentos Jurídicos - Powered by Claude AI</title>
+    <title>Linguagem Simples Jurídica - Powered by Gemini AI</title>
     <meta name="description" content="Transforme documentos jurídicos complexos em linguagem simples e acessível usando inteligência artificial">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='50%' x='50%' text-anchor='middle' font-size='80'>⚖️</text></svg>">
     
     <style>
         :root {
-            --primary: #0073e6;
-            --primary-dark: #005bb5;
-            --secondary: #28a745;
-            --danger: #dc3545;
-            --dark: #343a40;
+            --primary: #1a73e8;
+            --primary-dark: #1557b0;
+            --secondary: #34a853;
+            --danger: #ea4335;
+            --warning: #fbbc04;
+            --dark: #202124;
             --light: #f8f9fa;
-            --border: #dee2e6;
+            --border: #dadce0;
             --shadow: rgba(0,0,0,0.1);
-            --text: #212529;
-            --text-muted: #6c757d;
+            --text: #202124;
+            --text-muted: #5f6368;
+            --success-bg: #e6f4ea;
+            --error-bg: #fce8e6;
+            --warning-bg: #fef7e0;
         }
 
         * {
@@ -28,7 +32,7 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            font-family: 'Google Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
             background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
             min-height: 100vh;
             color: var(--text);
@@ -41,36 +45,23 @@
             --primary: #4da3ff;
             --primary-dark: #66b3ff;
             --light: #1a1a1a;
-            --text: #f0f0f0;
-            --border: #404040;
+            --text: #e8eaed;
+            --text-muted: #9aa0a6;
+            --border: #3c4043;
             --shadow: rgba(255,255,255,0.1);
+            --success-bg: #1e3a2e;
+            --error-bg: #3c1f1f;
+            --warning-bg: #3a3319;
             background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
         }
 
         .container {
-            max-width: 900px;
+            max-width: 1200px;
             margin: 0 auto;
             padding: 2rem;
         }
 
-        /* Logo */
-        .logo-container {
-            text-align: left;
-            margin-bottom: 1.5rem;
-            animation: fadeInDown 0.8s ease;
-        }
-        
-        .logo {
-            max-width: 200px;
-            height: auto;
-            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
-        }
-        
-        body.dark-mode .logo {
-            filter: drop-shadow(0 2px 4px rgba(255,255,255,0.1));
-        }
-
-        /* Header */
+        /* Header aprimorado */
         .header {
             text-align: center;
             margin-bottom: 3rem;
@@ -79,7 +70,9 @@
 
         .header h1 {
             font-size: 2.5rem;
-            color: var(--primary);
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
             margin-bottom: 0.5rem;
             font-weight: 700;
         }
@@ -89,108 +82,134 @@
             font-size: 1.1rem;
         }
 
-        .badge {
-            display: inline-block;
-            background: var(--primary);
-            color: white;
-            padding: 0.25rem 0.75rem;
-            border-radius: 1rem;
-            font-size: 0.875rem;
-            margin-top: 0.5rem;
-        }
-
-        /* Cards */
+        /* Cards com glassmorphism */
         .card {
-            background: white;
-            border-radius: 1rem;
-            box-shadow: 0 4px 6px var(--shadow);
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            box-shadow: 0 8px 32px var(--shadow);
             padding: 2rem;
             margin-bottom: 2rem;
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            transition: all 0.3s ease;
             animation: fadeInUp 0.8s ease;
+            border: 1px solid var(--border);
         }
 
         body.dark-mode .card {
-            background: #2a2a2a;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            background: rgba(42, 42, 42, 0.95);
+            border-color: var(--border);
         }
 
         .card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 12px var(--shadow);
+            transform: translateY(-4px);
+            box-shadow: 0 12px 48px var(--shadow);
         }
 
-        .card h2 {
-            color: var(--primary);
-            margin-bottom: 1rem;
-            font-size: 1.5rem;
+        /* Progress Steps */
+        .progress-steps {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 3rem;
+            position: relative;
+        }
+
+        .progress-steps::before {
+            content: '';
+            position: absolute;
+            top: 20px;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: var(--border);
+            z-index: -1;
+        }
+
+        .step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex: 1;
+            position: relative;
+        }
+
+        .step-circle {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: white;
+            border: 2px solid var(--border);
             display: flex;
             align-items: center;
-            gap: 0.5rem;
+            justify-content: center;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            z-index: 1;
         }
 
-        /* File upload area */
+        .step.active .step-circle {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+            transform: scale(1.1);
+        }
+
+        .step.completed .step-circle {
+            background: var(--secondary);
+            color: white;
+            border-color: var(--secondary);
+        }
+
+        .step-label {
+            margin-top: 0.5rem;
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            text-align: center;
+        }
+
+        /* File upload area melhorada */
         #drop-area {
             border: 2px dashed var(--primary);
-            border-radius: 1rem;
+            border-radius: 12px;
             padding: 3rem 2rem;
             text-align: center;
             cursor: pointer;
             transition: all 0.3s ease;
-            background: var(--light);
+            background: linear-gradient(135deg, rgba(26, 115, 232, 0.05) 0%, rgba(26, 115, 232, 0.1) 100%);
             position: relative;
             overflow: hidden;
         }
 
-        #drop-area:hover, #drop-area.hover {
-            background: rgba(0, 115, 230, 0.05);
+        #drop-area::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, var(--primary) 0%, transparent 70%);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+        }
+
+        #drop-area:hover::before,
+        #drop-area.hover::before {
+            opacity: 0.1;
+        }
+
+        #drop-area:hover,
+        #drop-area.hover {
             border-color: var(--primary-dark);
             transform: scale(1.02);
         }
 
-        #drop-area p {
-            margin-bottom: 1rem;
-            font-size: 1.1rem;
-            color: var(--text-muted);
-        }
-
-        #drop-area .icon {
-            font-size: 3rem;
-            margin-bottom: 1rem;
-            color: var(--primary);
-        }
-
-        /* Textarea */
-        textarea {
-            width: 100%;
-            padding: 1rem;
-            border: 2px solid var(--border);
-            border-radius: 0.5rem;
-            font-size: 1rem;
-            resize: vertical;
-            min-height: 150px;
-            font-family: inherit;
-            transition: border-color 0.3s ease;
-        }
-
-        textarea:focus {
-            outline: none;
-            border-color: var(--primary);
-        }
-
-        body.dark-mode textarea {
-            background: #333;
-            color: white;
-            border-color: #555;
-        }
-
-        /* Buttons */
+        /* Botões melhorados */
         .button {
-            background: var(--primary);
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
             color: white;
             border: none;
             padding: 0.75rem 2rem;
-            border-radius: 0.5rem;
+            border-radius: 8px;
             font-size: 1rem;
             font-weight: 600;
             cursor: pointer;
@@ -199,127 +218,205 @@
             align-items: center;
             gap: 0.5rem;
             text-decoration: none;
-            box-shadow: 0 2px 4px rgba(0, 115, 230, 0.2);
+            box-shadow: 0 4px 12px rgba(26, 115, 232, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .button::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+
+        .button:hover::before {
+            width: 300px;
+            height: 300px;
         }
 
         .button:hover {
-            background: var(--primary-dark);
             transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0, 115, 230, 0.3);
+            box-shadow: 0 6px 20px rgba(26, 115, 232, 0.4);
         }
 
-        .button:active {
-            transform: translateY(0);
+        /* Resultado com animações */
+        .result-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 2px 8px var(--shadow);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
         }
 
-        .button.secondary {
+        body.dark-mode .result-card {
+            background: #333;
+        }
+
+        .result-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: var(--primary);
+        }
+
+        .result-success::before {
             background: var(--secondary);
         }
 
-        .button.secondary:hover {
-            background: #218838;
-        }
-
-        .button.danger {
+        .result-error::before {
             background: var(--danger);
         }
 
-        .button.danger:hover {
-            background: #bd2130;
+        .result-warning::before {
+            background: var(--warning);
         }
 
-        .button:disabled {
-            background: var(--text-muted);
-            cursor: not-allowed;
-            transform: none;
+        /* Animação de digitação */
+        @keyframes typing {
+            from { width: 0; }
+            to { width: 100%; }
         }
 
-        /* Button group */
-        .button-group {
+        .typing-effect {
+            overflow: hidden;
+            white-space: nowrap;
+            animation: typing 2s steps(40, end);
+        }
+
+        /* Modal de feedback */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            animation: fadeIn 0.3s ease;
+        }
+
+        .modal.show {
             display: flex;
-            gap: 1rem;
-            flex-wrap: wrap;
-            margin-top: 1rem;
+            align-items: center;
+            justify-content: center;
         }
 
-        /* Output area */
-        #output {
-            display: none;
-            animation: fadeIn 0.5s ease;
-        }
-
-        #output.show {
-            display: block;
-        }
-
-        .output-text {
-            background: var(--light);
-            border: 1px solid var(--border);
-            border-radius: 0.5rem;
-            padding: 1.5rem;
-            margin-bottom: 1rem;
-            white-space: pre-wrap;
-            word-wrap: break-word;
-            max-height: 400px;
-            overflow-y: auto;
-            font-size: 1rem;
-            line-height: 1.8;
-        }
-
-        body.dark-mode .output-text {
-            background: #333;
-            border-color: #555;
-        }
-
-        /* Statistics */
-        .stats {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 1rem;
-            margin-bottom: 1rem;
-        }
-
-        .stat-card {
-            background: var(--light);
-            border: 1px solid var(--border);
-            border-radius: 0.5rem;
-            padding: 1rem;
-            text-align: center;
-        }
-
-        body.dark-mode .stat-card {
-            background: #333;
-            border-color: #555;
-        }
-
-        .stat-card .value {
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: var(--primary);
-        }
-
-        .stat-card .label {
-            font-size: 0.875rem;
-            color: var(--text-muted);
-        }
-
-        /* Loading */
-        .loading {
-            display: none;
-            text-align: center;
+        .modal-content {
+            background: white;
+            border-radius: 16px;
             padding: 2rem;
+            max-width: 500px;
+            width: 90%;
+            animation: slideUp 0.3s ease;
         }
 
-        .loading.show {
+        body.dark-mode .modal-content {
+            background: #2a2a2a;
+        }
+
+        /* Rating stars */
+        .rating {
+            display: flex;
+            gap: 0.5rem;
+            font-size: 2rem;
+            justify-content: center;
+            margin: 1rem 0;
+        }
+
+        .star {
+            cursor: pointer;
+            transition: all 0.2s ease;
+            color: #ddd;
+        }
+
+        .star:hover,
+        .star.active {
+            color: #ffd700;
+            transform: scale(1.1);
+        }
+
+        /* Estatísticas em tempo real */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-box {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .stat-box:hover {
+            transform: scale(1.05);
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
             display: block;
         }
 
-        .spinner {
-            display: inline-block;
-            width: 50px;
-            height: 50px;
-            border: 3px solid var(--border);
-            border-top-color: var(--primary);
+        .stat-label {
+            font-size: 0.875rem;
+            opacity: 0.9;
+        }
+
+        /* Loading avançado */
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .loading-overlay.show {
+            display: flex;
+        }
+
+        .loading-content {
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            text-align: center;
+            max-width: 400px;
+        }
+
+        body.dark-mode .loading-content {
+            background: #2a2a2a;
+        }
+
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            margin: 0 auto 1rem;
+            border: 4px solid var(--border);
+            border-top: 4px solid var(--primary);
             border-radius: 50%;
             animation: spin 1s linear infinite;
         }
@@ -329,11 +426,131 @@
         }
 
         .loading-text {
-            margin-top: 1rem;
-            color: var(--text-muted);
+            color: var(--text);
+            margin-bottom: 1rem;
         }
 
-        /* Toast notifications */
+        .loading-progress {
+            width: 100%;
+            height: 8px;
+            background: var(--border);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .loading-progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary) 0%, var(--primary-dark) 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+            animation: shimmer 1.5s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { opacity: 0.8; }
+            50% { opacity: 1; }
+            100% { opacity: 0.8; }
+        }
+
+        /* Tooltips */
+        .tooltip {
+            position: relative;
+            display: inline-block;
+        }
+
+        .tooltip .tooltiptext {
+            visibility: hidden;
+            width: 200px;
+            background: var(--dark);
+            color: white;
+            text-align: center;
+            border-radius: 6px;
+            padding: 0.5rem;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -100px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 0.875rem;
+        }
+
+        .tooltip:hover .tooltiptext {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+
+            .header h1 {
+                font-size: 1.8rem;
+            }
+
+            .progress-steps {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .progress-steps::before {
+                display: none;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Toast notifications melhoradas */
         .toast {
             position: fixed;
             bottom: -100px;
@@ -342,12 +559,15 @@
             background: var(--dark);
             color: white;
             padding: 1rem 2rem;
-            border-radius: 0.5rem;
-            box-shadow: 0 4px 6px var(--shadow);
+            border-radius: 8px;
+            box-shadow: 0 8px 32px var(--shadow);
             transition: bottom 0.3s ease;
-            z-index: 1000;
+            z-index: 10000;
             max-width: 90%;
             text-align: center;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
         }
 
         .toast.show {
@@ -363,11 +583,11 @@
         }
 
         .toast.warning {
-            background: #ffc107;
+            background: var(--warning);
             color: var(--dark);
         }
 
-        /* Theme switch */
+        /* Switch de tema aprimorado */
         .theme-switch {
             position: fixed;
             top: 1rem;
@@ -395,7 +615,7 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background-color: #ccc;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             transition: .4s;
             border-radius: 30px;
         }
@@ -407,7 +627,7 @@
             width: 22px;
             left: 4px;
             bottom: 4px;
-            background-color: white;
+            background: white;
             transition: .4s;
             border-radius: 50%;
             display: flex;
@@ -417,262 +637,12 @@
         }
 
         input:checked + .slider {
-            background-color: var(--primary);
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
         }
 
         input:checked + .slider:before {
             content: "🌙";
             transform: translateX(30px);
-        }
-
-        /* Animations */
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-            }
-            to {
-                opacity: 1;
-            }
-        }
-
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        @keyframes fadeInDown {
-            from {
-                opacity: 0;
-                transform: translateY(-20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        @keyframes pulse {
-            0% {
-                transform: scale(1);
-            }
-            50% {
-                transform: scale(1.05);
-            }
-            100% {
-                transform: scale(1);
-            }
-        }
-
-        /* Progress bar */
-        .progress-bar {
-            width: 100%;
-            height: 4px;
-            background: var(--border);
-            border-radius: 2px;
-            overflow: hidden;
-            margin-top: 1rem;
-            display: none;
-        }
-
-        .progress-bar.show {
-            display: block;
-        }
-
-        .progress-fill {
-            height: 100%;
-            background: var(--primary);
-            width: 0%;
-            transition: width 0.3s ease;
-            animation: progressPulse 2s ease-in-out infinite;
-        }
-
-        @keyframes progressPulse {
-            0% {
-                opacity: 1;
-            }
-            50% {
-                opacity: 0.7;
-            }
-            100% {
-                opacity: 1;
-            }
-        }
-
-        /* Estilos para os ícones de resultado */
-        .result-icon {
-            font-size: 2rem;
-            margin-right: 0.5rem;
-            vertical-align: middle;
-        }
-        
-        .result-header {
-            font-size: 1.25rem;
-            font-weight: bold;
-            margin-bottom: 1rem;
-            padding: 1rem;
-            border-radius: 0.5rem;
-            text-align: center;
-        }
-        
-        .result-success {
-            background-color: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-        
-        .result-error {
-            background-color: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-        
-        .result-warning {
-            background-color: #fff3cd;
-            color: #856404;
-            border: 1px solid #ffeeba;
-        }
-        
-        body.dark-mode .result-success {
-            background-color: #1b4332;
-            color: #52b788;
-            border-color: #2d6a4f;
-        }
-        
-        body.dark-mode .result-error {
-            background-color: #6a040f;
-            color: #dc2f02;
-            border-color: #9d0208;
-        }
-        
-        body.dark-mode .result-warning {
-            background-color: #7b5e00;
-            color: #ffc107;
-            border-color: #a67c00;
-        }
-        @media (max-width: 768px) {
-            .container {
-                padding: 1rem;
-            }
-
-            .header h1 {
-                font-size: 2rem;
-            }
-
-            .card {
-                padding: 1.5rem;
-            }
-
-            .button {
-                width: 100%;
-                justify-content: center;
-            }
-
-            .button-group {
-                flex-direction: column;
-            }
-
-            .stats {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        /* File info */
-        .file-info {
-            background: var(--light);
-            border: 1px solid var(--border);
-            border-radius: 0.5rem;
-            padding: 1rem;
-            margin-top: 1rem;
-            display: none;
-        }
-
-        .file-info.show {
-            display: block;
-            animation: fadeIn 0.3s ease;
-        }
-
-        body.dark-mode .file-info {
-            background: #333;
-            border-color: #555;
-        }
-
-        .file-info p {
-            margin: 0;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .file-info .filename {
-            font-weight: 600;
-            color: var(--primary);
-        }
-
-        .file-info .size {
-            color: var(--text-muted);
-            font-size: 0.875rem;
-        }
-
-        /* Error message */
-        .error-message {
-            background: rgba(220, 53, 69, 0.1);
-            border: 1px solid var(--danger);
-            border-radius: 0.5rem;
-            padding: 1rem;
-            margin-top: 1rem;
-            color: var(--danger);
-            display: none;
-        }
-
-        .error-message.show {
-            display: block;
-            animation: fadeIn 0.3s ease;
-        }
-
-        /* Features section */
-        .features {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 1.5rem;
-            margin-bottom: 3rem;
-        }
-
-        .feature {
-            text-align: center;
-            padding: 1.5rem;
-            background: white;
-            border-radius: 1rem;
-            box-shadow: 0 2px 4px var(--shadow);
-            transition: transform 0.3s ease;
-        }
-
-        body.dark-mode .feature {
-            background: #2a2a2a;
-        }
-
-        .feature:hover {
-            transform: translateY(-5px);
-        }
-
-        .feature-icon {
-            font-size: 3rem;
-            margin-bottom: 1rem;
-        }
-
-        .feature h3 {
-            color: var(--primary);
-            margin-bottom: 0.5rem;
-        }
-
-        .feature p {
-            color: var(--text-muted);
-            font-size: 0.9rem;
         }
     </style>
 </head>
@@ -685,92 +655,170 @@
         </label>
     </div>
 
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <div class="loading-text" id="loadingText">Processando com IA...</div>
+            <div class="loading-progress">
+                <div class="loading-progress-bar" id="loadingProgress"></div>
+            </div>
+            <small id="modelInfo" style="color: var(--text-muted); margin-top: 0.5rem;"></small>
+        </div>
+    </div>
+
     <div class="container">
         <!-- Header -->
         <header class="header">
-            <div class="logo-container">
-                <img src="/static/logoinovasso.png" alt="INOVASSOL - Centro de Inovação" class="logo" onerror="this.style.display='none'">
+            <div style="display: flex; align-items: center; justify-content: center; gap: 2rem; margin-bottom: 2rem;">
+                <img src="/static/logoinovassol.png" alt="INOVASSOL - Centro de Inovação" 
+                     style="height: 80px; width: auto; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.1));">
+                <div style="text-align: left;">
+                    <h1 style="margin-bottom: 0.25rem;">⚖️ Linguagem Simples Jurídica</h1>
+                    <p style="margin: 0;">Transforme documentos complexos em linguagem clara com IA</p>
+                </div>
             </div>
-            <h1>⚖️ Linguagem Simples nos Documentos Jurídicos</h1>
-            <p>Transforme documentos complexos em linguagem clara e acessível</p>
-            <span class="badge">Desenvolvido por INOVASSOL - Centro de Inovação</span>
+            <div style="display: flex; align-items: center; justify-content: center; gap: 2rem; flex-wrap: wrap;">
+                <span style="background: linear-gradient(135deg, #4285f4 0%, #ea4335 50%, #fbbc04 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: bold;">
+                    Powered by Gemini AI
+                </span>
+                <span style="color: var(--text-muted); font-size: 0.9rem;">
+                    Desenvolvido pelo INOVASSOL - Centro de Inovação
+                </span>
+            </div>
         </header>
+
+        <!-- Progress Steps -->
+        <div class="progress-steps">
+            <div class="step active" id="step1">
+                <div class="step-circle">1</div>
+                <div class="step-label">Enviar Documento</div>
+            </div>
+            <div class="step" id="step2">
+                <div class="step-circle">2</div>
+                <div class="step-label">Processar com IA</div>
+            </div>
+            <div class="step" id="step3">
+                <div class="step-circle">3</div>
+                <div class="step-label">Resultado Simplificado</div>
+            </div>
+        </div>
+
+        <!-- Statistics -->
+        <div class="stats-grid" id="statsGrid" style="display: none;">
+            <div class="stat-box">
+                <span class="stat-value" id="totalProcessed">0</span>
+                <span class="stat-label">Documentos Processados</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-value" id="avgReduction">0%</span>
+                <span class="stat-label">Redução Média</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-value" id="currentModel">-</span>
+                <span class="stat-label">Modelo Atual</span>
+            </div>
+        </div>
 
         <!-- Upload Card -->
         <div class="card">
-            <h2>📤 Enviar PDF</h2>
+            <h2 style="color: var(--primary); margin-bottom: 1.5rem;">📤 Enviar Documento PDF</h2>
             <div id="drop-area">
-                <div class="icon">📁</div>
-                <p>Arraste seu PDF aqui ou clique para selecionar</p>
+                <div style="font-size: 3rem; margin-bottom: 1rem;">📁</div>
+                <p style="font-size: 1.1rem; color: var(--text); margin-bottom: 1rem;">
+                    Arraste seu PDF aqui ou clique para selecionar
+                </p>
                 <input type="file" id="fileInput" accept=".pdf" style="display: none;">
                 <button class="button" onclick="document.getElementById('fileInput').click()">
-                    Escolher Arquivo
+                    <span>📎</span> Escolher Arquivo
                 </button>
-            </div>
-            <div class="file-info" id="fileInfo">
-                <p>
-                    <span class="filename" id="fileName"></span>
-                    <span class="size" id="fileSize"></span>
+                <p style="font-size: 0.875rem; color: var(--text-muted); margin-top: 1rem;">
+                    Máximo: 10MB | Formato: PDF
                 </p>
             </div>
-            <div class="error-message" id="uploadError"></div>
+            <div id="fileInfo" style="display: none; margin-top: 1rem; padding: 1rem; background: var(--success-bg); border-radius: 8px;">
+                <p style="margin: 0; display: flex; justify-content: space-between; align-items: center;">
+                    <span id="fileName" style="font-weight: 600;"></span>
+                    <span id="fileSize" style="font-size: 0.875rem; color: var(--text-muted);"></span>
+                </p>
+            </div>
         </div>
 
         <!-- Manual Text Card -->
         <div class="card">
-            <h2>✍️ Texto Manual</h2>
-            <textarea id="manualText" placeholder="Cole aqui o texto jurídico que deseja simplificar..."></textarea>
-            <div class="button-group">
+            <h2 style="color: var(--primary); margin-bottom: 1.5rem;">✍️ Ou Cole o Texto</h2>
+            <textarea id="manualText" placeholder="Cole aqui o texto jurídico que deseja simplificar..." 
+                style="width: 100%; min-height: 150px; padding: 1rem; border: 2px solid var(--border); border-radius: 8px; font-family: inherit; font-size: 1rem; resize: vertical; transition: border-color 0.3s;"></textarea>
+            <div style="display: flex; gap: 1rem; margin-top: 1rem;">
                 <button class="button" onclick="processManualText()">
                     <span>🔄</span> Simplificar Texto
                 </button>
-                <button class="button danger" onclick="clearAll()">
-                    <span>🗑️</span> Limpar
+                <button class="button" style="background: var(--danger);" onclick="clearAll()">
+                    <span>🗑️</span> Limpar Tudo
                 </button>
-            </div>
-            <div class="error-message" id="textError"></div>
-        </div>
-
-        <!-- Loading -->
-        <div class="loading" id="loading">
-            <div class="spinner"></div>
-            <p class="loading-text">Processando com Claude AI...</p>
-            <div class="progress-bar">
-                <div class="progress-fill" id="progressFill"></div>
+                <div class="tooltip" style="margin-left: auto;">
+                    <button class="button" style="background: var(--warning); color: var(--dark);" onclick="loadExample()">
+                        <span>📝</span> Exemplo
+                    </button>
+                    <span class="tooltiptext">Carregar um exemplo de texto jurídico</span>
+                </div>
             </div>
         </div>
 
-        <!-- Output Card -->
-        <div id="output" class="card">
-            <h2>✅ Texto Simplificado</h2>
-            
-            <div class="stats" id="stats">
-                <div class="stat-card">
-                    <div class="value" id="originalChars">-</div>
-                    <div class="label">Caracteres Original</div>
+        <!-- Result Card -->
+        <div id="resultSection" style="display: none;">
+            <div class="card">
+                <h2 style="color: var(--primary); margin-bottom: 1.5rem;">✅ Resultado Simplificado</h2>
+                
+                <!-- Result Analysis -->
+                <div id="resultAnalysis" style="margin-bottom: 1.5rem;">
+                    <!-- Filled dynamically -->
                 </div>
-                <div class="stat-card">
-                    <div class="value" id="simplifiedChars">-</div>
-                    <div class="label">Caracteres Simplificado</div>
+                
+                <!-- Simplified Text -->
+                <div id="simplifiedText" style="background: var(--light); padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem; max-height: 500px; overflow-y: auto;">
+                    <!-- Filled dynamically -->
                 </div>
-                <div class="stat-card">
-                    <div class="value" id="reduction">-</div>
-                    <div class="label">Redução</div>
+                
+                <!-- Action Buttons -->
+                <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                    <a href="#" class="button" id="downloadBtn" style="display: none;">
+                        <span>📥</span> Baixar PDF
+                    </a>
+                    <button class="button" onclick="copyText()">
+                        <span>📋</span> Copiar Texto
+                    </button>
+                    <button class="button" onclick="speakText()" id="speakBtn">
+                        <span>🔊</span> Ler em Voz Alta
+                    </button>
+                    <button class="button" style="background: var(--secondary);" onclick="showFeedbackModal()">
+                        <span>⭐</span> Avaliar
+                    </button>
                 </div>
             </div>
+        </div>
 
-            <div class="output-text" id="outputText"></div>
-            
-            <div class="button-group">
-                <a href="#" class="button secondary" id="downloadBtn" style="display: none;">
-                    <span>📥</span> Baixar PDF
-                </a>
-                <button class="button" onclick="copyText()">
-                    <span>📋</span> Copiar Texto
-                </button>
-                <button class="button" onclick="speakText()" id="speakBtn">
-                    <span>🔊</span> Ler em Voz Alta
-                </button>
+        <!-- Feedback Modal -->
+        <div id="feedbackModal" class="modal">
+            <div class="modal-content">
+                <h2 style="color: var(--primary); margin-bottom: 1rem;">Como foi sua experiência?</h2>
+                <div class="rating" id="rating">
+                    <span class="star" data-rating="1">⭐</span>
+                    <span class="star" data-rating="2">⭐</span>
+                    <span class="star" data-rating="3">⭐</span>
+                    <span class="star" data-rating="4">⭐</span>
+                    <span class="star" data-rating="5">⭐</span>
+                </div>
+                <textarea id="feedbackComment" placeholder="Deixe um comentário (opcional)" 
+                    style="width: 100%; min-height: 100px; padding: 0.75rem; border: 2px solid var(--border); border-radius: 8px; margin: 1rem 0; font-family: inherit;"></textarea>
+                <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                    <button class="button" style="background: var(--text-muted);" onclick="closeFeedbackModal()">
+                        Cancelar
+                    </button>
+                    <button class="button" onclick="submitFeedback()">
+                        Enviar Avaliação
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -782,14 +830,17 @@
         // Configurações
         const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
         let isProcessing = false;
-        let speechSynthesis = window.speechSynthesis;
-        let isSpeaking = false;
+        let currentResultHash = '';
+        let selectedRating = 0;
+        let processedCount = 0;
+        let totalReduction = 0;
+        let currentModel = '-';
 
         // Theme
         const themeSwitch = document.getElementById('themeSwitch');
         const body = document.body;
 
-        // Verificar tema salvo
+        // Check saved theme
         const savedTheme = localStorage.getItem('theme');
         if (savedTheme === 'dark') {
             body.classList.add('dark-mode');
@@ -806,24 +857,65 @@
             }
         });
 
+        // Initialize stats from localStorage
+        function initializeStats() {
+            processedCount = parseInt(localStorage.getItem('processedCount') || '0');
+            totalReduction = parseFloat(localStorage.getItem('totalReduction') || '0');
+            updateStatsDisplay();
+        }
+
+        function updateStatsDisplay() {
+            document.getElementById('totalProcessed').textContent = processedCount;
+            const avgReduction = processedCount > 0 ? (totalReduction / processedCount).toFixed(1) : 0;
+            document.getElementById('avgReduction').textContent = avgReduction + '%';
+            document.getElementById('currentModel').textContent = currentModel;
+            
+            if (processedCount > 0) {
+                document.getElementById('statsGrid').style.display = 'grid';
+            }
+        }
+
+        // Progress steps
+        function updateProgressSteps(step) {
+            document.querySelectorAll('.step').forEach(s => {
+                s.classList.remove('active', 'completed');
+            });
+            
+            for (let i = 1; i <= step; i++) {
+                const stepEl = document.getElementById(`step${i}`);
+                if (i < step) {
+                    stepEl.classList.add('completed');
+                } else {
+                    stepEl.classList.add('active');
+                }
+            }
+        }
+
         // Toast notifications
-        function showToast(message, type = 'info') {
+        function showToast(message, type = 'info', duration = 3000) {
             const toast = document.getElementById('toast');
-            toast.textContent = message;
+            
+            // Add icon based on type
+            let icon = '';
+            switch(type) {
+                case 'success': icon = '✅ '; break;
+                case 'error': icon = '❌ '; break;
+                case 'warning': icon = '⚠️ '; break;
+                default: icon = 'ℹ️ ';
+            }
+            
+            toast.textContent = icon + message;
             toast.className = `toast ${type}`;
             setTimeout(() => toast.classList.add('show'), 100);
             
             setTimeout(() => {
                 toast.classList.remove('show');
-            }, 3000);
+            }, duration);
         }
 
         // File upload
         const dropArea = document.getElementById('drop-area');
         const fileInput = document.getElementById('fileInput');
-        const fileInfo = document.getElementById('fileInfo');
-        const fileName = document.getElementById('fileName');
-        const fileSize = document.getElementById('fileSize');
 
         // Prevent default drag behaviors
         ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
@@ -836,7 +928,7 @@
             e.stopPropagation();
         }
 
-        // Highlight drop area when item is dragged over it
+        // Highlight drop area
         ['dragenter', 'dragover'].forEach(eventName => {
             dropArea.addEventListener(eventName, () => dropArea.classList.add('hover'), false);
         });
@@ -865,24 +957,23 @@
             
             const file = files[0];
             
-            // Validações
+            // Validations
             if (file.type !== 'application/pdf') {
-                showError('uploadError', 'Por favor, selecione apenas arquivos PDF');
+                showToast('Por favor, selecione apenas arquivos PDF', 'error');
                 return;
             }
             
             if (file.size > MAX_FILE_SIZE) {
-                showError('uploadError', `Arquivo muito grande. Máximo: ${MAX_FILE_SIZE / 1024 / 1024}MB`);
+                showToast(`Arquivo muito grande. Máximo: ${MAX_FILE_SIZE / 1024 / 1024}MB`, 'error');
                 return;
             }
             
-            // Mostrar info do arquivo
-            fileName.textContent = file.name;
-            fileSize.textContent = formatFileSize(file.size);
-            fileInfo.classList.add('show');
-            hideError('uploadError');
+            // Show file info
+            document.getElementById('fileName').textContent = file.name;
+            document.getElementById('fileSize').textContent = formatFileSize(file.size);
+            document.getElementById('fileInfo').style.display = 'block';
             
-            // Processar arquivo
+            // Process file
             uploadFile(file);
         }
 
@@ -901,17 +992,18 @@
             }
             
             isProcessing = true;
-            showLoading();
+            showLoading('Enviando documento...');
+            updateProgressSteps(2);
             
             const formData = new FormData();
             formData.append('file', file);
             
-            // Simular progresso
+            // Simulate progress
             let progress = 0;
             const progressInterval = setInterval(() => {
-                progress += Math.random() * 15;
+                progress += Math.random() * 20;
                 if (progress > 90) progress = 90;
-                updateProgress(progress);
+                updateLoadingProgress(progress);
             }, 500);
             
             fetch('/processar', {
@@ -920,7 +1012,7 @@
             })
             .then(response => {
                 clearInterval(progressInterval);
-                updateProgress(100);
+                updateLoadingProgress(100);
                 
                 if (!response.ok) {
                     return response.json().then(data => {
@@ -931,7 +1023,16 @@
             })
             .then(data => {
                 showResult(data);
-                showToast('PDF processado com sucesso!', 'success');
+                updateProgressSteps(3);
+                showToast('Documento processado com sucesso!', 'success');
+                
+                // Update stats
+                processedCount++;
+                totalReduction += data.reducao_percentual || 0;
+                currentModel = data.modelo_usado || 'Gemini';
+                localStorage.setItem('processedCount', processedCount);
+                localStorage.setItem('totalReduction', totalReduction);
+                updateStatsDisplay();
             })
             .catch(error => {
                 showToast(error.message || 'Erro ao processar PDF', 'error');
@@ -949,17 +1050,17 @@
             const text = document.getElementById('manualText').value.trim();
             
             if (!text) {
-                showError('textError', 'Por favor, insira algum texto');
+                showToast('Por favor, insira algum texto', 'warning');
                 return;
             }
             
             if (text.length < 20) {
-                showError('textError', 'Texto muito curto. Mínimo: 20 caracteres');
+                showToast('Texto muito curto. Mínimo: 20 caracteres', 'warning');
                 return;
             }
             
             if (text.length > 10000) {
-                showError('textError', 'Texto muito longo. Máximo: 10.000 caracteres');
+                showToast('Texto muito longo. Máximo: 10.000 caracteres', 'warning');
                 return;
             }
             
@@ -968,9 +1069,9 @@
                 return;
             }
             
-            hideError('textError');
             isProcessing = true;
-            showLoading();
+            showLoading('Processando texto...');
+            updateProgressSteps(2);
             
             fetch('/processar_texto', {
                 method: 'POST',
@@ -989,7 +1090,15 @@
             })
             .then(data => {
                 showResult(data);
+                updateProgressSteps(3);
                 showToast('Texto processado com sucesso!', 'success');
+                
+                // Update stats
+                processedCount++;
+                totalReduction += data.reducao_percentual || 0;
+                localStorage.setItem('processedCount', processedCount);
+                localStorage.setItem('totalReduction', totalReduction);
+                updateStatsDisplay();
             })
             .catch(error => {
                 showToast(error.message || 'Erro ao processar texto', 'error');
@@ -1001,41 +1110,45 @@
             });
         }
 
-        // Show/hide functions
-        function showLoading() {
-            document.getElementById('loading').classList.add('show');
-            document.querySelector('.progress-bar').classList.add('show');
-            updateProgress(0);
+        // Loading functions
+        function showLoading(text = 'Processando...') {
+            const overlay = document.getElementById('loadingOverlay');
+            document.getElementById('loadingText').textContent = text;
+            document.getElementById('modelInfo').textContent = 'Selecionando melhor modelo...';
+            overlay.classList.add('show');
+            updateLoadingProgress(0);
         }
 
         function hideLoading() {
-            document.getElementById('loading').classList.remove('show');
-            document.querySelector('.progress-bar').classList.remove('show');
+            document.getElementById('loadingOverlay').classList.remove('show');
         }
 
-        function updateProgress(percent) {
-            document.getElementById('progressFill').style.width = percent + '%';
-        }
-
-        function showError(elementId, message) {
-            const element = document.getElementById(elementId);
-            element.textContent = message;
-            element.classList.add('show');
-        }
-
-        function hideError(elementId) {
-            document.getElementById(elementId).classList.remove('show');
-        }
-
-        function showResult(data) {
-            // Update stats
-            document.getElementById('originalChars').textContent = data.caracteres_original?.toLocaleString() || '-';
-            document.getElementById('simplifiedChars').textContent = data.caracteres_simplificado?.toLocaleString() || '-';
-            document.getElementById('reduction').textContent = data.reducao_percentual ? data.reducao_percentual + '%' : '-';
+        function updateLoadingProgress(percent) {
+            document.getElementById('loadingProgress').style.width = percent + '%';
             
-            // Show text with proper formatting for icons
+            // Update loading text based on progress
+            if (percent > 30 && percent < 60) {
+                document.getElementById('loadingText').textContent = 'Analisando documento...';
+            } else if (percent >= 60 && percent < 90) {
+                document.getElementById('loadingText').textContent = 'Simplificando com IA...';
+                document.getElementById('modelInfo').textContent = 'Usando Gemini AI';
+            } else if (percent >= 90) {
+                document.getElementById('loadingText').textContent = 'Finalizando...';
+            }
+        }
+
+        // Show result
+        function showResult(data) {
+            currentResultHash = Date.now().toString();
+            
+            // Format and display simplified text
             const formattedText = formatResultText(data.texto);
-            document.getElementById('outputText').innerHTML = formattedText;
+            document.getElementById('simplifiedText').innerHTML = formattedText;
+            
+            // Show analysis if available
+            if (data.analise) {
+                showResultAnalysis(data.analise);
+            }
             
             // Show download button if PDF was processed
             if (data.caracteres_original) {
@@ -1043,63 +1156,114 @@
                 document.getElementById('downloadBtn').href = '/download_pdf';
             }
             
-            // Show output
-            document.getElementById('output').classList.add('show');
+            // Show result section
+            document.getElementById('resultSection').style.display = 'block';
             
             // Scroll to result
-            document.getElementById('output').scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-
-        // Clear all
-        function clearAll() {
-            document.getElementById('manualText').value = '';
-            document.getElementById('output').classList.remove('show');
-            document.getElementById('fileInfo').classList.remove('show');
-            fileInput.value = '';
-            hideError('uploadError');
-            hideError('textError');
-            showToast('Tudo limpo!', 'info');
-        }
-
-        // Format result text to properly display icons and styling
-        function formatResultText(text) {
-            // Replace emoji patterns with styled versions
-            const patterns = [
-                { regex: /✅\s*\*\*([^*]+)\*\*/g, class: 'result-success', icon: '✅' },
-                { regex: /❌\s*\*\*([^*]+)\*\*/g, class: 'result-error', icon: '❌' },
-                { regex: /⚠️\s*\*\*([^*]+)\*\*/g, class: 'result-warning', icon: '⚠️' }
-            ];
-            
-            let formattedText = text;
-            
-            // Check for result headers
-            patterns.forEach(pattern => {
-                formattedText = formattedText.replace(pattern.regex, (match, p1) => {
-                    return `<div class="result-header ${pattern.class}">
-                        <span class="result-icon">${pattern.icon}</span>
-                        ${p1}
-                    </div>`;
-                });
+            document.getElementById('resultSection').scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'start' 
             });
+        }
+
+        function showResultAnalysis(analise) {
+            let html = '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 1rem;">';
+            
+            // Result type card
+            let resultClass = 'result-card';
+            let resultIcon = '📄';
+            let resultText = 'Documento Processado';
+            
+            if (analise.tipo_resultado === 'vitoria') {
+                resultClass += ' result-success';
+                resultIcon = '✅';
+                resultText = 'Resultado Favorável';
+            } else if (analise.tipo_resultado === 'derrota') {
+                resultClass += ' result-error';
+                resultIcon = '❌';
+                resultText = 'Resultado Desfavorável';
+            } else if (analise.tipo_resultado === 'parcial') {
+                resultClass += ' result-warning';
+                resultIcon = '⚠️';
+                resultText = 'Resultado Parcial';
+            }
+            
+            html += `
+                <div class="${resultClass}" style="text-align: center;">
+                    <div style="font-size: 2rem;">${resultIcon}</div>
+                    <div style="font-weight: bold; margin-top: 0.5rem;">${resultText}</div>
+                </div>
+            `;
+            
+            // Info cards
+            if (analise.tem_valores) {
+                html += `
+                    <div class="result-card" style="text-align: center;">
+                        <div style="font-size: 2rem;">💰</div>
+                        <div style="font-weight: bold; margin-top: 0.5rem;">Contém Valores</div>
+                    </div>
+                `;
+            }
+            
+            if (analise.tem_prazos) {
+                html += `
+                    <div class="result-card" style="text-align: center;">
+                        <div style="font-size: 2rem;">📅</div>
+                        <div style="font-weight: bold; margin-top: 0.5rem;">Contém Prazos</div>
+                    </div>
+                `;
+            }
+            
+            if (analise.tem_recursos) {
+                html += `
+                    <div class="result-card" style="text-align: center;">
+                        <div style="font-size: 2rem;">⚖️</div>
+                        <div style="font-weight: bold; margin-top: 0.5rem;">Possível Recurso</div>
+                    </div>
+                `;
+            }
+            
+            html += '</div>';
+            
+            document.getElementById('resultAnalysis').innerHTML = html;
+        }
+
+        function formatResultText(text) {
+            // Format text with proper HTML
+            let formatted = text;
             
             // Format bold text
-            formattedText = formattedText.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+            formatted = formatted.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
             
-            // Format section headers
-            formattedText = formattedText.replace(/^([A-Z\s]+:)$/gm, '<h3 style="color: var(--primary); margin-top: 1.5rem; margin-bottom: 0.5rem;">$1</h3>');
+            // Format sections with icons
+            const iconPatterns = [
+                { icon: '📊', color: 'var(--primary)' },
+                { icon: '📑', color: 'var(--secondary)' },
+                { icon: '⚖️', color: 'var(--primary)' },
+                { icon: '💰', color: 'var(--warning)' },
+                { icon: '📅', color: 'var(--primary)' },
+                { icon: '⚠️', color: 'var(--danger)' },
+                { icon: '💡', color: 'var(--secondary)' }
+            ];
+            
+            iconPatterns.forEach(pattern => {
+                const regex = new RegExp(`(${pattern.icon}[^\\n]+)`, 'g');
+                formatted = formatted.replace(regex, `<div style="color: ${pattern.color}; font-weight: bold; margin: 1rem 0;">$1</div>`);
+            });
             
             // Format bullet points
-            formattedText = formattedText.replace(/•/g, '▶');
+            formatted = formatted.replace(/•/g, '▸');
+            formatted = formatted.replace(/^\d\.\s/gm, '<br><strong>                    <button class="button" onclick="copyText()"</strong>');
             
             // Convert line breaks to HTML
-            formattedText = formattedText.replace(/\n/g, '<br>');
+            formatted = formatted.replace(/\n/g, '<br>');
             
-            return formattedText;
+            return formatted;
         }
 
-        // Copy text (updated to handle HTML)
+        // Copy text
         function copyText() {
-            const element = document.getElementById('outputText');
+            const element = document.getElementById('simplifiedText');
             const text = element.innerText || element.textContent;
             
             if (!text) {
@@ -1109,7 +1273,7 @@
             
             navigator.clipboard.writeText(text)
                 .then(() => {
-                    showToast('Texto copiado!', 'success');
+                    showToast('Texto copiado com sucesso!', 'success');
                 })
                 .catch(() => {
                     // Fallback
@@ -1124,8 +1288,9 @@
         }
 
         // Text to speech
+        let isSpeaking = false;
         function speakText() {
-            const text = document.getElementById('outputText').textContent;
+            const text = document.getElementById('simplifiedText').textContent;
             const btn = document.getElementById('speakBtn');
             
             if (!text) {
@@ -1134,7 +1299,7 @@
             }
             
             if (isSpeaking) {
-                speechSynthesis.cancel();
+                window.speechSynthesis.cancel();
                 btn.innerHTML = '<span>🔊</span> Ler em Voz Alta';
                 isSpeaking = false;
                 return;
@@ -1155,14 +1320,116 @@
                 isSpeaking = false;
             };
             
-            speechSynthesis.speak(utterance);
+            window.speechSynthesis.speak(utterance);
             btn.innerHTML = '<span>⏹️</span> Parar Leitura';
             isSpeaking = true;
         }
 
+        // Clear all
+        function clearAll() {
+            document.getElementById('manualText').value = '';
+            document.getElementById('resultSection').style.display = 'none';
+            document.getElementById('fileInfo').style.display = 'none';
+            fileInput.value = '';
+            updateProgressSteps(1);
+            showToast('Tudo limpo!', 'info');
+        }
+
+        // Load example
+        function loadExample() {
+            const exampleText = `SENTENÇA
+
+Processo nº 1234567-89.2024.8.26.0100
+
+RELATÓRIO
+Trata-se de ação de cobrança movida por JOÃO DA SILVA em face de EMPRESA XYZ LTDA, alegando inadimplemento contratual no valor de R$ 15.000,00.
+
+FUNDAMENTAÇÃO
+Analisando os autos, verifico que o autor comprovou a existência da dívida através de contrato assinado e notas fiscais. O réu, devidamente citado, não apresentou contestação.
+
+DISPOSITIVO
+Ante o exposto, JULGO PROCEDENTE o pedido para CONDENAR o réu a pagar ao autor a quantia de R$ 15.000,00, corrigida monetariamente desde o vencimento e acrescida de juros de 1% ao mês.
+
+Condeno o réu ao pagamento das custas processuais e honorários advocatícios que fixo em 10% do valor da condenação.
+
+P.R.I.`;
+            
+            document.getElementById('manualText').value = exampleText;
+            showToast('Exemplo carregado! Clique em "Simplificar Texto" para processar', 'info', 4000);
+        }
+
+        // Feedback modal
+        function showFeedbackModal() {
+            document.getElementById('feedbackModal').classList.add('show');
+        }
+
+        function closeFeedbackModal() {
+            document.getElementById('feedbackModal').classList.remove('show');
+            selectedRating = 0;
+            document.querySelectorAll('.star').forEach(star => star.classList.remove('active'));
+            document.getElementById('feedbackComment').value = '';
+        }
+
+        // Rating stars
+        document.querySelectorAll('.star').forEach(star => {
+            star.addEventListener('click', function() {
+                selectedRating = parseInt(this.dataset.rating);
+                updateStars(selectedRating);
+            });
+            
+            star.addEventListener('mouseenter', function() {
+                const rating = parseInt(this.dataset.rating);
+                updateStars(rating);
+            });
+        });
+
+        document.getElementById('rating').addEventListener('mouseleave', function() {
+            updateStars(selectedRating);
+        });
+
+        function updateStars(rating) {
+            document.querySelectorAll('.star').forEach((star, index) => {
+                if (index < rating) {
+                    star.classList.add('active');
+                } else {
+                    star.classList.remove('active');
+                }
+            });
+        }
+
+        function submitFeedback() {
+            if (selectedRating === 0) {
+                showToast('Por favor, selecione uma avaliação', 'warning');
+                return;
+            }
+            
+            const comment = document.getElementById('feedbackComment').value;
+            
+            fetch('/feedback', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    rating: selectedRating,
+                    comment: comment,
+                    hash: currentResultHash
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                showToast('Obrigado pela sua avaliação!', 'success');
+                closeFeedbackModal();
+            })
+            .catch(error => {
+                showToast('Erro ao enviar avaliação', 'error');
+                console.error('Erro:', error);
+            });
+        }
+
         // Keyboard shortcuts
         document.addEventListener('keydown', (e) => {
-            // Ctrl/Cmd + Enter para processar
+            // Ctrl/Cmd + Enter to process
             if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
                 const manualText = document.getElementById('manualText').value;
                 if (manualText) {
@@ -1170,11 +1437,18 @@
                 }
             }
             
-            // Esc para limpar
+            // Esc to close modal or clear
             if (e.key === 'Escape') {
-                clearAll();
+                if (document.getElementById('feedbackModal').classList.contains('show')) {
+                    closeFeedbackModal();
+                }
             }
+        });
+
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeStats();
         });
     </script>
 </body>
-</html>
+</html>>
