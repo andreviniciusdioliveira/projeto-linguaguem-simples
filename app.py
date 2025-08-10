@@ -105,23 +105,23 @@ PROMPT_SIMPLIFICACAO = """**Papel:** Você é um especialista em linguagem simpl
 
 **ESTRUTURA DE ANÁLISE OBRIGATÓRIA:**
 
-## 1. IDENTIFICAÇÃO DO DOCUMENTO
+1. IDENTIFICAÇÃO DO DOCUMENTO
 - Tipo: [Sentença/Despacho/Decisão/Acórdão]
 - Número do processo: [identificar]
 - Partes envolvidas: [Autor x Réu]
 - Assunto principal: [identificar]
 
-## 2. ANÁLISE DO RESULTADO (MAIS IMPORTANTE)
+2. ANÁLISE DO RESULTADO (MAIS IMPORTANTE)
 **ATENÇÃO:** Procure SEMPRE pela seção "DISPOSITIVO", "DECIDE", "ANTE O EXPOSTO" ou "DIANTE DO EXPOSTO"
 
-### Identificação do Vencedor:
+Identificação do Vencedor:
 - ✅ AUTOR GANHOU se encontrar: "JULGO PROCEDENTE", "CONDENO o réu/requerido", "DEFIRO"
 - ❌ AUTOR PERDEU se encontrar: "JULGO IMPROCEDENTE", "CONDENO o autor/requerente", "INDEFIRO"  
 - ⚠️ PARCIAL se encontrar: "JULGO PARCIALMENTE PROCEDENTE"
 
-## 3. FORMATAÇÃO DA RESPOSTA
+3. FORMATAÇÃO DA RESPOSTA
 
-### 📊 RESUMO EXECUTIVO
+📊 RESUMO EXECUTIVO
 [Use sempre um dos ícones abaixo]
 ✅ **VITÓRIA TOTAL** - Você ganhou completamente a causa
 ❌ **DERROTA** - Você perdeu a causa
@@ -131,20 +131,20 @@ PROMPT_SIMPLIFICACAO = """**Papel:** Você é um especialista em linguagem simpl
 
 **Em uma frase:** [Explicar o resultado em linguagem muito simples]
 
-### 📑 O QUE ACONTECEU
+📑 O QUE ACONTECEU
 [Explicar em 3-4 linhas o contexto do processo]
 
-### ⚖️ O QUE O JUIZ DECIDIU
+⚖️ O QUE O JUIZ DECIDIU
 [Detalhar a decisão em linguagem simples, usando parágrafos curtos]
 
-### 💰 VALORES E OBRIGAÇÕES
+💰 VALORES E OBRIGAÇÕES
 • Valor da causa: R$ [valor]
 • Valores a receber: R$ [detalhar]
 • Valores a pagar: R$ [detalhar]
 • Honorários: [percentual e valor]
 • Custas processuais: [quem paga]
 
-### 📚 MINI DICIONÁRIO DOS TERMOS JURÍDICOS
+📚 MINI DICIONÁRIO DOS TERMOS JURÍDICOS
 [Listar apenas os termos jurídicos que aparecem no texto com explicação simples]
 • **Termo 1:** Explicação clara e simples
 • **Termo 2:** Explicação clara e simples
@@ -822,4 +822,5 @@ cleanup_thread.start()
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8080))
     app.run(host="0.0.0.0", port=port, debug=False)
+
 
