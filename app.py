@@ -144,19 +144,17 @@ PROMPT_SIMPLIFICACAO = """**Papel:** Você é um especialista em linguagem simpl
 • Honorários: [percentual e valor]
 • Custas processuais: [quem paga]
 
-### 📅 PRÓXIMOS PASSOS
-1. [Ação necessária com prazo]
-2. [Segunda ação se houver]
-3. [Orientação sobre recursos]
-
 ### ⚠️ ATENÇÃO IMPORTANTE
 [Alertas sobre prazos críticos ou consequências]
 
 ### 💡 DICA PRÁTICA
 [Sugestão de ação imediata que a parte pode tomar]
 
-**Mini Dicionário dos Termos Usados:**
+### 📚 MINI DICIONÁRIO DOS TERMOS JURÍDICOS
 [Listar apenas os termos jurídicos que aparecem no texto com explicação simples]
+• **Termo 1:** Explicação clara e simples
+• **Termo 2:** Explicação clara e simples
+• **Termo 3:** Explicação clara e simples
 
 ---
 *Documento processado em: [data/hora]*
@@ -171,6 +169,7 @@ PROMPT_SIMPLIFICACAO = """**Papel:** Você é um especialista em linguagem simpl
 6. Destaque informações críticas com formatação
 
 **TEXTO ORIGINAL A SIMPLIFICAR:**
+"""
 """
 
 def extrair_texto_pdf(pdf_bytes):
@@ -830,3 +829,4 @@ cleanup_thread.start()
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8080))
     app.run(host="0.0.0.0", port=port, debug=False)
+
