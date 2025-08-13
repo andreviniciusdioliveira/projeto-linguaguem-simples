@@ -547,7 +547,7 @@ def gerar_pdf_simplificado(texto, metadados=None, filename="documento_simplifica
         # Rodapé
         c.setFont("Helvetica", 8)
         c.setFillColorRGB(0.6, 0.6, 0.6)
-        c.drawString(margem_esq, 30, ")
+        c.drawString(margem_esq, 30, "Desenvolvido")
         c.drawString(largura - margem_dir - 150, 30, "Consulte seu advogado para orientações")
         
         c.save()
