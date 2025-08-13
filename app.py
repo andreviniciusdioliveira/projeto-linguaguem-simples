@@ -67,67 +67,6 @@ CACHE_EXPIRATION = 3600  # 1 hora
 # Estatísticas de uso dos modelos
 model_usage_stats = {model["name"]: {"attempts": 0, "successes": 0, "failures": 0} for model in GEMINI_MODELS}
 
-# --- Sistema de Estatísticas Globais ---
-STATS_FILE = os.path.join(TEMP_DIR, 'global_stats.json')
-
-def load_global_stats():
-    """Carrega estatísticas globais do arquivo"""
-    try:
-        if os.path.exists(STATS_FILE):
-            with open(STATS_FILE, 'r') as f:
-                return json.load(f)
-    except Exception as e:
-        logging.error(f"Erro ao carregar estatísticas: {e}")
-    
-    # Retorna estatísticas padrão se não existir arquivo
-    return {
-        "total_documentos": 0,
-        "reducao_total": 0.0,
-        "ultimo_processamento": None,
-        "modelos_usados": {},
-        "tipos_resultado": {
-            "vitoria": 0,
-            "derrota": 0,
-            "parcial": 0,
-            "indefinido": 0
-        }
-    }
-
-def save_global_stats(stats):
-    """Salva estatísticas globais no arquivo"""
-    try:
-        with open(STATS_FILE, 'w') as f:
-            json.dump(stats, f, indent=2)
-        return True
-    except Exception as e:
-        logging.error(f"Erro ao salvar estatísticas: {e}")
-        return False
-
-def increment_global_stats(reducao_percentual=0, modelo_usado="Gemini", tipo_resultado="indefinido"):
-    """Incrementa as estatísticas globais após cada processamento"""
-    stats = load_global_stats()
-    
-    # Incrementa contador total
-    stats["total_documentos"] += 1
-    
-    # Soma redução total
-    stats["reducao_total"] += reducao_percentual
-    
-    # Atualiza timestamp
-    stats["ultimo_processamento"] = datetime.now().isoformat()
-    
-    # Conta uso de modelos
-    if modelo_usado not in stats["modelos_usados"]:
-        stats["modelos_usados"][modelo_usado] = 0
-    stats["modelos_usados"][modelo_usado] += 1
-    
-    # Conta tipos de resultado
-    if tipo_resultado in stats["tipos_resultado"]:
-        stats["tipos_resultado"][tipo_resultado] += 1
-    
-    save_global_stats(stats)
-    return stats
-
 def cleanup_old_requests():
     with cleanup_lock:
         now = datetime.now()
@@ -608,7 +547,7 @@ def gerar_pdf_simplificado(texto, metadados=None, filename="documento_simplifica
         # Rodapé
         c.setFont("Helvetica", 8)
         c.setFillColorRGB(0.6, 0.6, 0.6)
-        c.drawString(margem_esq, 30, "Desenvolvido pelo INOVASSOL - Centro de Inovação")
+        c.drawString(margem_esq, 30, ")
         c.drawString(largura - margem_dir - 150, 30, "Consulte seu advogado para orientações")
         
         c.save()
@@ -617,48 +556,6 @@ def gerar_pdf_simplificado(texto, metadados=None, filename="documento_simplifica
     except Exception as e:
         logging.error(f"Erro ao gerar PDF: {e}")
         raise
-
-def analisar_resultado_judicial(texto):
-    """Analisa o texto simplificado para extrair informações estruturadas"""
-    analise = {
-        "tipo_resultado": "indefinido",
-        "tem_valores": False,
-        "tem_prazos": False,
-        "tem_recursos": False,
-        "sentimento": "neutro",
-        "palavras_chave": []
-    }
-    
-    texto_lower = texto.lower()
-    
-    # Identificar tipo de resultado
-    if "✅" in texto or "vitória" in texto_lower or "procedente" in texto_lower:
-        analise["tipo_resultado"] = "vitoria"
-        analise["sentimento"] = "positivo"
-    elif "❌" in texto or "derrota" in texto_lower or "improcedente" in texto_lower:
-        analise["tipo_resultado"] = "derrota"
-        analise["sentimento"] = "negativo"
-    elif "⚠️" in texto or "parcial" in texto_lower:
-        analise["tipo_resultado"] = "parcial"
-        analise["sentimento"] = "neutro"
-    
-    # Verificar presença de elementos importantes
-    if "r$" in texto_lower or "valor" in texto_lower or "💰" in texto:
-        analise["tem_valores"] = True
-        analise["palavras_chave"].append("valores")
-    
-    if "prazo" in texto_lower or "dias" in texto_lower or "📅" in texto:
-        analise["tem_prazos"] = True
-        analise["palavras_chave"].append("prazos")
-    
-    if "recurso" in texto_lower or "apelação" in texto_lower or "agravo" in texto_lower:
-        analise["tem_recursos"] = True
-        analise["palavras_chave"].append("recursos")
-    
-    return analise
-
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 @app.route("/")
 def index():
@@ -724,28 +621,14 @@ def processar():
         # Análise adicional do resultado
         analise = analisar_resultado_judicial(texto_simplificado)
         
-        # Calcular redução percentual
-        reducao_percentual = round((1 - len(texto_simplificado)/len(texto_original)) * 100, 1)
-        
-        # Incrementa estatísticas globais
-        stats_atualizadas = increment_global_stats(
-            reducao_percentual=reducao_percentual,
-            modelo_usado=metadados_geracao.get("modelo", "Gemini"),
-            tipo_resultado=analise.get("tipo_resultado", "indefinido")
-        )
-        
         return jsonify({
             "texto": texto_simplificado,
             "caracteres_original": len(texto_original),
             "caracteres_simplificado": len(texto_simplificado),
-            "reducao_percentual": reducao_percentual,
+            "reducao_percentual": round((1 - len(texto_simplificado)/len(texto_original)) * 100, 1),
             "metadados": metadados_pdf,
             "analise": analise,
-            "modelo_usado": metadados_geracao.get("modelo", "Gemini"),
-            "stats_globais": {
-                "total_documentos": stats_atualizadas["total_documentos"],
-                "reducao_media": round(stats_atualizadas["reducao_total"] / max(1, stats_atualizadas["total_documentos"]), 1)
-            }
+            "modelo_usado": metadados_geracao.get("modelo", "Gemini")
         })
         
     except Exception as e:
@@ -777,55 +660,56 @@ def processar_texto():
         # Análise adicional
         analise = analisar_resultado_judicial(texto_simplificado)
         
-        # Calcular redução percentual
-        reducao_percentual = round((1 - len(texto_simplificado)/len(texto)) * 100, 1)
-        
-        # Incrementa estatísticas globais
-        stats_atualizadas = increment_global_stats(
-            reducao_percentual=reducao_percentual,
-            modelo_usado="Gemini",
-            tipo_resultado=analise.get("tipo_resultado", "indefinido")
-        )
-        
         return jsonify({
             "texto": texto_simplificado,
             "caracteres_original": len(texto),
             "caracteres_simplificado": len(texto_simplificado),
-            "reducao_percentual": reducao_percentual,
-            "analise": analise,
-            "stats_globais": {
-                "total_documentos": stats_atualizadas["total_documentos"],
-                "reducao_media": round(stats_atualizadas["reducao_total"] / max(1, stats_atualizadas["total_documentos"]), 1)
-            }
+            "reducao_percentual": round((1 - len(texto_simplificado)/len(texto)) * 100, 1),
+            "analise": analise
         })
         
     except Exception as e:
         logging.error(f"Erro ao processar texto: {e}")
         return jsonify({"erro": "Erro ao processar o texto"}), 500
 
-@app.route("/global_stats")
-def get_global_stats():
-    """Retorna estatísticas globais do sistema"""
-    stats = load_global_stats()
+def analisar_resultado_judicial(texto):
+    """Analisa o texto simplificado para extrair informações estruturadas"""
+    analise = {
+        "tipo_resultado": "indefinido",
+        "tem_valores": False,
+        "tem_prazos": False,
+        "tem_recursos": False,
+        "sentimento": "neutro",
+        "palavras_chave": []
+    }
     
-    # Calcula média de redução
-    avg_reduction = 0
-    if stats["total_documentos"] > 0:
-        avg_reduction = round(stats["reducao_total"] / stats["total_documentos"], 1)
+    texto_lower = texto.lower()
     
-    # Determina modelo mais usado
-    modelo_mais_usado = "Gemini"
-    if stats["modelos_usados"]:
-        modelo_mais_usado = max(stats["modelos_usados"], key=stats["modelos_usados"].get)
+    # Identificar tipo de resultado
+    if "✅" in texto or "vitória" in texto_lower or "procedente" in texto_lower:
+        analise["tipo_resultado"] = "vitoria"
+        analise["sentimento"] = "positivo"
+    elif "❌" in texto or "derrota" in texto_lower or "improcedente" in texto_lower:
+        analise["tipo_resultado"] = "derrota"
+        analise["sentimento"] = "negativo"
+    elif "⚠️" in texto or "parcial" in texto_lower:
+        analise["tipo_resultado"] = "parcial"
+        analise["sentimento"] = "neutro"
     
-    return jsonify({
-        "total_documentos": stats["total_documentos"],
-        "reducao_media": avg_reduction,
-        "modelo_atual": modelo_mais_usado,
-        "ultimo_processamento": stats["ultimo_processamento"],
-        "tipos_resultado": stats["tipos_resultado"],
-        "modelos_usados": stats["modelos_usados"]
-    })
+    # Verificar presença de elementos importantes
+    if "r$" in texto_lower or "valor" in texto_lower or "💰" in texto:
+        analise["tem_valores"] = True
+        analise["palavras_chave"].append("valores")
+    
+    if "prazo" in texto_lower or "dias" in texto_lower or "📅" in texto:
+        analise["tem_prazos"] = True
+        analise["palavras_chave"].append("prazos")
+    
+    if "recurso" in texto_lower or "apelação" in texto_lower or "agravo" in texto_lower:
+        analise["tem_recursos"] = True
+        analise["palavras_chave"].append("recursos")
+    
+    return analise
 
 @app.route("/estatisticas")
 def estatisticas():
@@ -881,14 +765,12 @@ def serve_static(filename):
 @app.route("/health")
 def health():
     """Endpoint de health check para o Render"""
-    stats = load_global_stats()
     return jsonify({
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
         "api_configured": bool(GEMINI_API_KEY),
         "models_available": len(GEMINI_MODELS),
-        "cache_entries": len(results_cache),
-        "total_processed": stats["total_documentos"]
+        "cache_entries": len(results_cache)
     })
 
 @app.errorhandler(404)
@@ -899,6 +781,9 @@ def not_found(e):
 def server_error(e):
     logging.error(f"Erro interno: {e}")
     return jsonify({"erro": "Erro interno do servidor"}), 500
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 # Limpa arquivos temporários antigos periodicamente
 def cleanup_temp_files():
@@ -937,3 +822,6 @@ cleanup_thread.start()
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8080))
     app.run(host="0.0.0.0", port=port, debug=False)
+
+
+
