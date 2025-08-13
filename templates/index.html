@@ -1,4 +1,790 @@
-<!DOCTYPE html>
+</p>
+            </div>
+        </header>
+
+        <!-- Progress Steps -->
+        <div class="progress-steps">
+            <div class="step active" id="step1">
+                <div class="step-circle">1</div>
+                <div class="step-label">Enviar Documento</div>
+            </div>
+            <div class="step" id="step2">
+                <div class="step-circle">2</div>
+                <div class="step-label">Processar com IA</div>
+            </div>
+            <div class="step" id="step3">
+                <div class="step-circle">3</div>
+                <div class="step-label">Resultado Simplificado</div>
+            </div>
+        </div>
+
+        <!-- Statistics -->
+        <div class="stats-grid" id="statsGrid" style="display: none;">
+            <div class="stat-box">
+                <span class="stat-value" id="totalProcessed">0</span>
+                <span class="stat-label">Documentos Processados</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-value" id="avgReduction">0%</span>
+                <span class="stat-label">Redução Média</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-value" id="currentModel">-</span>
+                <span class="stat-label">Modelo Atual</span>
+            </div>
+        </div>
+
+        <!-- Upload Card -->
+        <div class="card">
+            <h2 style="color: var(--primary); margin-bottom: 1.5rem;">📤 Enviar Documento PDF</h2>
+            <div id="drop-area">
+                <div style="font-size: 3rem; margin-bottom: 1rem;">📁</div>
+                <p style="font-size: 1.1rem; color: var(--text); margin-bottom: 1rem;">
+                    Arraste seu PDF aqui ou clique para selecionar
+                </p>
+                <input type="file" id="fileInput" accept=".pdf" style="display: none;">
+                <button class="button" onclick="document.getElementById('fileInput').click()">
+                    <span>📎</span> Escolher Arquivo
+                </button>
+                <p style="font-size: 0.875rem; color: var(--text-muted); margin-top: 1rem;">
+                    Máximo: 10MB | Formato: PDF
+                </p>
+            </div>
+            <div id="fileInfo" style="display: none; margin-top: 1rem; padding: 1rem; background: var(--success-bg); border-radius: 8px;">
+                <p style="margin: 0; display: flex; justify-content: space-between; align-items: center;">
+                    <span id="fileName" style="font-weight: 600;"></span>
+                    <span id="fileSize" style="font-size: 0.875rem; color: var(--text-muted);"></span>
+                </p>
+            </div>
+        </div>
+
+        <!-- Manual Text Card -->
+        <div class="card">
+            <h2 style="color: var(--primary); margin-bottom: 1.5rem;">✍️ Ou Cole o Texto</h2>
+            <textarea id="manualText" placeholder="Cole aqui o texto jurídico que deseja simplificar..." 
+                style="width: 100%; min-height: 150px; padding: 1rem; border: 2px solid var(--border); border-radius: 8px; font-family: inherit; font-size: 1rem; resize: vertical; transition: border-color 0.3s;"></textarea>
+            <div style="display: flex; gap: 1rem; margin-top: 1rem;">
+                <button class="button" onclick="processManualText()">
+                    <span>🔄</span> Simplificar Texto
+                </button>
+                <button class="button" style="background: var(--danger);" onclick="clearAll()">
+                    <span>🗑️</span> Limpar Tudo
+                </button>
+                <div class="tooltip" style="margin-left: auto;">
+                    <button class="button" style="background: var(--warning); color: var(--dark);" onclick="loadExample()">
+                        <span>📝</span> Exemplo
+                    </button>
+                    <span class="tooltiptext">Carregar um exemplo de texto jurídico</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Result Card -->
+        <div id="resultSection" style="display: none;">
+            <div class="card">
+                <h2 style="color: var(--primary); margin-bottom: 1.5rem;">✅ Resultado Simplificado</h2>
+                
+                <!-- Result Analysis -->
+                <div id="resultAnalysis" style="margin-bottom: 1.5rem;">
+                    <!-- Filled dynamically -->
+                </div>
+                
+                <!-- Simplified Text -->
+                <div id="simplifiedText" style="background: var(--light); padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem; max-height: 500px; overflow-y: auto;">
+                    <!-- Filled dynamically -->
+                </div>
+                
+                <!-- Action Buttons -->
+                <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                    <a href="#" class="button" id="downloadBtn" style="display: none;">
+                        <span>📥</span> Baixar PDF
+                    </a>
+                    <button class="button" onclick="copyText()">
+                        <span>📋</span> Copiar Texto
+                    </button>
+                    <button class="button" onclick="speakText()" id="speakBtn">
+                        <span>🔊</span> Ler em Voz Alta
+                    </button>
+                    <button class="button" style="background: var(--secondary);" onclick="showFeedbackModal()">
+                        <span>⭐</span> Avaliar
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Feedback Modal -->
+        <div id="feedbackModal" class="modal">
+            <div class="modal-content">
+                <h2 style="color: var(--primary); margin-bottom: 1rem;">Como foi sua experiência?</h2>
+                <div class="rating" id="rating">
+                    <span class="star" data-rating="1">⭐</span>
+                    <span class="star" data-rating="2">⭐</span>
+                    <span class="star" data-rating="3">⭐</span>
+                    <span class="star" data-rating="4">⭐</span>
+                    <span class="star" data-rating="5">⭐</span>
+                </div>
+                <textarea id="feedbackComment" placeholder="Deixe um comentário (opcional)" 
+                    style="width: 100%; min-height: 100px; padding: 0.75rem; border: 2px solid var(--border); border-radius: 8px; margin: 1rem 0; font-family: inherit;"></textarea>
+                <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                    <button class="button" style="background: var(--text-muted);" onclick="closeFeedbackModal()">
+                        Cancelar
+                    </button>
+                    <button class="button" onclick="submitFeedback()">
+                        Enviar Avaliação
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // Configurações
+        const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+        let isProcessing = false;
+        let currentResultHash = '';
+        let selectedRating = 0;
+        let currentModel = '-';
+
+        // Variáveis globais para estatísticas
+        let globalStats = {
+            total_documentos: 0,
+            reducao_media: 0,
+            modelo_atual: 'Gemini'
+        };
+
+        // Theme
+        const themeSwitch = document.getElementById('themeSwitch');
+        const body = document.body;
+
+        // Check saved theme
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme === 'dark') {
+            body.classList.add('dark-mode');
+            themeSwitch.checked = true;
+        }
+
+        themeSwitch.addEventListener('change', () => {
+            if (themeSwitch.checked) {
+                body.classList.add('dark-mode');
+                localStorage.setItem('theme', 'dark');
+            } else {
+                body.classList.remove('dark-mode');
+                localStorage.setItem('theme', 'light');
+            }
+        });
+
+        // Busca estatísticas globais do servidor
+        async function fetchGlobalStats() {
+            try {
+                const response = await fetch('/global_stats');
+                if (response.ok) {
+                    const data = await response.json();
+                    globalStats.total_documentos = data.total_documentos;
+                    globalStats.reducao_media = data.reducao_media;
+                    globalStats.modelo_atual = data.modelo_atual;
+                    updateStatsDisplay();
+                }
+            } catch (error) {
+                console.error('Erro ao buscar estatísticas globais:', error);
+            }
+        }
+
+        // Atualiza display com estatísticas globais
+        function updateStatsDisplay() {
+            document.getElementById('totalProcessed').textContent = globalStats.total_documentos;
+            document.getElementById('avgReduction').textContent = globalStats.reducao_media + '%';
+            document.getElementById('currentModel').textContent = globalStats.modelo_atual;
+            
+            // Mostra o grid de estatísticas se houver documentos processados
+            if (globalStats.total_documentos > 0) {
+                document.getElementById('statsGrid').style.display = 'grid';
+            }
+        }
+
+        // Progress steps
+        function updateProgressSteps(step) {
+            document.querySelectorAll('.step').forEach(s => {
+                s.classList.remove('active', 'completed');
+            });
+            
+            for (let i = 1; i <= step; i++) {
+                const stepEl = document.getElementById(`step${i}`);
+                if (i < step) {
+                    stepEl.classList.add('completed');
+                } else {
+                    stepEl.classList.add('active');
+                }
+            }
+        }
+
+        // Toast notifications
+        function showToast(message, type = 'info', duration = 3000) {
+            const toast = document.getElementById('toast');
+            
+            // Add icon based on type
+            let icon = '';
+            switch(type) {
+                case 'success': icon = '✅ '; break;
+                case 'error': icon = '❌ '; break;
+                case 'warning': icon = '⚠️ '; break;
+                default: icon = 'ℹ️ ';
+            }
+            
+            toast.textContent = icon + message;
+            toast.className = `toast ${type}`;
+            setTimeout(() => toast.classList.add('show'), 100);
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, duration);
+        }
+
+        // File upload
+        const dropArea = document.getElementById('drop-area');
+        const fileInput = document.getElementById('fileInput');
+
+        // Prevent default drag behaviors
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, preventDefaults, false);
+            document.body.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        // Highlight drop area
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropArea.addEventListener(eventName, () => dropArea.classList.add('hover'), false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, () => dropArea.classList.remove('hover'), false);
+        });
+
+        // Handle dropped files
+        dropArea.addEventListener('drop', handleDrop, false);
+        fileInput.addEventListener('change', handleFileSelect, false);
+
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            handleFiles(files);
+        }
+
+        function handleFileSelect(e) {
+            const files = e.target.files;
+            handleFiles(files);
+        }
+
+        function handleFiles(files) {
+            if (files.length === 0) return;
+            
+            const file = files[0];
+            
+            // Validations
+            if (file.type !== 'application/pdf') {
+                showToast('Por favor, selecione apenas arquivos PDF', 'error');
+                return;
+            }
+            
+            if (file.size > MAX_FILE_SIZE) {
+                showToast(`Arquivo muito grande. Máximo: ${MAX_FILE_SIZE / 1024 / 1024}MB`, 'error');
+                return;
+            }
+            
+            // Show file info
+            document.getElementById('fileName').textContent = file.name;
+            document.getElementById('fileSize').textContent = formatFileSize(file.size);
+            document.getElementById('fileInfo').style.display = 'block';
+            
+            // Process file
+            uploadFile(file);
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        function uploadFile(file) {
+            if (isProcessing) {
+                showToast('Aguarde o processamento atual terminar', 'warning');
+                return;
+            }
+            
+            isProcessing = true;
+            showLoading('Enviando documento...');
+            updateProgressSteps(2);
+            
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            // Simulate progress
+            let progress = 0;
+            const progressInterval = setInterval(() => {
+                progress += Math.random() * 20;
+                if (progress > 90) progress = 90;
+                updateLoadingProgress(progress);
+            }, 500);
+            
+            fetch('/processar', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                clearInterval(progressInterval);
+                updateLoadingProgress(100);
+                
+                if (!response.ok) {
+                    return response.json().then(data => {
+                        throw new Error(data.erro || 'Erro ao processar arquivo');
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                showResult(data);
+                updateProgressSteps(3);
+                showToast('Documento processado com sucesso!', 'success');
+                
+                // Atualiza com estatísticas globais do servidor
+                if (data.stats_globais) {
+                    globalStats.total_documentos = data.stats_globais.total_documentos;
+                    globalStats.reducao_media = data.stats_globais.reducao_media;
+                    globalStats.modelo_atual = data.modelo_usado || 'Gemini';
+                    updateStatsDisplay();
+                }
+            })
+            .catch(error => {
+                showToast(error.message || 'Erro ao processar PDF', 'error');
+                console.error('Erro:', error);
+            })
+            .finally(() => {
+                isProcessing = false;
+                hideLoading();
+                clearInterval(progressInterval);
+            });
+        }
+
+        // Process manual text
+        function processManualText() {
+            const text = document.getElementById('manualText').value.trim();
+            
+            if (!text) {
+                showToast('Por favor, insira algum texto', 'warning');
+                return;
+            }
+            
+            if (text.length < 20) {
+                showToast('Texto muito curto. Mínimo: 20 caracteres', 'warning');
+                return;
+            }
+            
+            if (text.length > 10000) {
+                showToast('Texto muito longo. Máximo: 10.000 caracteres', 'warning');
+                return;
+            }
+            
+            if (isProcessing) {
+                showToast('Aguarde o processamento atual terminar', 'warning');
+                return;
+            }
+            
+            isProcessing = true;
+            showLoading('Processando texto...');
+            updateProgressSteps(2);
+            
+            fetch('/processar_texto', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ texto: text })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(data => {
+                        throw new Error(data.erro || 'Erro ao processar texto');
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                showResult(data);
+                updateProgressSteps(3);
+                showToast('Texto processado com sucesso!', 'success');
+                
+                // Atualiza com estatísticas globais do servidor
+                if (data.stats_globais) {
+                    globalStats.total_documentos = data.stats_globais.total_documentos;
+                    globalStats.reducao_media = data.stats_globais.reducao_media;
+                    updateStatsDisplay();
+                }
+            })
+            .catch(error => {
+                showToast(error.message || 'Erro ao processar texto', 'error');
+                console.error('Erro:', error);
+            })
+            .finally(() => {
+                isProcessing = false;
+                hideLoading();
+            });
+        }
+
+        // Loading functions
+        function showLoading(text = 'Processando...') {
+            const overlay = document.getElementById('loadingOverlay');
+            document.getElementById('loadingText').textContent = text;
+            document.getElementById('modelInfo').textContent = 'Selecionando melhor modelo...';
+            overlay.classList.add('show');
+            updateLoadingProgress(0);
+        }
+
+        function hideLoading() {
+            document.getElementById('loadingOverlay').classList.remove('show');
+        }
+
+        function updateLoadingProgress(percent) {
+            document.getElementById('loadingProgress').style.width = percent + '%';
+            
+            // Update loading text based on progress
+            if (percent > 30 && percent < 60) {
+                document.getElementById('loadingText').textContent = 'Analisando documento...';
+            } else if (percent >= 60 && percent < 90) {
+                document.getElementById('loadingText').textContent = 'Simplificando com IA...';
+                document.getElementById('modelInfo').textContent = 'Usando Gemini AI';
+            } else if (percent >= 90) {
+                document.getElementById('loadingText').textContent = 'Finalizando...';
+            }
+        }
+
+        // Show result
+        function showResult(data) {
+            currentResultHash = Date.now().toString();
+            
+            // Format and display simplified text
+            const formattedText = formatResultText(data.texto);
+            document.getElementById('simplifiedText').innerHTML = formattedText;
+            
+            // Show analysis if available
+            if (data.analise) {
+                showResultAnalysis(data.analise);
+            }
+            
+            // Show download button if PDF was processed
+            if (data.caracteres_original) {
+                document.getElementById('downloadBtn').style.display = 'inline-flex';
+                document.getElementById('downloadBtn').href = '/download_pdf';
+            }
+            
+            // Show result section
+            document.getElementById('resultSection').style.display = 'block';
+            
+            // Scroll to result
+            document.getElementById('resultSection').scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'start' 
+            });
+        }
+
+        function showResultAnalysis(analise) {
+            let html = '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 1rem;">';
+            
+            // Result type card
+            let resultClass = 'result-card';
+            let resultIcon = '📄';
+            let resultText = 'Documento Processado';
+            
+            if (analise.tipo_resultado === 'vitoria') {
+                resultClass += ' result-success';
+                resultIcon = '✅';
+                resultText = 'Resultado Favorável';
+            } else if (analise.tipo_resultado === 'derrota') {
+                resultClass += ' result-error';
+                resultIcon = '❌';
+                resultText = 'Resultado Desfavorável';
+            } else if (analise.tipo_resultado === 'parcial') {
+                resultClass += ' result-warning';
+                resultIcon = '⚠️';
+                resultText = 'Resultado Parcial';
+            }
+            
+            html += `
+                <div class="${resultClass}" style="text-align: center;">
+                    <div style="font-size: 2rem;">${resultIcon}</div>
+                    <div style="font-weight: bold; margin-top: 0.5rem;">${resultText}</div>
+                </div>
+            `;
+            
+            // Info cards
+            if (analise.tem_valores) {
+                html += `
+                    <div class="result-card" style="text-align: center;">
+                        <div style="font-size: 2rem;">💰</div>
+                        <div style="font-weight: bold; margin-top: 0.5rem;">Contém Valores</div>
+                    </div>
+                `;
+            }
+            
+            if (analise.tem_prazos) {
+                html += `
+                    <div class="result-card" style="text-align: center;">
+                        <div style="font-size: 2rem;">📅</div>
+                        <div style="font-weight: bold; margin-top: 0.5rem;">Contém Prazos</div>
+                    </div>
+                `;
+            }
+            
+            if (analise.tem_recursos) {
+                html += `
+                    <div class="result-card" style="text-align: center;">
+                        <div style="font-size: 2rem;">⚖️</div>
+                        <div style="font-weight: bold; margin-top: 0.5rem;">Possível Recurso</div>
+                    </div>
+                `;
+            }
+            
+            html += '</div>';
+            
+            document.getElementById('resultAnalysis').innerHTML = html;
+        }
+
+        function formatResultText(text) {
+            // Format text with proper HTML
+            let formatted = text;
+            
+            // Format bold text
+            formatted = formatted.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+            
+            // Format sections with icons
+            const iconPatterns = [
+                { icon: '📊', color: 'var(--primary)' },
+                { icon: '📑', color: 'var(--secondary)' },
+                { icon: '⚖️', color: 'var(--primary)' },
+                { icon: '💰', color: 'var(--warning)' },
+                { icon: '📅', color: 'var(--primary)' },
+                { icon: '⚠️', color: 'var(--danger)' },
+                { icon: '💡', color: 'var(--secondary)' }
+            ];
+            
+            iconPatterns.forEach(pattern => {
+                const regex = new RegExp(`(${pattern.icon}[^\\n]+)`, 'g');
+                formatted = formatted.replace(regex, `<div style="color: ${pattern.color}; font-weight: bold; margin: 1rem 0;">$1</div>`);
+            });
+            
+            // Format bullet points
+            formatted = formatted.replace(/•/g, '▸');
+            formatted = formatted.replace(/^\d\.\s/gm, '<br><strong></strong>');
+            
+            // Convert line breaks to HTML
+            formatted = formatted.replace(/\n/g, '<br>');
+            
+            return formatted;
+        }
+
+        // Copy text
+        function copyText() {
+            const element = document.getElementById('simplifiedText');
+            const text = element.innerText || element.textContent;
+            
+            if (!text) {
+                showToast('Nenhum texto para copiar', 'warning');
+                return;
+            }
+            
+            navigator.clipboard.writeText(text)
+                .then(() => {
+                    showToast('Texto copiado com sucesso!', 'success');
+                })
+                .catch(() => {
+                    // Fallback
+                    const textarea = document.createElement('textarea');
+                    textarea.value = text;
+                    document.body.appendChild(textarea);
+                    textarea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textarea);
+                    showToast('Texto copiado!', 'success');
+                });
+        }
+
+        // Text to speech
+        let isSpeaking = false;
+        function speakText() {
+            const text = document.getElementById('simplifiedText').textContent;
+            const btn = document.getElementById('speakBtn');
+            
+            if (!text) {
+                showToast('Nenhum texto para ler', 'warning');
+                return;
+            }
+            
+            if (isSpeaking) {
+                window.speechSynthesis.cancel();
+                btn.innerHTML = '<span>🔊</span> Ler em Voz Alta';
+                isSpeaking = false;
+                return;
+            }
+            
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'pt-BR';
+            utterance.rate = 0.9;
+            
+            utterance.onend = () => {
+                btn.innerHTML = '<span>🔊</span> Ler em Voz Alta';
+                isSpeaking = false;
+            };
+            
+            utterance.onerror = () => {
+                showToast('Erro ao ler o texto', 'error');
+                btn.innerHTML = '<span>🔊</span> Ler em Voz Alta';
+                isSpeaking = false;
+            };
+            
+            window.speechSynthesis.speak(utterance);
+            btn.innerHTML = '<span>⏹️</span> Parar Leitura';
+            isSpeaking = true;
+        }
+
+        // Clear all
+        function clearAll() {
+            document.getElementById('manualText').value = '';
+            document.getElementById('resultSection').style.display = 'none';
+            document.getElementById('fileInfo').style.display = 'none';
+            fileInput.value = '';
+            updateProgressSteps(1);
+            showToast('Tudo limpo!', 'info');
+        }
+
+        // Load example
+        function loadExample() {
+            const exampleText = `SENTENÇA
+
+Processo nº 1234567-89.2024.8.26.0100
+
+RELATÓRIO
+Trata-se de ação de cobrança movida por JOÃO DA SILVA em face de EMPRESA XYZ LTDA, alegando inadimplemento contratual no valor de R$ 15.000,00.
+
+FUNDAMENTAÇÃO
+Analisando os autos, verifico que o autor comprovou a existência da dívida através de contrato assinado e notas fiscais. O réu, devidamente citado, não apresentou contestação.
+
+DISPOSITIVO
+Ante o exposto, JULGO PROCEDENTE o pedido para CONDENAR o réu a pagar ao autor a quantia de R$ 15.000,00, corrigida monetariamente desde o vencimento e acrescida de juros de 1% ao mês.
+
+Condeno o réu ao pagamento das custas processuais e honorários advocatícios que fixo em 10% do valor da condenação.
+
+P.R.I.`;
+            
+            document.getElementById('manualText').value = exampleText;
+            showToast('Exemplo carregado! Clique em "Simplificar Texto" para processar', 'info', 4000);
+        }
+
+        // Feedback modal
+        function showFeedbackModal() {
+            document.getElementById('feedbackModal').classList.add('show');
+        }
+
+        function closeFeedbackModal() {
+            document.getElementById('feedbackModal').classList.remove('show');
+            selectedRating = 0;
+            document.querySelectorAll('.star').forEach(star => star.classList.remove('active'));
+            document.getElementById('feedbackComment').value = '';
+        }
+
+        // Rating stars
+        document.querySelectorAll('.star').forEach(star => {
+            star.addEventListener('click', function() {
+                selectedRating = parseInt(this.dataset.rating);
+                updateStars(selectedRating);
+            });
+            
+            star.addEventListener('mouseenter', function() {
+                const rating = parseInt(this.dataset.rating);
+                updateStars(rating);
+            });
+        });
+
+        document.getElementById('rating').addEventListener('mouseleave', function() {
+            updateStars(selectedRating);
+        });
+
+        function updateStars(rating) {
+            document.querySelectorAll('.star').forEach((star, index) => {
+                if (index < rating) {
+                    star.classList.add('active');
+                } else {
+                    star.classList.remove('active');
+                }
+            });
+        }
+
+        function submitFeedback() {
+            if (selectedRating === 0) {
+                showToast('Por favor, selecione uma avaliação', 'warning');
+                return;
+            }
+            
+            const comment = document.getElementById('feedbackComment').value;
+            
+            fetch('/feedback', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    rating: selectedRating,
+                    comment: comment,
+                    hash: currentResultHash
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                showToast('Obrigado pela sua avaliação!', 'success');
+                closeFeedbackModal();
+            })
+            .catch(error => {
+                showToast('Erro ao enviar avaliação', 'error');
+                console.error('Erro:', error);
+            });
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            // Ctrl/Cmd + Enter to process
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                const manualText = document.getElementById('manualText').value;
+                if (manualText) {
+                    processManualText();
+                }
+            }
+            
+            // Esc to close modal or clear
+            if (e.key === 'Escape') {
+                if (document.getElementById('feedbackModal').classList.contains('show')) {
+                    closeFeedbackModal();
+                }
+            }
+        });
+
+        // Initialize on load - busca estatísticas globais
+        document.addEventListener('DOMContentLoaded', () => {
+            // Busca estatísticas globais ao carregar a página
+            fetchGlobalStats();
+            
+            // Atualiza estatísticas a cada 30 segundos
+            setInterval(fetchGlobalStats, 30000);
+        });
+    </script>
+</body>
+</html><!DOCTYPE html>
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
@@ -671,7 +1457,7 @@
         <!-- Header -->
         <header class="header">
             <div style="display: flex; align-items: center; justify-content: center; gap: 2rem; margin-bottom: 2rem;">
-                <img src="/static/logoinovassol.png" alt="INOVASSOL - Centro de Inovação" 
+                <img src="/static/logo.png" alt="INOVASSOL - Centro de Inovação" 
                      style="height: 80px; width: auto; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.1));">
                 <div style="text-align: left;">
                     <h1 style="margin-bottom: 0.25rem;">⚖️ Linguagem Simples Jurídica</h1>
@@ -684,771 +1470,3 @@
                 </p>
                 <p style="color: var(--text-muted); font-size: 0.9rem; max-width: 600px; margin: 0 auto; line-height: 1.5;">
                     ⚠️ Queremos facilitar sua vida com informações mais simples, mas só um advogado ou defensor público pode te dar uma orientação certa para o seu caso. Sempre que precisar, procure esse apoio!
-                </p>
-            </div>
-        </header>
-
-        <!-- Progress Steps -->
-        <div class="progress-steps">
-            <div class="step active" id="step1">
-                <div class="step-circle">1</div>
-                <div class="step-label">Enviar Documento</div>
-            </div>
-            <div class="step" id="step2">
-                <div class="step-circle">2</div>
-                <div class="step-label">Processar com IA</div>
-            </div>
-            <div class="step" id="step3">
-                <div class="step-circle">3</div>
-                <div class="step-label">Resultado Simplificado</div>
-            </div>
-        </div>
-
-        <!-- Statistics -->
-        <div class="stats-grid" id="statsGrid" style="display: none;">
-            <div class="stat-box">
-                <span class="stat-value" id="totalProcessed">0</span>
-                <span class="stat-label">Documentos Processados</span>
-            </div>
-            <div class="stat-box">
-                <span class="stat-value" id="avgReduction">0%</span>
-                <span class="stat-label">Redução Média</span>
-            </div>
-            <div class="stat-box">
-                <span class="stat-value" id="currentModel">-</span>
-                <span class="stat-label">Modelo Atual</span>
-            </div>
-        </div>
-
-        <!-- Upload Card -->
-        <div class="card">
-            <h2 style="color: var(--primary); margin-bottom: 1.5rem;">📤 Enviar Documento PDF</h2>
-            <div id="drop-area">
-                <div style="font-size: 3rem; margin-bottom: 1rem;">📁</div>
-                <p style="font-size: 1.1rem; color: var(--text); margin-bottom: 1rem;">
-                    Arraste seu PDF aqui ou clique para selecionar
-                </p>
-                <input type="file" id="fileInput" accept=".pdf" style="display: none;">
-                <button class="button" onclick="document.getElementById('fileInput').click()">
-                    <span>📎</span> Escolher Arquivo
-                </button>
-                <p style="font-size: 0.875rem; color: var(--text-muted); margin-top: 1rem;">
-                    Máximo: 10MB | Formato: PDF
-                </p>
-            </div>
-            <div id="fileInfo" style="display: none; margin-top: 1rem; padding: 1rem; background: var(--success-bg); border-radius: 8px;">
-                <p style="margin: 0; display: flex; justify-content: space-between; align-items: center;">
-                    <span id="fileName" style="font-weight: 600;"></span>
-                    <span id="fileSize" style="font-size: 0.875rem; color: var(--text-muted);"></span>
-                </p>
-            </div>
-        </div>
-
-        <!-- Manual Text Card -->
-        <div class="card">
-            <h2 style="color: var(--primary); margin-bottom: 1.5rem;">✍️ Ou Cole o Texto</h2>
-            <textarea id="manualText" placeholder="Cole aqui o texto jurídico que deseja simplificar..." 
-                style="width: 100%; min-height: 150px; padding: 1rem; border: 2px solid var(--border); border-radius: 8px; font-family: inherit; font-size: 1rem; resize: vertical; transition: border-color 0.3s;"></textarea>
-            <div style="display: flex; gap: 1rem; margin-top: 1rem;">
-                <button class="button" onclick="processManualText()">
-                    <span>🔄</span> Simplificar Texto
-                </button>
-                <button class="button" style="background: var(--danger);" onclick="clearAll()">
-                    <span>🗑️</span> Limpar Tudo
-                </button>
-                <div class="tooltip" style="margin-left: auto;">
-                    <button class="button" style="background: var(--warning); color: var(--dark);" onclick="loadExample()">
-                        <span>📝</span> Exemplo
-                    </button>
-                    <span class="tooltiptext">Carregar um exemplo de texto jurídico</span>
-                </div>
-            </div>
-        </div>
-
-        <!-- Result Card -->
-        <div id="resultSection" style="display: none;">
-            <div class="card">
-                <h2 style="color: var(--primary); margin-bottom: 1.5rem;">✅ Resultado Simplificado</h2>
-                
-                <!-- Result Analysis -->
-                <div id="resultAnalysis" style="margin-bottom: 1.5rem;">
-                    <!-- Filled dynamically -->
-                </div>
-                
-                <!-- Simplified Text -->
-                <div id="simplifiedText" style="background: var(--light); padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem; max-height: 500px; overflow-y: auto;">
-                    <!-- Filled dynamically -->
-                </div>
-                
-                <!-- Action Buttons -->
-                <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
-                    <a href="#" class="button" id="downloadBtn" style="display: none;">
-                        <span>📥</span> Baixar PDF
-                    </a>
-                    <button class="button" onclick="copyText()">
-                        <span>📋</span> Copiar Texto
-                    </button>
-                    <button class="button" onclick="speakText()" id="speakBtn">
-                        <span>🔊</span> Ler em Voz Alta
-                    </button>
-                    <button class="button" style="background: var(--secondary);" onclick="showFeedbackModal()">
-                        <span>⭐</span> Avaliar
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Feedback Modal -->
-        <div id="feedbackModal" class="modal">
-            <div class="modal-content">
-                <h2 style="color: var(--primary); margin-bottom: 1rem;">Como foi sua experiência?</h2>
-                <div class="rating" id="rating">
-                    <span class="star" data-rating="1">⭐</span>
-                    <span class="star" data-rating="2">⭐</span>
-                    <span class="star" data-rating="3">⭐</span>
-                    <span class="star" data-rating="4">⭐</span>
-                    <span class="star" data-rating="5">⭐</span>
-                </div>
-                <textarea id="feedbackComment" placeholder="Deixe um comentário (opcional)" 
-                    style="width: 100%; min-height: 100px; padding: 0.75rem; border: 2px solid var(--border); border-radius: 8px; margin: 1rem 0; font-family: inherit;"></textarea>
-                <div style="display: flex; gap: 1rem; justify-content: flex-end;">
-                    <button class="button" style="background: var(--text-muted);" onclick="closeFeedbackModal()">
-                        Cancelar
-                    </button>
-                    <button class="button" onclick="submitFeedback()">
-                        Enviar Avaliação
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Toast -->
-    <div class="toast" id="toast"></div>
-
-    <script>
-        // Configurações
-        const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-        let isProcessing = false;
-        let currentResultHash = '';
-        let selectedRating = 0;
-        let processedCount = 0;
-        let totalReduction = 0;
-        let currentModel = '-';
-
-        // Theme
-        const themeSwitch = document.getElementById('themeSwitch');
-        const body = document.body;
-
-        // Check saved theme
-        const savedTheme = localStorage.getItem('theme');
-        if (savedTheme === 'dark') {
-            body.classList.add('dark-mode');
-            themeSwitch.checked = true;
-        }
-
-        themeSwitch.addEventListener('change', () => {
-            if (themeSwitch.checked) {
-                body.classList.add('dark-mode');
-                localStorage.setItem('theme', 'dark');
-            } else {
-                body.classList.remove('dark-mode');
-                localStorage.setItem('theme', 'light');
-            }
-        });
-
-        // Initialize stats from localStorage
-        function initializeStats() {
-            processedCount = parseInt(localStorage.getItem('processedCount') || '0');
-            totalReduction = parseFloat(localStorage.getItem('totalReduction') || '0');
-            updateStatsDisplay();
-        }
-
-        function updateStatsDisplay() {
-            document.getElementById('totalProcessed').textContent = processedCount;
-            const avgReduction = processedCount > 0 ? (totalReduction / processedCount).toFixed(1) : 0;
-            document.getElementById('avgReduction').textContent = avgReduction + '%';
-            document.getElementById('currentModel').textContent = currentModel;
-            
-            if (processedCount > 0) {
-                document.getElementById('statsGrid').style.display = 'grid';
-            }
-        }
-
-        // Progress steps
-        function updateProgressSteps(step) {
-            document.querySelectorAll('.step').forEach(s => {
-                s.classList.remove('active', 'completed');
-            });
-            
-            for (let i = 1; i <= step; i++) {
-                const stepEl = document.getElementById(`step${i}`);
-                if (i < step) {
-                    stepEl.classList.add('completed');
-                } else {
-                    stepEl.classList.add('active');
-                }
-            }
-        }
-
-        // Toast notifications
-        function showToast(message, type = 'info', duration = 3000) {
-            const toast = document.getElementById('toast');
-            
-            // Add icon based on type
-            let icon = '';
-            switch(type) {
-                case 'success': icon = '✅ '; break;
-                case 'error': icon = '❌ '; break;
-                case 'warning': icon = '⚠️ '; break;
-                default: icon = 'ℹ️ ';
-            }
-            
-            toast.textContent = icon + message;
-            toast.className = `toast ${type}`;
-            setTimeout(() => toast.classList.add('show'), 100);
-            
-            setTimeout(() => {
-                toast.classList.remove('show');
-            }, duration);
-        }
-
-        // File upload
-        const dropArea = document.getElementById('drop-area');
-        const fileInput = document.getElementById('fileInput');
-
-        // Prevent default drag behaviors
-        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-            dropArea.addEventListener(eventName, preventDefaults, false);
-            document.body.addEventListener(eventName, preventDefaults, false);
-        });
-
-        function preventDefaults(e) {
-            e.preventDefault();
-            e.stopPropagation();
-        }
-
-        // Highlight drop area
-        ['dragenter', 'dragover'].forEach(eventName => {
-            dropArea.addEventListener(eventName, () => dropArea.classList.add('hover'), false);
-        });
-
-        ['dragleave', 'drop'].forEach(eventName => {
-            dropArea.addEventListener(eventName, () => dropArea.classList.remove('hover'), false);
-        });
-
-        // Handle dropped files
-        dropArea.addEventListener('drop', handleDrop, false);
-        fileInput.addEventListener('change', handleFileSelect, false);
-
-        function handleDrop(e) {
-            const dt = e.dataTransfer;
-            const files = dt.files;
-            handleFiles(files);
-        }
-
-        function handleFileSelect(e) {
-            const files = e.target.files;
-            handleFiles(files);
-        }
-
-        function handleFiles(files) {
-            if (files.length === 0) return;
-            
-            const file = files[0];
-            
-            // Validations
-            if (file.type !== 'application/pdf') {
-                showToast('Por favor, selecione apenas arquivos PDF', 'error');
-                return;
-            }
-            
-            if (file.size > MAX_FILE_SIZE) {
-                showToast(`Arquivo muito grande. Máximo: ${MAX_FILE_SIZE / 1024 / 1024}MB`, 'error');
-                return;
-            }
-            
-            // Show file info
-            document.getElementById('fileName').textContent = file.name;
-            document.getElementById('fileSize').textContent = formatFileSize(file.size);
-            document.getElementById('fileInfo').style.display = 'block';
-            
-            // Process file
-            uploadFile(file);
-        }
-
-        function formatFileSize(bytes) {
-            if (bytes === 0) return '0 Bytes';
-            const k = 1024;
-            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-            const i = Math.floor(Math.log(bytes) / Math.log(k));
-            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-        }
-
-        function uploadFile(file) {
-            if (isProcessing) {
-                showToast('Aguarde o processamento atual terminar', 'warning');
-                return;
-            }
-            
-            isProcessing = true;
-            showLoading('Enviando documento...');
-            updateProgressSteps(2);
-            
-            const formData = new FormData();
-            formData.append('file', file);
-            
-            // Simulate progress
-            let progress = 0;
-            const progressInterval = setInterval(() => {
-                progress += Math.random() * 20;
-                if (progress > 90) progress = 90;
-                updateLoadingProgress(progress);
-            }, 500);
-            
-            fetch('/processar', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => {
-                clearInterval(progressInterval);
-                updateLoadingProgress(100);
-                
-                if (!response.ok) {
-                    return response.json().then(data => {
-                        throw new Error(data.erro || 'Erro ao processar arquivo');
-                    });
-                }
-                return response.json();
-            })
-            .then(data => {
-                showResult(data);
-                updateProgressSteps(3);
-                showToast('Documento processado com sucesso!', 'success');
-                
-                // Update stats
-                processedCount++;
-                totalReduction += data.reducao_percentual || 0;
-                currentModel = data.modelo_usado || 'Gemini';
-                localStorage.setItem('processedCount', processedCount);
-                localStorage.setItem('totalReduction', totalReduction);
-                updateStatsDisplay();
-            })
-            .catch(error => {
-                showToast(error.message || 'Erro ao processar PDF', 'error');
-                console.error('Erro:', error);
-            })
-            .finally(() => {
-                isProcessing = false;
-                hideLoading();
-                clearInterval(progressInterval);
-            });
-        }
-
-        // Process manual text
-        function processManualText() {
-            const text = document.getElementById('manualText').value.trim();
-            
-            if (!text) {
-                showToast('Por favor, insira algum texto', 'warning');
-                return;
-            }
-            
-            if (text.length < 20) {
-                showToast('Texto muito curto. Mínimo: 20 caracteres', 'warning');
-                return;
-            }
-            
-            if (text.length > 10000) {
-                showToast('Texto muito longo. Máximo: 10.000 caracteres', 'warning');
-                return;
-            }
-            
-            if (isProcessing) {
-                showToast('Aguarde o processamento atual terminar', 'warning');
-                return;
-            }
-            
-            isProcessing = true;
-            showLoading('Processando texto...');
-            updateProgressSteps(2);
-            
-            fetch('/processar_texto', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ texto: text })
-            })
-            .then(response => {
-                if (!response.ok) {
-                    return response.json().then(data => {
-                        throw new Error(data.erro || 'Erro ao processar texto');
-                    });
-                }
-                return response.json();
-            })
-            .then(data => {
-                showResult(data);
-                updateProgressSteps(3);
-                showToast('Texto processado com sucesso!', 'success');
-                
-                // Update stats
-                processedCount++;
-                totalReduction += data.reducao_percentual || 0;
-                localStorage.setItem('processedCount', processedCount);
-                localStorage.setItem('totalReduction', totalReduction);
-                updateStatsDisplay();
-            })
-            .catch(error => {
-                showToast(error.message || 'Erro ao processar texto', 'error');
-                console.error('Erro:', error);
-            })
-            .finally(() => {
-                isProcessing = false;
-                hideLoading();
-            });
-        }
-
-        // Loading functions
-        function showLoading(text = 'Processando...') {
-            const overlay = document.getElementById('loadingOverlay');
-            document.getElementById('loadingText').textContent = text;
-            document.getElementById('modelInfo').textContent = 'Selecionando melhor modelo...';
-            overlay.classList.add('show');
-            updateLoadingProgress(0);
-        }
-
-        function hideLoading() {
-            document.getElementById('loadingOverlay').classList.remove('show');
-        }
-
-        function updateLoadingProgress(percent) {
-            document.getElementById('loadingProgress').style.width = percent + '%';
-            
-            // Update loading text based on progress
-            if (percent > 30 && percent < 60) {
-                document.getElementById('loadingText').textContent = 'Analisando documento...';
-            } else if (percent >= 60 && percent < 90) {
-                document.getElementById('loadingText').textContent = 'Simplificando com IA...';
-                document.getElementById('modelInfo').textContent = 'Usando Gemini AI';
-            } else if (percent >= 90) {
-                document.getElementById('loadingText').textContent = 'Finalizando...';
-            }
-        }
-
-        // Show result
-        function showResult(data) {
-            currentResultHash = Date.now().toString();
-            
-            // Format and display simplified text
-            const formattedText = formatResultText(data.texto);
-            document.getElementById('simplifiedText').innerHTML = formattedText;
-            
-            // Show analysis if available
-            if (data.analise) {
-                showResultAnalysis(data.analise);
-            }
-            
-            // Show download button if PDF was processed
-            if (data.caracteres_original) {
-                document.getElementById('downloadBtn').style.display = 'inline-flex';
-                document.getElementById('downloadBtn').href = '/download_pdf';
-            }
-            
-            // Show result section
-            document.getElementById('resultSection').style.display = 'block';
-            
-            // Scroll to result
-            document.getElementById('resultSection').scrollIntoView({ 
-                behavior: 'smooth', 
-                block: 'start' 
-            });
-        }
-
-        function showResultAnalysis(analise) {
-            let html = '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 1rem;">';
-            
-            // Result type card
-            let resultClass = 'result-card';
-            let resultIcon = '📄';
-            let resultText = 'Documento Processado';
-            
-            if (analise.tipo_resultado === 'vitoria') {
-                resultClass += ' result-success';
-                resultIcon = '✅';
-                resultText = 'Resultado Favorável';
-            } else if (analise.tipo_resultado === 'derrota') {
-                resultClass += ' result-error';
-                resultIcon = '❌';
-                resultText = 'Resultado Desfavorável';
-            } else if (analise.tipo_resultado === 'parcial') {
-                resultClass += ' result-warning';
-                resultIcon = '⚠️';
-                resultText = 'Resultado Parcial';
-            }
-            
-            html += `
-                <div class="${resultClass}" style="text-align: center;">
-                    <div style="font-size: 2rem;">${resultIcon}</div>
-                    <div style="font-weight: bold; margin-top: 0.5rem;">${resultText}</div>
-                </div>
-            `;
-            
-            // Info cards
-            if (analise.tem_valores) {
-                html += `
-                    <div class="result-card" style="text-align: center;">
-                        <div style="font-size: 2rem;">💰</div>
-                        <div style="font-weight: bold; margin-top: 0.5rem;">Contém Valores</div>
-                    </div>
-                `;
-            }
-            
-            if (analise.tem_prazos) {
-                html += `
-                    <div class="result-card" style="text-align: center;">
-                        <div style="font-size: 2rem;">📅</div>
-                        <div style="font-weight: bold; margin-top: 0.5rem;">Contém Prazos</div>
-                    </div>
-                `;
-            }
-            
-            if (analise.tem_recursos) {
-                html += `
-                    <div class="result-card" style="text-align: center;">
-                        <div style="font-size: 2rem;">⚖️</div>
-                        <div style="font-weight: bold; margin-top: 0.5rem;">Possível Recurso</div>
-                    </div>
-                `;
-            }
-            
-            html += '</div>';
-            
-            document.getElementById('resultAnalysis').innerHTML = html;
-        }
-
-        function formatResultText(text) {
-            // Format text with proper HTML
-            let formatted = text;
-            
-            // Format bold text
-            formatted = formatted.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-            
-            // Format sections with icons
-            const iconPatterns = [
-                { icon: '📊', color: 'var(--primary)' },
-                { icon: '📑', color: 'var(--secondary)' },
-                { icon: '⚖️', color: 'var(--primary)' },
-                { icon: '💰', color: 'var(--warning)' },
-                { icon: '📅', color: 'var(--primary)' },
-                { icon: '⚠️', color: 'var(--danger)' },
-                { icon: '💡', color: 'var(--secondary)' }
-            ];
-            
-            iconPatterns.forEach(pattern => {
-                const regex = new RegExp(`(${pattern.icon}[^\\n]+)`, 'g');
-                formatted = formatted.replace(regex, `<div style="color: ${pattern.color}; font-weight: bold; margin: 1rem 0;">$1</div>`);
-            });
-            
-            // Format bullet points
-            formatted = formatted.replace(/•/g, '▸');
-            formatted = formatted.replace(/^\d\.\s/gm, '<br><strong>                    <button class="button" onclick="copyText()"</strong>');
-            
-            // Convert line breaks to HTML
-            formatted = formatted.replace(/\n/g, '<br>');
-            
-            return formatted;
-        }
-
-        // Copy text
-        function copyText() {
-            const element = document.getElementById('simplifiedText');
-            const text = element.innerText || element.textContent;
-            
-            if (!text) {
-                showToast('Nenhum texto para copiar', 'warning');
-                return;
-            }
-            
-            navigator.clipboard.writeText(text)
-                .then(() => {
-                    showToast('Texto copiado com sucesso!', 'success');
-                })
-                .catch(() => {
-                    // Fallback
-                    const textarea = document.createElement('textarea');
-                    textarea.value = text;
-                    document.body.appendChild(textarea);
-                    textarea.select();
-                    document.execCommand('copy');
-                    document.body.removeChild(textarea);
-                    showToast('Texto copiado!', 'success');
-                });
-        }
-
-        // Text to speech
-        let isSpeaking = false;
-        function speakText() {
-            const text = document.getElementById('simplifiedText').textContent;
-            const btn = document.getElementById('speakBtn');
-            
-            if (!text) {
-                showToast('Nenhum texto para ler', 'warning');
-                return;
-            }
-            
-            if (isSpeaking) {
-                window.speechSynthesis.cancel();
-                btn.innerHTML = '<span>🔊</span> Ler em Voz Alta';
-                isSpeaking = false;
-                return;
-            }
-            
-            const utterance = new SpeechSynthesisUtterance(text);
-            utterance.lang = 'pt-BR';
-            utterance.rate = 0.9;
-            
-            utterance.onend = () => {
-                btn.innerHTML = '<span>🔊</span> Ler em Voz Alta';
-                isSpeaking = false;
-            };
-            
-            utterance.onerror = () => {
-                showToast('Erro ao ler o texto', 'error');
-                btn.innerHTML = '<span>🔊</span> Ler em Voz Alta';
-                isSpeaking = false;
-            };
-            
-            window.speechSynthesis.speak(utterance);
-            btn.innerHTML = '<span>⏹️</span> Parar Leitura';
-            isSpeaking = true;
-        }
-
-        // Clear all
-        function clearAll() {
-            document.getElementById('manualText').value = '';
-            document.getElementById('resultSection').style.display = 'none';
-            document.getElementById('fileInfo').style.display = 'none';
-            fileInput.value = '';
-            updateProgressSteps(1);
-            showToast('Tudo limpo!', 'info');
-        }
-
-        // Load example
-        function loadExample() {
-            const exampleText = `SENTENÇA
-
-Processo nº 1234567-89.2024.8.26.0100
-
-RELATÓRIO
-Trata-se de ação de cobrança movida por JOÃO DA SILVA em face de EMPRESA XYZ LTDA, alegando inadimplemento contratual no valor de R$ 15.000,00.
-
-FUNDAMENTAÇÃO
-Analisando os autos, verifico que o autor comprovou a existência da dívida através de contrato assinado e notas fiscais. O réu, devidamente citado, não apresentou contestação.
-
-DISPOSITIVO
-Ante o exposto, JULGO PROCEDENTE o pedido para CONDENAR o réu a pagar ao autor a quantia de R$ 15.000,00, corrigida monetariamente desde o vencimento e acrescida de juros de 1% ao mês.
-
-Condeno o réu ao pagamento das custas processuais e honorários advocatícios que fixo em 10% do valor da condenação.
-
-P.R.I.`;
-            
-            document.getElementById('manualText').value = exampleText;
-            showToast('Exemplo carregado! Clique em "Simplificar Texto" para processar', 'info', 4000);
-        }
-
-        // Feedback modal
-        function showFeedbackModal() {
-            document.getElementById('feedbackModal').classList.add('show');
-        }
-
-        function closeFeedbackModal() {
-            document.getElementById('feedbackModal').classList.remove('show');
-            selectedRating = 0;
-            document.querySelectorAll('.star').forEach(star => star.classList.remove('active'));
-            document.getElementById('feedbackComment').value = '';
-        }
-
-        // Rating stars
-        document.querySelectorAll('.star').forEach(star => {
-            star.addEventListener('click', function() {
-                selectedRating = parseInt(this.dataset.rating);
-                updateStars(selectedRating);
-            });
-            
-            star.addEventListener('mouseenter', function() {
-                const rating = parseInt(this.dataset.rating);
-                updateStars(rating);
-            });
-        });
-
-        document.getElementById('rating').addEventListener('mouseleave', function() {
-            updateStars(selectedRating);
-        });
-
-        function updateStars(rating) {
-            document.querySelectorAll('.star').forEach((star, index) => {
-                if (index < rating) {
-                    star.classList.add('active');
-                } else {
-                    star.classList.remove('active');
-                }
-            });
-        }
-
-        function submitFeedback() {
-            if (selectedRating === 0) {
-                showToast('Por favor, selecione uma avaliação', 'warning');
-                return;
-            }
-            
-            const comment = document.getElementById('feedbackComment').value;
-            
-            fetch('/feedback', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    rating: selectedRating,
-                    comment: comment,
-                    hash: currentResultHash
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                showToast('Obrigado pela sua avaliação!', 'success');
-                closeFeedbackModal();
-            })
-            .catch(error => {
-                showToast('Erro ao enviar avaliação', 'error');
-                console.error('Erro:', error);
-            });
-        }
-
-        // Keyboard shortcuts
-        document.addEventListener('keydown', (e) => {
-            // Ctrl/Cmd + Enter to process
-            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-                const manualText = document.getElementById('manualText').value;
-                if (manualText) {
-                    processManualText();
-                }
-            }
-            
-            // Esc to close modal or clear
-            if (e.key === 'Escape') {
-                if (document.getElementById('feedbackModal').classList.contains('show')) {
-                    closeFeedbackModal();
-                }
-            }
-        });
-
-        // Initialize on load
-        document.addEventListener('DOMContentLoaded', () => {
-            initializeStats();
-        });
-    </script>
-</body>
-</html>>
