@@ -241,4 +241,4 @@ GET /estatisticas
 
 ⭐ **Se este projeto foi útil, deixe uma estrela no repositório!**
 
-📝 **Encontrou um bug ou tem uma sugestão? Abra uma issue!**
+
