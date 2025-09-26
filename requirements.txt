@@ -26,3 +26,8 @@ python-dotenv==1.0.1
 # Flask-Caching==2.1.0
 
 # Nota: A API do Gemini não requer SDK específico, apenas requests
+# Processamento de imagens avançado
+
+
+# Opcional: para melhor performance de OCR
+opencv-python==4.9.0.80  # Adicionar se quiser processamento mais avançado
