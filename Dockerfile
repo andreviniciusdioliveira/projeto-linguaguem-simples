@@ -1,42 +1,41 @@
-# Imagem base mínima com Python 3.11
+# Use Python 3.11 slim image
 FROM python:3.11-slim
 
-
-# Variáveis para um Python mais "limpo"
-ENV PYTHONDONTWRITEBYTECODE=1 \
-PYTHONUNBUFFERED=1
-
-
-# Instala o Tesseract OCR e dependências (inclui idiomas pt/pt-br e es, se disponíveis)
+# Install system dependencies including Tesseract
 RUN apt-get update && apt-get install -y \
-tesseract-ocr \
-libtesseract-dev \
-tesseract-ocr-por \
-tesseract-ocr-spa \
-&& rm -rf /var/lib/apt/lists/*
+    tesseract-ocr \
+    tesseract-ocr-por \
+    tesseract-ocr-eng \
+    poppler-utils \
+    libgomp1 \
+    wget \
+    && rm -rf /var/lib/apt/lists/*
 
-
-# Diretório da aplicação
+# Set working directory
 WORKDIR /app
 
+# Copy requirements first for better caching
+COPY requirements.txt .
 
-# Dependências Python
-COPY requirements.txt ./
+# Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-
-# Copia o restante do código
+# Copy application files
 COPY . .
 
+# Create directories
+RUN mkdir -p static templates
 
-# (Opcional) expõe explicitamente a porta; o Render injeta $PORT
+# Set environment variables
+ENV PYTHONUNBUFFERED=1
+ENV FLASK_ENV=production
+
+# Expose port
 EXPOSE 8080
 
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1
 
-# (Opcional) variável para o caminho do binário do tesseract
-ENV TESSERACT_CMD=/usr/bin/tesseract
-
-
-# Comando de inicialização — usa a porta fornecida pelo Render via $PORT
-# Ajuste "app:app" para o seu módulo/objeto WSGI se for diferente.
-CMD ["sh", "-c", "gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120 --access-logfile - --error-logfile -"]
+# Run with gunicorn
+CMD ["gunicorn", "app:app", "--bind", "0.0.0.0:8080", "--workers", "2", "--timeout", "120", "--access-logfile", "-", "--error-logfile", "-"]
