@@ -1,17 +1,31 @@
 # Use Python 3.11 slim image
 FROM python:3.11-slim
 
-# Install system dependencies including Tesseract
+# Install system dependencies including Tesseract and image processing libraries
 RUN apt-get update && apt-get install -y \
+    # Tesseract OCR with Portuguese language
     tesseract-ocr \
     tesseract-ocr-por \
     tesseract-ocr-eng \
+    # PDF processing
     poppler-utils \
+    # Image processing dependencies
     libgomp1 \
+    libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender-dev \
+    libglib2.0-0 \
+    libgl1-mesa-glx \
+    # Build tools
+    gcc \
+    g++ \
     wget \
-    libgl1-mesa-glx \  # Adicionar para processamento de imagem
-    libglib2.0-0 \     # Adicionar para processamento de imagem
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+# Verify Tesseract installation
+RUN tesseract --version
 
 # Set working directory
 WORKDIR /app
@@ -20,25 +34,30 @@ WORKDIR /app
 COPY requirements.txt .
 
 # Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
 # Copy application files
 COPY . .
 
-# Create directories
-RUN mkdir -p static templates
+# Create necessary directories
+RUN mkdir -p static templates /tmp/tesseract
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
 ENV FLASK_ENV=production
+ENV TESSDATA_PREFIX=/usr/share/tesseract-ocr/4.00/tessdata
+
+# Create a non-root user to run the app
+RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
+USER appuser
 
 # Expose port
 EXPOSE 8080
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1
+    CMD python -c "import requests; requests.get('http://localhost:8080/health')" || exit 1
 
 # Run with gunicorn
 CMD ["gunicorn", "app:app", "--bind", "0.0.0.0:8080", "--workers", "2", "--timeout", "120", "--access-logfile", "-", "--error-logfile", "-"]
-
