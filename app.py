@@ -21,7 +21,6 @@ import threading
 import queue
 import json
 import re
-import base64
 
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", os.urandom(24))
@@ -53,8 +52,7 @@ GEMINI_MODELS = [
 ]
 
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
-ALLOWED_EXTENSIONS = {'pdf', 'png', 'jpg', 'jpeg', 'gif', 'bmp', 'tiff', 'webp'}
-ALLOWED_IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'tiff', 'webp'}
+ALLOWED_EXTENSIONS = {'pdf'}
 TEMP_DIR = tempfile.gettempdir()
 
 # Rate limiting
@@ -167,121 +165,6 @@ Identificação do Vencedor:
 **TEXTO ORIGINAL A SIMPLIFICAR:**
 """
 
-def processar_imagem_para_texto(image_bytes, formato='PNG'):
-    """Extrai texto de uma imagem usando OCR com melhor pré-processamento"""
-    texto = ""
-    metadados = {
-        "tipo": "imagem",
-        "formato": formato,
-        "usou_ocr": True,
-        "dimensoes": None,
-        "qualidade_ocr": "indefinida"
-    }
-    
-    try:
-        # Abrir a imagem
-        img = Image.open(io.BytesIO(image_bytes))
-        
-        # Salvar dimensões originais
-        metadados["dimensoes"] = f"{img.width}x{img.height}"
-        
-        # Converter para RGB se necessário
-        if img.mode not in ('RGB', 'L'):
-            img = img.convert('RGB')
-        
-        # Pré-processamento da imagem para melhorar OCR
-        # 1. Redimensionar se muito grande
-        if img.width > 3000 or img.height > 3000:
-            ratio = min(3000/img.width, 3000/img.height)
-            new_size = (int(img.width * ratio), int(img.height * ratio))
-            img = img.resize(new_size, Image.Resampling.LANCZOS)
-            logging.info(f"Imagem redimensionada para {new_size}")
-        
-        # 2. Aumentar contraste
-        from PIL import ImageEnhance
-        enhancer = ImageEnhance.Contrast(img)
-        img = enhancer.enhance(1.5)
-        
-        # 3. Converter para escala de cinza
-        img = img.convert('L')
-        
-        # 4. Aplicar threshold para binarização
-        threshold = 180
-        img = img.point(lambda p: 255 if p > threshold else 0)
-        
-        # Configurações otimizadas do Tesseract para português
-        custom_config = r'--oem 3 --psm 3 -l por+eng'
-        
-        # Executar OCR
-        logging.info("Iniciando OCR na imagem...")
-        texto = pytesseract.image_to_string(img, config=custom_config)
-        
-        # Avaliar qualidade do OCR
-        if len(texto.strip()) < 50:
-            metadados["qualidade_ocr"] = "baixa"
-            
-            # Tentar novamente com configurações diferentes
-            custom_config = r'--oem 3 --psm 6 -l por'
-            texto_alt = pytesseract.image_to_string(img, config=custom_config)
-            
-            if len(texto_alt.strip()) > len(texto.strip()):
-                texto = texto_alt
-                metadados["qualidade_ocr"] = "média"
-        else:
-            # Verificar densidade de caracteres especiais (indicador de qualidade)
-            special_chars = sum(1 for c in texto if c in '!@#$%^&*()[]{}|\\<>?')
-            if special_chars / len(texto) > 0.1:
-                metadados["qualidade_ocr"] = "baixa"
-            elif len(texto.strip()) > 200:
-                metadados["qualidade_ocr"] = "boa"
-            else:
-                metadados["qualidade_ocr"] = "média"
-        
-        # Limpar texto extraído
-        texto = limpar_texto_ocr(texto)
-        
-        if not texto.strip():
-            raise ValueError("Nenhum texto foi extraído da imagem")
-        
-        logging.info(f"OCR concluído. Qualidade: {metadados['qualidade_ocr']}, Caracteres extraídos: {len(texto)}")
-        
-    except Exception as e:
-        logging.error(f"Erro ao processar imagem: {e}")
-        raise
-    
-    return texto, metadados
-
-def limpar_texto_ocr(texto):
-    """Limpa e melhora o texto extraído via OCR"""
-    if not texto:
-        return ""
-    
-    # Remove caracteres de controle mantendo quebras de linha
-    texto = ''.join(char if char.isprintable() or char in '\n\r\t' else ' ' for char in texto)
-    
-    # Remove linhas com apenas caracteres especiais
-    linhas = texto.split('\n')
-    linhas_limpas = []
-    
-    for linha in linhas:
-        linha_strip = linha.strip()
-        if linha_strip:
-            # Conta caracteres alfabéticos
-            alpha_count = sum(1 for c in linha_strip if c.isalpha())
-            # Só mantém a linha se tiver pelo menos 30% de letras
-            if alpha_count / len(linha_strip) >= 0.3:
-                linhas_limpas.append(linha)
-    
-    texto = '\n'.join(linhas_limpas)
-    
-    # Remove espaços múltiplos
-    texto = re.sub(r' +', ' ', texto)
-    
-    # Remove quebras de linha múltiplas
-    texto = re.sub(r'\n{3,}', '\n\n', texto)
-    
-    return texto.strip()
-
 def extrair_texto_pdf(pdf_bytes):
     """Extrai texto de PDF com melhor tratamento de erros e OCR otimizado"""
     texto = ""
@@ -289,8 +172,7 @@ def extrair_texto_pdf(pdf_bytes):
         "total_paginas": 0,
         "tem_texto": False,
         "usou_ocr": False,
-        "paginas_com_ocr": [],
-        "tipo": "pdf"
+        "paginas_com_ocr": []
     }
     
     ocr_disponivel = True
@@ -308,6 +190,7 @@ def extrair_texto_pdf(pdf_bytes):
             metadados["total_paginas"] = total_pages
             logging.info(f"Processando PDF com {total_pages} páginas")
             
+            # Processar todas as páginas de uma vez para textos grandes
             texto_completo = ""
             
             for i, page in enumerate(doc):
@@ -588,17 +471,8 @@ def gerar_pdf_simplificado(texto, metadados=None, filename="documento_simplifica
             if metadados.get("modelo"):
                 c.drawString(margem_esq, y, f"Processado com: {metadados['modelo']}")
                 y -= 15
-            if metadados.get("tipo"):
-                c.drawString(margem_esq, y, f"Tipo de arquivo original: {metadados['tipo'].upper()}")
-                y -= 15
             if metadados.get("paginas"):
                 c.drawString(margem_esq, y, f"Páginas do original: {metadados['paginas']}")
-                y -= 15
-            elif metadados.get("dimensoes"):
-                c.drawString(margem_esq, y, f"Dimensões da imagem: {metadados['dimensoes']}")
-                y -= 15
-            if metadados.get("qualidade_ocr"):
-                c.drawString(margem_esq, y, f"Qualidade do OCR: {metadados['qualidade_ocr']}")
                 y -= 15
         
         # Linha separadora
@@ -690,11 +564,264 @@ def index():
 @app.route("/processar", methods=["POST"])
 @rate_limit
 def processar():
-    """Processa upload de PDF ou imagem com análise aprimorada"""
+    """Processa upload de PDF com análise aprimorada"""
     try:
         if 'file' not in request.files:
             return jsonify({"erro": "Nenhum arquivo enviado"}), 400
             
         file = request.files['file']
         if file.filename == '':
-            return
+            return jsonify({"erro": "Nenhum arquivo selecionado"}), 400
+            
+        if not allowed_file(file.filename):
+            return jsonify({"erro": "Formato inválido. Apenas PDFs são aceitos"}), 400
+        
+        # Verifica tamanho
+        file.seek(0, os.SEEK_END)
+        size = file.tell()
+        file.seek(0)
+        
+        if size > MAX_FILE_SIZE:
+            return jsonify({"erro": f"Arquivo muito grande. Máximo: {MAX_FILE_SIZE//1024//1024}MB"}), 400
+        
+        # Processa o PDF
+        pdf_bytes = file.read()
+        
+        # Hash do arquivo para cache
+        file_hash = hashlib.md5(pdf_bytes).hexdigest()
+        logging.info(f"Processando arquivo: {secure_filename(file.filename)} ({size/1024:.1f}KB) - Hash: {file_hash}")
+        
+        # Extrair texto e metadados
+        texto_original, metadados_pdf = extrair_texto_pdf(pdf_bytes)
+        
+        if len(texto_original) < 10:
+            return jsonify({"erro": "PDF não contém texto suficiente para processar"}), 400
+        
+        # Simplificar com Gemini
+        texto_simplificado, erro = simplificar_com_gemini(texto_original)
+        
+        if erro:
+            return jsonify({"erro": erro}), 500
+        
+        # Preparar metadados para o PDF
+        metadados_geracao = {
+            "modelo": results_cache.get(file_hash, {}).get("modelo", "Gemini"),
+            "paginas": metadados_pdf["total_paginas"],
+            "usou_ocr": metadados_pdf["usou_ocr"]
+        }
+        
+        # Gerar PDF simplificado
+        pdf_filename = f"simplificado_{file_hash[:8]}.pdf"
+        pdf_path = gerar_pdf_simplificado(texto_simplificado, metadados_geracao, pdf_filename)
+        
+        # Salvar o caminho na sessão
+        session['pdf_path'] = pdf_path
+        session['pdf_filename'] = pdf_filename
+        
+        # Análise adicional do resultado
+        analise = analisar_resultado_judicial(texto_simplificado)
+        
+        return jsonify({
+            "texto": texto_simplificado,
+            "caracteres_original": len(texto_original),
+            "caracteres_simplificado": len(texto_simplificado),
+            "reducao_percentual": round((1 - len(texto_simplificado)/len(texto_original)) * 100, 1),
+            "metadados": metadados_pdf,
+            "analise": analise,
+            "modelo_usado": metadados_geracao.get("modelo", "Gemini")
+        })
+        
+    except Exception as e:
+        logging.error(f"Erro ao processar PDF: {e}")
+        return jsonify({"erro": "Erro ao processar o PDF. Verifique se o arquivo não está corrompido"}), 500
+
+@app.route("/processar_texto", methods=["POST"])
+@rate_limit
+def processar_texto():
+    """Processa texto manual com análise aprimorada"""
+    try:
+        data = request.get_json()
+        texto = data.get("texto", "").strip()
+        
+        if not texto:
+            return jsonify({"erro": "Nenhum texto fornecido"}), 400
+            
+        if len(texto) < 20:
+            return jsonify({"erro": "Texto muito curto. Mínimo: 20 caracteres"}), 400
+            
+        if len(texto) > 10000:
+            return jsonify({"erro": "Texto muito longo. Máximo: 10.000 caracteres"}), 400
+        
+        texto_simplificado, erro = simplificar_com_gemini(texto)
+        
+        if erro:
+            return jsonify({"erro": erro}), 500
+        
+        # Análise adicional
+        analise = analisar_resultado_judicial(texto_simplificado)
+        
+        return jsonify({
+            "texto": texto_simplificado,
+            "caracteres_original": len(texto),
+            "caracteres_simplificado": len(texto_simplificado),
+            "reducao_percentual": round((1 - len(texto_simplificado)/len(texto)) * 100, 1),
+            "analise": analise
+        })
+        
+    except Exception as e:
+        logging.error(f"Erro ao processar texto: {e}")
+        return jsonify({"erro": "Erro ao processar o texto"}), 500
+
+def analisar_resultado_judicial(texto):
+    """Analisa o texto simplificado para extrair informações estruturadas"""
+    analise = {
+        "tipo_resultado": "indefinido",
+        "tem_valores": False,
+        "tem_prazos": False,
+        "tem_recursos": False,
+        "sentimento": "neutro",
+        "palavras_chave": []
+    }
+    
+    texto_lower = texto.lower()
+    
+    # Identificar tipo de resultado
+    if "✅" in texto or "vitória" in texto_lower or "procedente" in texto_lower:
+        analise["tipo_resultado"] = "vitoria"
+        analise["sentimento"] = "positivo"
+    elif "❌" in texto or "derrota" in texto_lower or "improcedente" in texto_lower:
+        analise["tipo_resultado"] = "derrota"
+        analise["sentimento"] = "negativo"
+    elif "⚠️" in texto or "parcial" in texto_lower:
+        analise["tipo_resultado"] = "parcial"
+        analise["sentimento"] = "neutro"
+    
+    # Verificar presença de elementos importantes
+    if "r$" in texto_lower or "valor" in texto_lower or "💰" in texto:
+        analise["tem_valores"] = True
+        analise["palavras_chave"].append("valores")
+    
+    if "prazo" in texto_lower or "dias" in texto_lower or "📅" in texto:
+        analise["tem_prazos"] = True
+        analise["palavras_chave"].append("prazos")
+    
+    if "recurso" in texto_lower or "apelação" in texto_lower or "agravo" in texto_lower:
+        analise["tem_recursos"] = True
+        analise["palavras_chave"].append("recursos")
+    
+    return analise
+
+@app.route("/estatisticas")
+def estatisticas():
+    """Retorna estatísticas de uso dos modelos"""
+    return jsonify({
+        "modelos": model_usage_stats,
+        "cache_size": len(results_cache),
+        "timestamp": datetime.now().isoformat()
+    })
+
+@app.route("/download_pdf")
+def download_pdf():
+    """Download do PDF com verificação de sessão"""
+    pdf_path = session.get('pdf_path')
+    pdf_filename = session.get('pdf_filename', 'documento_simplificado.pdf')
+    
+    if not pdf_path or not os.path.exists(pdf_path):
+        return jsonify({"erro": "PDF não encontrado. Por favor, processe um documento primeiro"}), 404
+    
+    try:
+        return send_file(
+            pdf_path, 
+            as_attachment=True, 
+            download_name=pdf_filename,
+            mimetype='application/pdf'
+        )
+    except Exception as e:
+        logging.error(f"Erro ao fazer download: {e}")
+        return jsonify({"erro": "Erro ao baixar o arquivo"}), 500
+
+@app.route("/feedback", methods=["POST"])
+def feedback():
+    """Recebe feedback do usuário sobre a simplificação"""
+    try:
+        data = request.get_json()
+        rating = data.get("rating")
+        comment = data.get("comment", "")
+        resultado_hash = data.get("hash", "")
+        
+        # Aqui você pode salvar em um banco de dados ou arquivo
+        logging.info(f"Feedback recebido - Rating: {rating}, Hash: {resultado_hash[:8]}, Comentário: {comment}")
+        
+        return jsonify({"sucesso": True, "mensagem": "Obrigado pelo seu feedback!"})
+    except Exception as e:
+        logging.error(f"Erro ao processar feedback: {e}")
+        return jsonify({"erro": "Erro ao processar feedback"}), 500
+
+@app.route("/static/<path:filename>")
+def serve_static(filename):
+    """Serve arquivos estáticos"""
+    return send_from_directory('static', filename)
+
+@app.route("/health")
+def health():
+    """Endpoint de health check para o Render"""
+    return jsonify({
+        "status": "healthy",
+        "timestamp": datetime.now().isoformat(),
+        "api_configured": bool(GEMINI_API_KEY),
+        "models_available": len(GEMINI_MODELS),
+        "cache_entries": len(results_cache)
+    })
+
+@app.errorhandler(404)
+def not_found(e):
+    return jsonify({"erro": "Endpoint não encontrado"}), 404
+
+@app.errorhandler(500)
+def server_error(e):
+    logging.error(f"Erro interno: {e}")
+    return jsonify({"erro": "Erro interno do servidor"}), 500
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+# Limpa arquivos temporários antigos periodicamente
+def cleanup_temp_files():
+    while True:
+        try:
+            time.sleep(3600)  # A cada hora
+            now = time.time()
+            
+            # Limpar arquivos temporários
+            for filename in os.listdir(TEMP_DIR):
+                if filename.startswith('simplificado_'):
+                    filepath = os.path.join(TEMP_DIR, filename)
+                    if os.stat(filepath).st_mtime < now - 3600:  # Arquivos com mais de 1 hora
+                        os.remove(filepath)
+                        logging.info(f"Arquivo temporário removido: {filename}")
+            
+            # Limpar cache antigo
+            to_remove = []
+            for key, value in results_cache.items():
+                if time.time() - value["timestamp"] > CACHE_EXPIRATION:
+                    to_remove.append(key)
+            
+            for key in to_remove:
+                del results_cache[key]
+            
+            if to_remove:
+                logging.info(f"Removidos {len(to_remove)} itens do cache")
+                
+        except Exception as e:
+            logging.error(f"Erro na limpeza de arquivos: {e}")
+
+# Inicia thread de limpeza
+cleanup_thread = threading.Thread(target=cleanup_temp_files, daemon=True)
+cleanup_thread.start()
+
+if __name__ == "__main__":
+    port = int(os.getenv("PORT", 8080))
+    app.run(host="0.0.0.0", port=port, debug=False)
+
+
+
