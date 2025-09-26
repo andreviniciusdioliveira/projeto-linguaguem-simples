@@ -21,6 +21,7 @@ import threading
 import queue
 import json
 import re
+import base64
 
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", os.urandom(24))
@@ -52,7 +53,8 @@ GEMINI_MODELS = [
 ]
 
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
-ALLOWED_EXTENSIONS = {'pdf'}
+ALLOWED_EXTENSIONS = {'pdf', 'png', 'jpg', 'jpeg', 'gif', 'bmp', 'tiff', 'webp'}
+ALLOWED_IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'tiff', 'webp'}
 TEMP_DIR = tempfile.gettempdir()
 
 # Rate limiting
@@ -165,6 +167,121 @@ Identificação do Vencedor:
 **TEXTO ORIGINAL A SIMPLIFICAR:**
 """
 
+def processar_imagem_para_texto(image_bytes, formato='PNG'):
+    """Extrai texto de uma imagem usando OCR com melhor pré-processamento"""
+    texto = ""
+    metadados = {
+        "tipo": "imagem",
+        "formato": formato,
+        "usou_ocr": True,
+        "dimensoes": None,
+        "qualidade_ocr": "indefinida"
+    }
+    
+    try:
+        # Abrir a imagem
+        img = Image.open(io.BytesIO(image_bytes))
+        
+        # Salvar dimensões originais
+        metadados["dimensoes"] = f"{img.width}x{img.height}"
+        
+        # Converter para RGB se necessário
+        if img.mode not in ('RGB', 'L'):
+            img = img.convert('RGB')
+        
+        # Pré-processamento da imagem para melhorar OCR
+        # 1. Redimensionar se muito grande
+        if img.width > 3000 or img.height > 3000:
+            ratio = min(3000/img.width, 3000/img.height)
+            new_size = (int(img.width * ratio), int(img.height * ratio))
+            img = img.resize(new_size, Image.Resampling.LANCZOS)
+            logging.info(f"Imagem redimensionada para {new_size}")
+        
+        # 2. Aumentar contraste
+        from PIL import ImageEnhance
+        enhancer = ImageEnhance.Contrast(img)
+        img = enhancer.enhance(1.5)
+        
+        # 3. Converter para escala de cinza
+        img = img.convert('L')
+        
+        # 4. Aplicar threshold para binarização
+        threshold = 180
+        img = img.point(lambda p: 255 if p > threshold else 0)
+        
+        # Configurações otimizadas do Tesseract para português
+        custom_config = r'--oem 3 --psm 3 -l por+eng'
+        
+        # Executar OCR
+        logging.info("Iniciando OCR na imagem...")
+        texto = pytesseract.image_to_string(img, config=custom_config)
+        
+        # Avaliar qualidade do OCR
+        if len(texto.strip()) < 50:
+            metadados["qualidade_ocr"] = "baixa"
+            
+            # Tentar novamente com configurações diferentes
+            custom_config = r'--oem 3 --psm 6 -l por'
+            texto_alt = pytesseract.image_to_string(img, config=custom_config)
+            
+            if len(texto_alt.strip()) > len(texto.strip()):
+                texto = texto_alt
+                metadados["qualidade_ocr"] = "média"
+        else:
+            # Verificar densidade de caracteres especiais (indicador de qualidade)
+            special_chars = sum(1 for c in texto if c in '!@#$%^&*()[]{}|\\<>?')
+            if special_chars / len(texto) > 0.1:
+                metadados["qualidade_ocr"] = "baixa"
+            elif len(texto.strip()) > 200:
+                metadados["qualidade_ocr"] = "boa"
+            else:
+                metadados["qualidade_ocr"] = "média"
+        
+        # Limpar texto extraído
+        texto = limpar_texto_ocr(texto)
+        
+        if not texto.strip():
+            raise ValueError("Nenhum texto foi extraído da imagem")
+        
+        logging.info(f"OCR concluído. Qualidade: {metadados['qualidade_ocr']}, Caracteres extraídos: {len(texto)}")
+        
+    except Exception as e:
+        logging.error(f"Erro ao processar imagem: {e}")
+        raise
+    
+    return texto, metadados
+
+def limpar_texto_ocr(texto):
+    """Limpa e melhora o texto extraído via OCR"""
+    if not texto:
+        return ""
+    
+    # Remove caracteres de controle mantendo quebras de linha
+    texto = ''.join(char if char.isprintable() or char in '\n\r\t' else ' ' for char in texto)
+    
+    # Remove linhas com apenas caracteres especiais
+    linhas = texto.split('\n')
+    linhas_limpas = []
+    
+    for linha in linhas:
+        linha_strip = linha.strip()
+        if linha_strip:
+            # Conta caracteres alfabéticos
+            alpha_count = sum(1 for c in linha_strip if c.isalpha())
+            # Só mantém a linha se tiver pelo menos 30% de letras
+            if alpha_count / len(linha_strip) >= 0.3:
+                linhas_limpas.append(linha)
+    
+    texto = '\n'.join(linhas_limpas)
+    
+    # Remove espaços múltiplos
+    texto = re.sub(r' +', ' ', texto)
+    
+    # Remove quebras de linha múltiplas
+    texto = re.sub(r'\n{3,}', '\n\n', texto)
+    
+    return texto.strip()
+
 def extrair_texto_pdf(pdf_bytes):
     """Extrai texto de PDF com melhor tratamento de erros e OCR otimizado"""
     texto = ""
@@ -172,7 +289,8 @@ def extrair_texto_pdf(pdf_bytes):
         "total_paginas": 0,
         "tem_texto": False,
         "usou_ocr": False,
-        "paginas_com_ocr": []
+        "paginas_com_ocr": [],
+        "tipo": "pdf"
     }
     
     ocr_disponivel = True
@@ -190,7 +308,6 @@ def extrair_texto_pdf(pdf_bytes):
             metadados["total_paginas"] = total_pages
             logging.info(f"Processando PDF com {total_pages} páginas")
             
-            # Processar todas as páginas de uma vez para textos grandes
             texto_completo = ""
             
             for i, page in enumerate(doc):
@@ -471,8 +588,17 @@ def gerar_pdf_simplificado(texto, metadados=None, filename="documento_simplifica
             if metadados.get("modelo"):
                 c.drawString(margem_esq, y, f"Processado com: {metadados['modelo']}")
                 y -= 15
+            if metadados.get("tipo"):
+                c.drawString(margem_esq, y, f"Tipo de arquivo original: {metadados['tipo'].upper()}")
+                y -= 15
             if metadados.get("paginas"):
                 c.drawString(margem_esq, y, f"Páginas do original: {metadados['paginas']}")
+                y -= 15
+            elif metadados.get("dimensoes"):
+                c.drawString(margem_esq, y, f"Dimensões da imagem: {metadados['dimensoes']}")
+                y -= 15
+            if metadados.get("qualidade_ocr"):
+                c.drawString(margem_esq, y, f"Qualidade do OCR: {metadados['qualidade_ocr']}")
                 y -= 15
         
         # Linha separadora
@@ -564,7 +690,7 @@ def index():
 @app.route("/processar", methods=["POST"])
 @rate_limit
 def processar():
-    """Processa upload de PDF com análise aprimorada"""
+    """Processa upload de PDF ou imagem com análise aprimorada"""
     try:
         if 'file' not in request.files:
             return jsonify({"erro": "Nenhum arquivo enviado"}), 400
@@ -574,7 +700,7 @@ def processar():
             return jsonify({"erro": "Nenhum arquivo selecionado"}), 400
             
         if not allowed_file(file.filename):
-            return jsonify({"erro": "Formato inválido. Apenas PDFs são aceitos"}), 400
+            return jsonify({"erro": "Formato inválido. Aceitos: PDF, PNG, JPG, JPEG, GIF, BMP, TIFF, WEBP"}), 400
         
         # Verifica tamanho
         file.seek(0, os.SEEK_END)
@@ -584,18 +710,30 @@ def processar():
         if size > MAX_FILE_SIZE:
             return jsonify({"erro": f"Arquivo muito grande. Máximo: {MAX_FILE_SIZE//1024//1024}MB"}), 400
         
-        # Processa o PDF
-        pdf_bytes = file.read()
+        # Lê o arquivo
+        file_bytes = file.read()
+        file_extension = file.filename.rsplit('.', 1)[1].lower()
         
         # Hash do arquivo para cache
-        file_hash = hashlib.md5(pdf_bytes).hexdigest()
+        file_hash = hashlib.md5(file_bytes).hexdigest()
         logging.info(f"Processando arquivo: {secure_filename(file.filename)} ({size/1024:.1f}KB) - Hash: {file_hash}")
         
-        # Extrair texto e metadados
-        texto_original, metadados_pdf = extrair_texto_pdf(pdf_bytes)
+        # Determina se é PDF ou imagem
+        if file_extension == 'pdf':
+            # Processa PDF
+            texto_original, metadados = extrair_texto_pdf(file_bytes)
+        elif file_extension in ALLOWED_IMAGE_EXTENSIONS:
+            # Processa imagem
+            texto_original, metadados = processar_imagem_para_texto(file_bytes, file_extension.upper())
+            
+            # Adiciona aviso sobre qualidade do OCR se necessário
+            if metadados.get("qualidade_ocr") == "baixa":
+                texto_original = "[AVISO: A qualidade do OCR foi baixa. Alguns trechos podem estar incorretos.]\n\n" + texto_original
+        else:
+            return jsonify({"erro": "Tipo de arquivo não suportado"}), 400
         
         if len(texto_original) < 10:
-            return jsonify({"erro": "PDF não contém texto suficiente para processar"}), 400
+            return jsonify({"erro": "Arquivo não contém texto suficiente para processar"}), 400
         
         # Simplificar com Gemini
         texto_simplificado, erro = simplificar_com_gemini(texto_original)
@@ -606,9 +744,16 @@ def processar():
         # Preparar metadados para o PDF
         metadados_geracao = {
             "modelo": results_cache.get(file_hash, {}).get("modelo", "Gemini"),
-            "paginas": metadados_pdf["total_paginas"],
-            "usou_ocr": metadados_pdf["usou_ocr"]
+            "tipo": metadados.get("tipo", file_extension)
         }
+        
+        # Adiciona informações específicas do tipo de arquivo
+        if file_extension == 'pdf':
+            metadados_geracao["paginas"] = metadados.get("total_paginas")
+            metadados_geracao["usou_ocr"] = metadados.get("usou_ocr")
+        else:
+            metadados_geracao["dimensoes"] = metadados.get("dimensoes")
+            metadados_geracao["qualidade_ocr"] = metadados.get("qualidade_ocr")
         
         # Gerar PDF simplificado
         pdf_filename = f"simplificado_{file_hash[:8]}.pdf"
@@ -626,14 +771,15 @@ def processar():
             "caracteres_original": len(texto_original),
             "caracteres_simplificado": len(texto_simplificado),
             "reducao_percentual": round((1 - len(texto_simplificado)/len(texto_original)) * 100, 1),
-            "metadados": metadados_pdf,
+            "metadados": metadados,
             "analise": analise,
-            "modelo_usado": metadados_geracao.get("modelo", "Gemini")
+            "modelo_usado": metadados_geracao.get("modelo", "Gemini"),
+            "tipo_arquivo": file_extension
         })
         
     except Exception as e:
-        logging.error(f"Erro ao processar PDF: {e}")
-        return jsonify({"erro": "Erro ao processar o PDF. Verifique se o arquivo não está corrompido"}), 500
+        logging.error(f"Erro ao processar arquivo: {e}")
+        return jsonify({"erro": "Erro ao processar o arquivo. Verifique se não está corrompido"}), 500
 
 @app.route("/processar_texto", methods=["POST"])
 @rate_limit
@@ -765,12 +911,23 @@ def serve_static(filename):
 @app.route("/health")
 def health():
     """Endpoint de health check para o Render"""
+    # Verificar se Tesseract está disponível
+    ocr_available = False
+    try:
+        import subprocess
+        subprocess.run(['tesseract', '--version'], capture_output=True, check=True)
+        ocr_available = True
+    except:
+        pass
+    
     return jsonify({
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
         "api_configured": bool(GEMINI_API_KEY),
         "models_available": len(GEMINI_MODELS),
-        "cache_entries": len(results_cache)
+        "cache_entries": len(results_cache),
+        "ocr_available": ocr_available,
+        "supported_formats": list(ALLOWED_EXTENSIONS)
     })
 
 @app.errorhandler(404)
@@ -784,6 +941,26 @@ def server_error(e):
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def detectar_tipo_arquivo(file_bytes):
+    """Detecta o tipo de arquivo pelos bytes iniciais (magic numbers)"""
+    # Magic numbers para diferentes formatos
+    if file_bytes[:4] == b'%PDF':
+        return 'pdf'
+    elif file_bytes[:8] == b'\x89PNG\r\n\x1a\n':
+        return 'png'
+    elif file_bytes[:3] == b'\xff\xd8\xff':
+        return 'jpeg'
+    elif file_bytes[:6] in (b'GIF87a', b'GIF89a'):
+        return 'gif'
+    elif file_bytes[:2] == b'BM':
+        return 'bmp'
+    elif file_bytes[:4] in (b'II\x2a\x00', b'MM\x00\x2a'):
+        return 'tiff'
+    elif file_bytes[:4] == b'RIFF' and file_bytes[8:12] == b'WEBP':
+        return 'webp'
+    else:
+        return None
 
 # Limpa arquivos temporários antigos periodicamente
 def cleanup_temp_files():
@@ -822,6 +999,3 @@ cleanup_thread.start()
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8080))
     app.run(host="0.0.0.0", port=port, debug=False)
-
-
-
