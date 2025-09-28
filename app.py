@@ -2,7 +2,7 @@ from flask import Flask, render_template, request, send_file, jsonify, session, 
 from werkzeug.utils import secure_filename
 import fitz
 import pytesseract
-from PIL import Image
+from PIL import Image, ImageEnhance
 import io
 import os
 import logging
@@ -22,6 +22,17 @@ import queue
 import json
 import re
 import base64
+import subprocess
+import numpy as np
+
+# Tentativa de importar OpenCV
+try:
+    import cv2
+    CV2_AVAILABLE = True
+    logging.info("OpenCV disponível para processamento avançado de imagens")
+except ImportError:
+    CV2_AVAILABLE = False
+    logging.warning("OpenCV não disponível - usando processamento básico")
 
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", os.urandom(24))
@@ -68,6 +79,31 @@ CACHE_EXPIRATION = 3600  # 1 hora
 
 # Estatísticas de uso dos modelos
 model_usage_stats = {model["name"]: {"attempts": 0, "successes": 0, "failures": 0} for model in GEMINI_MODELS}
+
+def verificar_tesseract():
+    """Verifica se o Tesseract está disponível e configurado"""
+    try:
+        result = subprocess.run(['tesseract', '--version'], 
+                              capture_output=True, text=True, check=True, timeout=10)
+        version = result.stdout.split('\n')[0]
+        logging.info(f"Tesseract detectado: {version}")
+        
+        # Verificar idiomas disponíveis
+        langs_result = subprocess.run(['tesseract', '--list-langs'], 
+                                    capture_output=True, text=True, check=True, timeout=10)
+        langs = langs_result.stdout.strip().split('\n')[1:]
+        logging.info(f"Idiomas disponíveis: {langs}")
+        
+        if 'por' not in langs:
+            logging.warning("Português não disponível no Tesseract")
+            
+        return True, version, langs
+    except Exception as e:
+        logging.error(f"Tesseract não está disponível: {e}")
+        return False, None, []
+
+# Verificar Tesseract na inicialização
+TESSERACT_AVAILABLE, TESSERACT_VERSION, TESSERACT_LANGS = verificar_tesseract()
 
 def cleanup_old_requests():
     with cleanup_lock:
@@ -175,8 +211,12 @@ def processar_imagem_para_texto(image_bytes, formato='PNG'):
         "formato": formato,
         "usou_ocr": True,
         "dimensoes": None,
-        "qualidade_ocr": "indefinida"
+        "qualidade_ocr": "indefinida",
+        "tesseract_disponivel": TESSERACT_AVAILABLE
     }
+    
+    if not TESSERACT_AVAILABLE:
+        raise ValueError("OCR não está disponível neste servidor. Tesseract não foi encontrado.")
     
     try:
         # Abrir a imagem
@@ -184,58 +224,19 @@ def processar_imagem_para_texto(image_bytes, formato='PNG'):
         
         # Salvar dimensões originais
         metadados["dimensoes"] = f"{img.width}x{img.height}"
+        logging.info(f"Processando imagem: {metadados['dimensoes']}, formato: {formato}")
         
         # Converter para RGB se necessário
         if img.mode not in ('RGB', 'L'):
+            original_mode = img.mode
             img = img.convert('RGB')
+            logging.info(f"Convertido de {original_mode} para RGB")
         
-        # Pré-processamento da imagem para melhorar OCR
-        # 1. Redimensionar se muito grande
-        if img.width > 3000 or img.height > 3000:
-            ratio = min(3000/img.width, 3000/img.height)
-            new_size = (int(img.width * ratio), int(img.height * ratio))
-            img = img.resize(new_size, Image.Resampling.LANCZOS)
-            logging.info(f"Imagem redimensionada para {new_size}")
-        
-        # 2. Aumentar contraste
-        from PIL import ImageEnhance
-        enhancer = ImageEnhance.Contrast(img)
-        img = enhancer.enhance(1.5)
-        
-        # 3. Converter para escala de cinza
-        img = img.convert('L')
-        
-        # 4. Aplicar threshold para binarização
-        threshold = 180
-        img = img.point(lambda p: 255 if p > threshold else 0)
-        
-        # Configurações otimizadas do Tesseract para português
-        custom_config = r'--oem 3 --psm 3 -l por+eng'
-        
-        # Executar OCR
-        logging.info("Iniciando OCR na imagem...")
-        texto = pytesseract.image_to_string(img, config=custom_config)
-        
-        # Avaliar qualidade do OCR
-        if len(texto.strip()) < 50:
-            metadados["qualidade_ocr"] = "baixa"
-            
-            # Tentar novamente com configurações diferentes
-            custom_config = r'--oem 3 --psm 6 -l por'
-            texto_alt = pytesseract.image_to_string(img, config=custom_config)
-            
-            if len(texto_alt.strip()) > len(texto.strip()):
-                texto = texto_alt
-                metadados["qualidade_ocr"] = "média"
+        # Pré-processamento avançado com OpenCV se disponível
+        if CV2_AVAILABLE:
+            texto = processar_com_opencv(img, metadados)
         else:
-            # Verificar densidade de caracteres especiais (indicador de qualidade)
-            special_chars = sum(1 for c in texto if c in '!@#$%^&*()[]{}|\\<>?')
-            if special_chars / len(texto) > 0.1:
-                metadados["qualidade_ocr"] = "baixa"
-            elif len(texto.strip()) > 200:
-                metadados["qualidade_ocr"] = "boa"
-            else:
-                metadados["qualidade_ocr"] = "média"
+            texto = processar_com_pil(img, metadados)
         
         # Limpar texto extraído
         texto = limpar_texto_ocr(texto)
@@ -243,13 +244,144 @@ def processar_imagem_para_texto(image_bytes, formato='PNG'):
         if not texto.strip():
             raise ValueError("Nenhum texto foi extraído da imagem")
         
-        logging.info(f"OCR concluído. Qualidade: {metadados['qualidade_ocr']}, Caracteres extraídos: {len(texto)}")
+        logging.info(f"OCR concluído. Qualidade: {metadados['qualidade_ocr']}, Caracteres: {len(texto)}")
         
     except Exception as e:
         logging.error(f"Erro ao processar imagem: {e}")
         raise
     
     return texto, metadados
+
+def processar_com_opencv(img, metadados):
+    """Processamento avançado com OpenCV"""
+    logging.info("Usando processamento avançado com OpenCV")
+    
+    # Converter PIL para OpenCV
+    img_cv = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
+    
+    # Redimensionar se muito grande (otimização)
+    height, width = img_cv.shape[:2]
+    if width > 3000 or height > 3000:
+        scale = min(3000/width, 3000/height)
+        new_width = int(width * scale)
+        new_height = int(height * scale)
+        img_cv = cv2.resize(img_cv, (new_width, new_height), interpolation=cv2.INTER_LANCZOS4)
+        logging.info(f"Imagem redimensionada para {new_width}x{new_height}")
+    
+    # Converter para escala de cinza
+    gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
+    
+    # Aplicar filtros para melhorar OCR
+    # 1. Denoising
+    denoised = cv2.fastNlMeansDenoising(gray)
+    
+    # 2. Aumentar contraste
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+    contrast = clahe.apply(denoised)
+    
+    # 3. Binarização adaptativa
+    binary = cv2.adaptiveThreshold(contrast, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, 
+                                 cv2.THRESH_BINARY, 11, 2)
+    
+    # Converter de volta para PIL
+    img_processed = Image.fromarray(binary)
+    
+    return executar_ocr_multiplas_configs(img_processed, metadados)
+
+def processar_com_pil(img, metadados):
+    """Processamento básico com PIL"""
+    logging.info("Usando processamento básico com PIL")
+    
+    # Redimensionar se muito grande
+    if img.width > 3000 or img.height > 3000:
+        ratio = min(3000/img.width, 3000/img.height)
+        new_size = (int(img.width * ratio), int(img.height * ratio))
+        img = img.resize(new_size, Image.Resampling.LANCZOS)
+        logging.info(f"Imagem redimensionada para {new_size}")
+    
+    # Aumentar contraste
+    enhancer = ImageEnhance.Contrast(img)
+    img = enhancer.enhance(1.5)
+    
+    # Converter para escala de cinza
+    img = img.convert('L')
+    
+    # Aplicar threshold para binarização
+    threshold = 180
+    img = img.point(lambda p: 255 if p > threshold else 0)
+    
+    return executar_ocr_multiplas_configs(img, metadados)
+
+def executar_ocr_multiplas_configs(img_processed, metadados):
+    """Executa OCR com múltiplas configurações e escolhe o melhor resultado"""
+    
+    # Configurações otimizadas do Tesseract
+    custom_configs = [
+        r'--oem 3 --psm 6 -l por+eng',  # Melhor para documentos
+        r'--oem 3 --psm 3 -l por+eng',  # Automático
+        r'--oem 3 --psm 4 -l por+eng',  # Coluna única
+        r'--oem 3 --psm 6 -l por',      # Só português
+        r'--oem 3 --psm 3 -l eng',      # Só inglês
+    ]
+    
+    # Se português não estiver disponível, usar apenas inglês
+    if 'por' not in TESSERACT_LANGS:
+        custom_configs = [
+            r'--oem 3 --psm 6 -l eng',
+            r'--oem 3 --psm 3 -l eng',
+            r'--oem 3 --psm 4 -l eng',
+        ]
+        logging.warning("Português não disponível, usando apenas inglês")
+    
+    best_text = ""
+    best_score = 0
+    
+    for i, config in enumerate(custom_configs):
+        try:
+            logging.info(f"Tentativa OCR {i+1}/{len(custom_configs)}: {config}")
+            texto_temp = pytesseract.image_to_string(img_processed, config=config)
+            
+            # Avaliar qualidade do texto
+            score = avaliar_qualidade_texto(texto_temp)
+            logging.info(f"Score: {score}, Caracteres: {len(texto_temp.strip())}")
+            
+            if score > best_score or (score == best_score and len(texto_temp.strip()) > len(best_text.strip())):
+                best_text = texto_temp
+                best_score = score
+                logging.info(f"Novo melhor resultado encontrado")
+            
+        except Exception as e:
+            logging.warning(f"Erro com configuração {config}: {e}")
+            continue
+    
+    # Avaliar qualidade final
+    if len(best_text.strip()) < 50 or best_score < 0.3:
+        metadados["qualidade_ocr"] = "baixa"
+    elif len(best_text.strip()) < 200 or best_score < 0.6:
+        metadados["qualidade_ocr"] = "média"
+    else:
+        metadados["qualidade_ocr"] = "boa"
+    
+    return best_text
+
+def avaliar_qualidade_texto(texto):
+    """Avalia a qualidade do texto extraído"""
+    if not texto or len(texto.strip()) == 0:
+        return 0
+    
+    # Proporção de caracteres alfabéticos
+    alpha_ratio = sum(1 for c in texto if c.isalpha()) / len(texto)
+    
+    # Proporção de caracteres especiais/ruído
+    special_ratio = sum(1 for c in texto if c in '!@#$%^&*()[]{}|\\<>?~`') / len(texto)
+    
+    # Proporção de espaços (texto bem formatado tem espaços)
+    space_ratio = texto.count(' ') / len(texto)
+    
+    # Score combinado
+    score = alpha_ratio * 0.6 + (1 - special_ratio) * 0.3 + min(space_ratio * 4, 0.1) * 1.0
+    
+    return min(score, 1.0)
 
 def limpar_texto_ocr(texto):
     """Limpa e melhora o texto extraído via OCR"""
@@ -269,7 +401,7 @@ def limpar_texto_ocr(texto):
             # Conta caracteres alfabéticos
             alpha_count = sum(1 for c in linha_strip if c.isalpha())
             # Só mantém a linha se tiver pelo menos 30% de letras
-            if alpha_count / len(linha_strip) >= 0.3:
+            if len(linha_strip) > 0 and alpha_count / len(linha_strip) >= 0.3:
                 linhas_limpas.append(linha)
     
     texto = '\n'.join(linhas_limpas)
@@ -293,15 +425,6 @@ def extrair_texto_pdf(pdf_bytes):
         "tipo": "pdf"
     }
     
-    ocr_disponivel = True
-    
-    try:
-        import subprocess
-        subprocess.run(['tesseract', '--version'], capture_output=True, check=True)
-    except:
-        ocr_disponivel = False
-        logging.warning("Tesseract não está instalado. OCR desabilitado.")
-    
     try:
         with fitz.open(stream=pdf_bytes, filetype="pdf") as doc:
             total_pages = len(doc)
@@ -319,18 +442,17 @@ def extrair_texto_pdf(pdf_bytes):
                         metadados["tem_texto"] = True
                         texto_completo += conteudo + "\n"
                     # Se não há texto e OCR está disponível, tenta OCR
-                    elif ocr_disponivel:
+                    elif TESSERACT_AVAILABLE:
                         logging.info(f"Aplicando OCR na página {i+1}")
                         metadados["usou_ocr"] = True
                         metadados["paginas_com_ocr"].append(i+1)
                         
                         pix = page.get_pixmap(dpi=150)
-                        img = Image.open(io.BytesIO(pix.tobytes()))
+                        img_data = pix.tobytes()
                         
-                        # Configurações otimizadas do Tesseract
-                        custom_config = r'--oem 3 --psm 6 -l por'
-                        conteudo = pytesseract.image_to_string(img, config=custom_config)
-                        texto_completo += conteudo + "\n"
+                        # Usar a função melhorada de OCR
+                        conteudo_ocr, _ = processar_imagem_para_texto(img_data, 'PNG')
+                        texto_completo += conteudo_ocr + "\n"
                     
                 except Exception as e:
                     logging.error(f"Erro ao processar página {i+1}: {e}")
@@ -673,7 +795,7 @@ def gerar_pdf_simplificado(texto, metadados=None, filename="documento_simplifica
         # Rodapé
         c.setFont("Helvetica", 8)
         c.setFillColorRGB(0.6, 0.6, 0.6)
-        c.drawString(margem_esq, 30, "Desenvolvido")
+        c.drawString(margem_esq, 30, "Desenvolvido pela INOVASSOL")
         c.drawString(largura - margem_dir - 150, 30, "Consulte seu advogado para orientações")
         
         c.save()
@@ -724,7 +846,16 @@ def processar():
             texto_original, metadados = extrair_texto_pdf(file_bytes)
         elif file_extension in ALLOWED_IMAGE_EXTENSIONS:
             # Processa imagem
-            texto_original, metadados = processar_imagem_para_texto(file_bytes, file_extension.upper())
+            try:
+                texto_original, metadados = processar_imagem_para_texto(file_bytes, file_extension.upper())
+            except ValueError as e:
+                if "OCR não está disponível" in str(e):
+                    return jsonify({
+                        "erro": "OCR não está disponível neste servidor. O Tesseract não foi encontrado.",
+                        "detalhes": "Entre em contato com o administrador para instalar o Tesseract OCR."
+                    }), 500
+                else:
+                    raise
             
             # Adiciona aviso sobre qualidade do OCR se necessário
             if metadados.get("qualidade_ocr") == "baixa":
@@ -857,12 +988,69 @@ def analisar_resultado_judicial(texto):
     
     return analise
 
+@app.route("/diagnostico")
+def diagnostico():
+    """Endpoint para diagnosticar problemas de OCR e configuração"""
+    diagnostico_info = {
+        "tesseract_disponivel": TESSERACT_AVAILABLE,
+        "tesseract_version": TESSERACT_VERSION,
+        "tesseract_langs": TESSERACT_LANGS,
+        "python_libs": {},
+        "sistema": {},
+        "configuracao": {}
+    }
+    
+    # Verificar bibliotecas Python
+    try:
+        import pytesseract
+        diagnostico_info["python_libs"]["pytesseract"] = pytesseract.__version__
+    except Exception as e:
+        diagnostico_info["python_libs"]["pytesseract"] = f"Erro: {str(e)}"
+    
+    try:
+        import cv2
+        diagnostico_info["python_libs"]["opencv"] = cv2.__version__
+        diagnostico_info["configuracao"]["opencv_disponivel"] = CV2_AVAILABLE
+    except Exception as e:
+        diagnostico_info["python_libs"]["opencv"] = f"Erro: {str(e)}"
+        diagnostico_info["configuracao"]["opencv_disponivel"] = False
+    
+    try:
+        from PIL import Image
+        diagnostico_info["python_libs"]["pillow"] = Image.__version__
+    except Exception as e:
+        diagnostico_info["python_libs"]["pillow"] = f"Erro: {str(e)}"
+    
+    try:
+        import numpy
+        diagnostico_info["python_libs"]["numpy"] = numpy.__version__
+    except Exception as e:
+        diagnostico_info["python_libs"]["numpy"] = f"Erro: {str(e)}"
+    
+    # Info do sistema
+    import platform
+    diagnostico_info["sistema"]["os"] = platform.system()
+    diagnostico_info["sistema"]["arquitetura"] = platform.machine()
+    diagnostico_info["sistema"]["python_version"] = platform.python_version()
+    
+    # Configurações
+    diagnostico_info["configuracao"]["gemini_api_configurada"] = bool(GEMINI_API_KEY)
+    diagnostico_info["configuracao"]["temp_dir"] = TEMP_DIR
+    diagnostico_info["configuracao"]["max_file_size_mb"] = MAX_FILE_SIZE // 1024 // 1024
+    
+    # Variáveis de ambiente relevantes
+    diagnostico_info["configuracao"]["tessdata_prefix"] = os.getenv("TESSDATA_PREFIX", "Não configurado")
+    
+    return jsonify(diagnostico_info)
+
 @app.route("/estatisticas")
 def estatisticas():
     """Retorna estatísticas de uso dos modelos"""
     return jsonify({
         "modelos": model_usage_stats,
         "cache_size": len(results_cache),
+        "tesseract_disponivel": TESSERACT_AVAILABLE,
+        "opencv_disponivel": CV2_AVAILABLE,
         "timestamp": datetime.now().isoformat()
     })
 
@@ -911,22 +1099,16 @@ def serve_static(filename):
 @app.route("/health")
 def health():
     """Endpoint de health check para o Render"""
-    # Verificar se Tesseract está disponível
-    ocr_available = False
-    try:
-        import subprocess
-        subprocess.run(['tesseract', '--version'], capture_output=True, check=True)
-        ocr_available = True
-    except:
-        pass
-    
     return jsonify({
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
         "api_configured": bool(GEMINI_API_KEY),
         "models_available": len(GEMINI_MODELS),
         "cache_entries": len(results_cache),
-        "ocr_available": ocr_available,
+        "tesseract_available": TESSERACT_AVAILABLE,
+        "tesseract_version": TESSERACT_VERSION,
+        "tesseract_langs": TESSERACT_LANGS,
+        "opencv_available": CV2_AVAILABLE,
         "supported_formats": list(ALLOWED_EXTENSIONS)
     })
 
