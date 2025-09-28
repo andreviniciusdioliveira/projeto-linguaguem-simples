@@ -10,6 +10,9 @@ reportlab==4.2.2
 # Processamento de imagens
 Pillow==10.4.0
 
+# OCR aprimorado
+opencv-python-headless==4.9.0.80
+
 # Requisições HTTP
 requests==2.31.0
 certifi==2024.2.2
@@ -21,13 +24,5 @@ gunicorn==21.2.0
 # Variáveis de ambiente
 python-dotenv==1.0.1
 
-# Cache (opcional, para futuras melhorias)
-# redis==5.0.1
-# Flask-Caching==2.1.0
-
-# Nota: A API do Gemini não requer SDK específico, apenas requests
-# Processamento de imagens avançado
-
-
-# Opcional: para melhor performance de OCR
-opencv-python==4.9.0.80  # Adicionar se quiser processamento mais avançado
+# Utilitários para arquivos
+python-magic==0.4.27
