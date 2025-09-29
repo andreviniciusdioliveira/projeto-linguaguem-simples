@@ -761,6 +761,13 @@
 
         dropArea.addEventListener('drop', handleDrop, false);
         fileInput.addEventListener('change', handleFileSelect, false);
+        
+        // Adicionar click no drop area
+        dropArea.addEventListener('click', function(e) {
+            if (e.target.tagName !== 'BUTTON') {
+                fileInput.click();
+            }
+        });
 
         function handleDrop(e) {
             const dt = e.dataTransfer;
@@ -783,6 +790,8 @@
             const file = files[0];
             const extension = getFileExtension(file.name);
             
+            console.log('Arquivo selecionado:', file.name, 'Tamanho:', file.size, 'Tipo:', extension);
+            
             if (!ALLOWED_EXTENSIONS.includes(extension)) {
                 showToast('Formato não suportado. Use: PDF, PNG, JPG, JPEG, GIF, BMP, TIFF, WEBP', 'error');
                 return;
@@ -790,6 +799,11 @@
             
             if (file.size > MAX_FILE_SIZE) {
                 showToast(`Arquivo muito grande. Máximo: ${MAX_FILE_SIZE / 1024 / 1024}MB`, 'error');
+                return;
+            }
+            
+            if (file.size === 0) {
+                showToast('Arquivo está vazio', 'error');
                 return;
             }
             
@@ -801,6 +815,7 @@
                 showPDFInfo(file);
             }
             
+            // Processar automaticamente
             uploadFile(file);
         }
 
@@ -843,17 +858,28 @@
         }
 
         function uploadFile(file) {
+            console.log('uploadFile chamado com:', file);
+            
             if (isProcessing) {
                 showToast('Aguarde o processamento atual terminar', 'warning');
                 return;
             }
             
+            if (!file) {
+                console.error('Arquivo indefinido');
+                showToast('Erro: arquivo não definido', 'error');
+                return;
+            }
+            
+            console.log('Iniciando processamento...');
             isProcessing = true;
             showLoading('Processando documento...');
             updateProgressSteps(2);
             
             const formData = new FormData();
             formData.append('file', file);
+            
+            console.log('FormData criado, enviando para /processar');
             
             let progress = 0;
             const progressInterval = setInterval(() => {
@@ -867,6 +893,7 @@
                 body: formData
             })
             .then(response => {
+                console.log('Resposta recebida:', response.status);
                 clearInterval(progressInterval);
                 updateLoadingProgress(100);
                 
@@ -876,7 +903,6 @@
                         
                         let errorMessage = data.erro || 'Erro ao processar arquivo';
                         
-                        // Mensagens mais específicas
                         if (data.detalhes) {
                             errorMessage += '\n' + data.detalhes;
                         }
@@ -889,7 +915,6 @@
                             errorMessage += '\n\n💡 ' + data.sugestao;
                         }
                         
-                        // Erros específicos
                         if (errorMessage.includes('OCR não está disponível')) {
                             errorMessage = '❌ OCR Indisponível\n\nO servidor não tem o Tesseract OCR instalado. Entre em contato com o administrador ou use um PDF com texto selecionável.';
                         } else if (errorMessage.includes('GEMINI_API_KEY')) {
@@ -904,7 +929,7 @@
                 return response.json();
             })
             .then(data => {
-                console.log('Resposta do servidor:', data);
+                console.log('Dados recebidos:', data);
                 showResult(data);
                 updateProgressSteps(3);
                 
@@ -920,6 +945,7 @@
                 updateProgressSteps(1);
             })
             .finally(() => {
+                console.log('Finalizando processamento');
                 isProcessing = false;
                 hideLoading();
                 clearInterval(progressInterval);
