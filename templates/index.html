@@ -3,10 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Entenda aqui - PDF e Imagens | Desenvolvido por INOVASSOL</title>
-    <meta name="description" content="Transforme documentos jurídicos complexos em linguagem simples com detecção automática do tipo">
+    <title>Entenda aqui - Simplificador Jurídico | INOVASSOL</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='50%' x='50%' text-anchor='middle' font-size='80'>⚖️</text></svg>">
-    
     <style>
         :root {
             --primary: #1a73e8;
@@ -25,49 +23,24 @@
             --warning-bg: #fef7e0;
             --info-bg: #e8f0fe;
         }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Google Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
             background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
             min-height: 100vh;
             color: var(--text);
             line-height: 1.6;
-            transition: all 0.3s ease;
         }
-
         body.dark-mode {
             --primary: #4da3ff;
-            --primary-dark: #66b3ff;
             --light: #1a1a1a;
             --text: #e8eaed;
             --text-muted: #9aa0a6;
             --border: #3c4043;
-            --shadow: rgba(255,255,255,0.1);
-            --success-bg: #1e3a2e;
-            --error-bg: #3c1f1f;
-            --warning-bg: #3a3319;
-            --info-bg: #1e3a5f;
             background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
         }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 2rem;
-        }
-
-        .header {
-            text-align: center;
-            margin-bottom: 3rem;
-            animation: fadeInDown 0.8s ease;
-        }
-
+        .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+        .header { text-align: center; margin-bottom: 3rem; }
         .header h1 {
             font-size: 2.5rem;
             background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
@@ -76,73 +49,6 @@
             margin-bottom: 0.5rem;
             font-weight: 700;
         }
-
-        .header p {
-            color: var(--text-muted);
-            font-size: 1.1rem;
-        }
-
-        /* Document type badge */
-        .doc-type-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            background: var(--info-bg);
-            color: var(--primary);
-            padding: 0.75rem 1.5rem;
-            border-radius: 25px;
-            font-size: 1.1rem;
-            font-weight: 600;
-            margin: 1rem 0;
-            animation: fadeIn 0.5s ease;
-            border: 2px solid var(--primary);
-        }
-
-        .doc-type-badge .icon {
-            font-size: 1.5rem;
-        }
-
-        .confidence-indicator {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            margin-top: 0.5rem;
-            font-size: 0.875rem;
-            color: var(--text-muted);
-        }
-
-        .confidence-bar {
-            width: 100px;
-            height: 6px;
-            background: var(--border);
-            border-radius: 3px;
-            overflow: hidden;
-        }
-
-        .confidence-fill {
-            height: 100%;
-            background: linear-gradient(90deg, var(--danger) 0%, var(--warning) 50%, var(--secondary) 100%);
-            transition: width 0.5s ease;
-        }
-
-        .format-badges {
-            display: flex;
-            justify-content: center;
-            gap: 0.5rem;
-            margin-top: 1rem;
-            flex-wrap: wrap;
-        }
-
-        .format-badge {
-            background: var(--info-bg);
-            color: var(--primary);
-            padding: 0.25rem 0.75rem;
-            border-radius: 20px;
-            font-size: 0.875rem;
-            font-weight: 600;
-            animation: fadeIn 0.5s ease;
-        }
-
         .card {
             background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(10px);
@@ -150,81 +56,9 @@
             box-shadow: 0 8px 32px var(--shadow);
             padding: 2rem;
             margin-bottom: 2rem;
-            transition: all 0.3s ease;
-            animation: fadeInUp 0.8s ease;
             border: 1px solid var(--border);
         }
-
-        body.dark-mode .card {
-            background: rgba(42, 42, 42, 0.95);
-            border-color: var(--border);
-        }
-
-        .card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 12px 48px var(--shadow);
-        }
-
-        .progress-steps {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 3rem;
-            position: relative;
-        }
-
-        .progress-steps::before {
-            content: '';
-            position: absolute;
-            top: 20px;
-            left: 0;
-            width: 100%;
-            height: 2px;
-            background: var(--border);
-            z-index: -1;
-        }
-
-        .step {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            flex: 1;
-            position: relative;
-        }
-
-        .step-circle {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: white;
-            border: 2px solid var(--border);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            transition: all 0.3s ease;
-            z-index: 1;
-        }
-
-        .step.active .step-circle {
-            background: var(--primary);
-            color: white;
-            border-color: var(--primary);
-            transform: scale(1.1);
-        }
-
-        .step.completed .step-circle {
-            background: var(--secondary);
-            color: white;
-            border-color: var(--secondary);
-        }
-
-        .step-label {
-            margin-top: 0.5rem;
-            font-size: 0.875rem;
-            color: var(--text-muted);
-            text-align: center;
-        }
-
+        body.dark-mode .card { background: rgba(42, 42, 42, 0.95); }
         #drop-area {
             border: 2px dashed var(--primary);
             border-radius: 12px;
@@ -232,29 +66,8 @@
             text-align: center;
             cursor: pointer;
             transition: all 0.3s ease;
-            background: linear-gradient(135deg, rgba(26, 115, 232, 0.05) 0%, rgba(26, 115, 232, 0.1) 100%);
-            position: relative;
-            overflow: hidden;
         }
-
-        #drop-area:hover,
-        #drop-area.hover {
-            border-color: var(--primary-dark);
-            transform: scale(1.02);
-        }
-
-        .file-type-icon {
-            font-size: 3rem;
-            margin-bottom: 1rem;
-            display: inline-block;
-            animation: bounce 2s infinite;
-        }
-
-        @keyframes bounce {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-10px); }
-        }
-
+        #drop-area:hover { border-color: var(--primary-dark); transform: scale(1.02); }
         .button {
             background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
             color: white;
@@ -268,56 +81,8 @@
             display: inline-flex;
             align-items: center;
             gap: 0.5rem;
-            text-decoration: none;
-            box-shadow: 0 4px 12px rgba(26, 115, 232, 0.3);
         }
-
-        .button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(26, 115, 232, 0.4);
-        }
-
-        .preview-container {
-            display: none;
-            margin-top: 1rem;
-            padding: 1rem;
-            background: var(--light);
-            border-radius: 8px;
-            position: relative;
-        }
-
-        .preview-image {
-            max-width: 100%;
-            max-height: 300px;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px var(--shadow);
-        }
-
-        .preview-info {
-            margin-top: 1rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 0.5rem;
-        }
-
-        .remove-file {
-            background: var(--danger);
-            color: white;
-            border: none;
-            padding: 0.5rem 1rem;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 0.875rem;
-            transition: all 0.3s ease;
-        }
-
-        .remove-file:hover {
-            background: #c23321;
-            transform: scale(1.05);
-        }
-
+        .button:hover { transform: translateY(-2px); }
         .loading-overlay {
             display: none;
             position: fixed;
@@ -330,11 +95,7 @@
             align-items: center;
             justify-content: center;
         }
-
-        .loading-overlay.show {
-            display: flex;
-        }
-
+        .loading-overlay.show { display: flex; }
         .loading-content {
             background: white;
             border-radius: 16px;
@@ -342,11 +103,7 @@
             text-align: center;
             max-width: 400px;
         }
-
-        body.dark-mode .loading-content {
-            background: #2a2a2a;
-        }
-
+        body.dark-mode .loading-content { background: #2a2a2a; }
         .loading-spinner {
             width: 60px;
             height: 60px;
@@ -356,38 +113,7 @@
             border-radius: 50%;
             animation: spin 1s linear infinite;
         }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        .loading-text {
-            color: var(--text);
-            margin-bottom: 1rem;
-        }
-
-        .loading-progress {
-            width: 100%;
-            height: 8px;
-            background: var(--border);
-            border-radius: 4px;
-            overflow: hidden;
-        }
-
-        .loading-progress-bar {
-            height: 100%;
-            background: linear-gradient(90deg, var(--primary) 0%, var(--primary-dark) 100%);
-            width: 0%;
-            transition: width 0.3s ease;
-            animation: shimmer 1.5s infinite;
-        }
-
-        @keyframes shimmer {
-            0% { opacity: 0.8; }
-            50% { opacity: 1; }
-            100% { opacity: 0.8; }
-        }
-
+        @keyframes spin { to { transform: rotate(360deg); } }
         .toast {
             position: fixed;
             bottom: -100px;
@@ -397,270 +123,60 @@
             color: white;
             padding: 1rem 2rem;
             border-radius: 8px;
-            box-shadow: 0 8px 32px var(--shadow);
             transition: bottom 0.3s ease;
             z-index: 10000;
-            max-width: 90%;
-            text-align: center;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
         }
-
-        .toast.show {
-            bottom: 2rem;
-        }
-
+        .toast.show { bottom: 2rem; }
         .toast.success { background: var(--secondary); }
         .toast.error { background: var(--danger); }
-        .toast.warning { background: var(--warning); color: var(--dark); }
-        .toast.info { background: var(--primary); }
-
-        .theme-switch {
-            position: fixed;
-            top: 1rem;
-            right: 1rem;
-            z-index: 100;
-        }
-
-        .switch {
-            position: relative;
-            display: inline-block;
-            width: 60px;
-            height: 30px;
-        }
-
-        .switch input {
-            opacity: 0;
-            width: 0;
-            height: 0;
-        }
-
-        .slider {
-            position: absolute;
-            cursor: pointer;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            transition: .4s;
-            border-radius: 30px;
-        }
-
-        .slider:before {
-            position: absolute;
-            content: "☀️";
-            height: 22px;
-            width: 22px;
-            left: 4px;
-            bottom: 4px;
-            background: white;
-            transition: .4s;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 14px;
-        }
-
-        input:checked + .slider {
-            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
-        }
-
-        input:checked + .slider:before {
-            content: "🌙";
-            transform: translateX(30px);
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        @keyframes fadeInDown {
-            from {
-                opacity: 0;
-                transform: translateY(-20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        @media (max-width: 768px) {
-            .container {
-                padding: 1rem;
-            }
-
-            .header h1 {
-                font-size: 1.8rem;
-            }
-
-            .progress-steps {
-                flex-direction: column;
-                gap: 1rem;
-            }
-
-            .progress-steps::before {
-                display: none;
-            }
-        }
     </style>
 </head>
 <body>
-    <div class="theme-switch">
-        <label class="switch">
-            <input type="checkbox" id="themeSwitch">
-            <span class="slider"></span>
-        </label>
-    </div>
-
     <div class="loading-overlay" id="loadingOverlay">
         <div class="loading-content">
             <div class="loading-spinner"></div>
-            <div class="loading-text" id="loadingText">Processando com IA...</div>
-            <div class="loading-progress">
-                <div class="loading-progress-bar" id="loadingProgress"></div>
-            </div>
-            <small id="modelInfo" style="color: var(--text-muted); margin-top: 0.5rem;"></small>
-            <div id="docTypeDetection" style="display: none; margin-top: 1rem; color: var(--text-muted); font-size: 0.875rem;">
-                <span>🔍 Detectando tipo de documento...</span>
-            </div>
+            <div id="loadingText">Processando...</div>
         </div>
     </div>
 
     <div class="container">
         <header class="header">
             <h1>⚖️ Entenda Aqui</h1>
-            <p>Transforme documentos jurídicos em linguagem clara com IA</p>
-            <div class="format-badges">
-                <span class="format-badge">📄 PDF</span>
-                <span class="format-badge">🖼️ Imagens</span>
-                <span class="format-badge">🔍 Detecção Automática</span>
-                <span class="format-badge">⚖️ 13 Tipos de Documentos</span>
-            </div>
-            <div style="text-align: center; margin-top: 1.5rem;">
-                <p style="color: var(--text-muted); font-size: 0.9rem; max-width: 600px; margin: 0 auto; line-height: 1.5;">
-                    ⚠️ Queremos facilitar sua vida com informações mais simples, mas só um advogado pode te dar orientação correta para seu caso.
-                </p>
-            </div>
+            <p>Transforme documentos jurídicos em linguagem simples</p>
         </header>
-
-        <div class="progress-steps">
-            <div class="step active" id="step1">
-                <div class="step-circle">1</div>
-                <div class="step-label">Enviar Arquivo</div>
-            </div>
-            <div class="step" id="step2">
-                <div class="step-circle">2</div>
-                <div class="step-label">Detectar Tipo</div>
-            </div>
-            <div class="step" id="step3">
-                <div class="step-circle">3</div>
-                <div class="step-label">Simplificar</div>
-            </div>
-        </div>
 
         <div class="card">
             <h2 style="color: var(--primary); margin-bottom: 1.5rem;">📤 Enviar Documento</h2>
             <div id="drop-area">
-                <div class="file-type-icon" id="fileTypeIcon">📁</div>
-                <p style="font-size: 1.1rem; color: var(--text); margin-bottom: 1rem;">
-                    Arraste seu arquivo aqui ou clique para selecionar
-                </p>
+                <div style="font-size: 3rem; margin-bottom: 1rem;">📁</div>
+                <p>Arraste seu arquivo ou clique para selecionar</p>
                 <input type="file" id="fileInput" accept=".pdf,image/*" style="display: none;">
                 <button class="button" onclick="document.getElementById('fileInput').click()">
-                    <span>📎</span> Escolher Arquivo
+                    📎 Escolher Arquivo
                 </button>
                 <p style="font-size: 0.875rem; color: var(--text-muted); margin-top: 1rem;">
-                    Máximo: 10MB | Detecção automática do tipo de documento
-                </p>
-            </div>
-            
-            <div id="previewContainer" class="preview-container">
-                <img id="previewImage" class="preview-image" alt="Preview">
-                <div class="preview-info">
-                    <div>
-                        <strong id="fileName"></strong>
-                        <span id="fileSize" style="margin-left: 1rem; color: var(--text-muted);"></span>
-                    </div>
-                    <button class="remove-file" onclick="removeFile()">
-                        🗑️ Remover
-                    </button>
-                </div>
-            </div>
-            
-            <div id="fileInfo" style="display: none; margin-top: 1rem; padding: 1rem; background: var(--success-bg); border-radius: 8px;">
-                <p style="margin: 0; display: flex; justify-content: space-between; align-items: center;">
-                    <span id="fileNameInfo" style="font-weight: 600;"></span>
-                    <span id="fileSizeInfo" style="font-size: 0.875rem; color: var(--text-muted);"></span>
+                    Máximo: 10MB | PDF ou Imagens
                 </p>
             </div>
         </div>
 
         <div class="card">
             <h2 style="color: var(--primary); margin-bottom: 1.5rem;">✍️ Ou Cole o Texto</h2>
-            <textarea id="manualText" placeholder="Cole aqui o texto jurídico que deseja simplificar..." 
-                style="width: 100%; min-height: 150px; padding: 1rem; border: 2px solid var(--border); border-radius: 8px; font-family: inherit; font-size: 1rem; resize: vertical; transition: border-color 0.3s;"></textarea>
-            <div style="display: flex; gap: 1rem; margin-top: 1rem; flex-wrap: wrap;">
-                <button class="button" onclick="processManualText()">
-                    <span>🔄</span> Simplificar Texto
-                </button>
-                <button class="button" style="background: var(--danger);" onclick="clearAll()">
-                    <span>🗑️</span> Limpar Tudo
-                </button>
-                <button class="button" style="background: var(--warning); color: var(--dark); margin-left: auto;" onclick="loadExample()">
-                    <span>📝</span> Exemplo
-                </button>
+            <textarea id="manualText" placeholder="Cole o texto jurídico aqui..." 
+                style="width: 100%; min-height: 150px; padding: 1rem; border: 2px solid var(--border); border-radius: 8px; font-family: inherit; font-size: 1rem;"></textarea>
+            <div style="margin-top: 1rem;">
+                <button class="button" onclick="processManualText()">🔄 Simplificar Texto</button>
+                <button class="button" style="background: var(--danger); margin-left: 1rem;" onclick="clearAll()">🗑️ Limpar</button>
             </div>
         </div>
 
         <div id="resultSection" style="display: none;">
             <div class="card">
-                <h2 style="color: var(--primary); margin-bottom: 1.5rem;">✅ Resultado Simplificado</h2>
-                
-                <!-- Document type detected -->
-                <div id="docTypeInfo" style="text-align: center; margin-bottom: 2rem; display: none;">
-                    <div class="doc-type-badge">
-                        <span class="icon" id="docTypeIcon">📄</span>
-                        <span id="docTypeName">Documento Jurídico</span>
-                    </div>
-                    <div class="confidence-indicator" style="justify-content: center;">
-                        <span>Confiança:</span>
-                        <div class="confidence-bar">
-                            <div class="confidence-fill" id="confidenceFill"></div>
-                        </div>
-                        <span id="confidencePercent">0%</span>
-                    </div>
-                </div>
-                
-                <div id="resultAnalysis" style="margin-bottom: 1.5rem;"></div>
-                
-                <div id="simplifiedText" style="background: var(--light); padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem; max-height: 500px; overflow-y: auto;"></div>
-                
-                <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
-                    <a href="#" class="button" id="downloadBtn" style="display: none;">
-                        <span>📥</span> Baixar PDF
-                    </a>
-                    <button class="button" onclick="copyText()">
-                        <span>📋</span> Copiar Texto
-                    </button>
-                    <button class="button" onclick="speakText()" id="speakBtn">
-                        <span>🔊</span> Ler em Voz Alta
-                    </button>
+                <h2 style="color: var(--primary); margin-bottom: 1.5rem;">✅ Resultado</h2>
+                <div id="simplifiedText" style="background: var(--light); padding: 1.5rem; border-radius: 8px; max-height: 500px; overflow-y: auto;"></div>
+                <div style="margin-top: 1rem;">
+                    <a href="/download_pdf" class="button">📥 Baixar PDF</a>
+                    <button class="button" onclick="copyText()">📋 Copiar</button>
                 </div>
             </div>
         </div>
@@ -671,878 +187,153 @@
     <script>
         const MAX_FILE_SIZE = 10 * 1024 * 1024;
         const ALLOWED_EXTENSIONS = ['pdf', 'png', 'jpg', 'jpeg', 'gif', 'bmp', 'tiff', 'webp'];
-        const IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'tiff', 'webp'];
         let isProcessing = false;
-        let currentFile = null;
 
-        // Theme
-        const themeSwitch = document.getElementById('themeSwitch');
-        const body = document.body;
-
-        const savedTheme = localStorage.getItem('theme');
-        if (savedTheme === 'dark') {
-            body.classList.add('dark-mode');
-            themeSwitch.checked = true;
-        }
-
-        themeSwitch.addEventListener('change', () => {
-            if (themeSwitch.checked) {
-                body.classList.add('dark-mode');
-                localStorage.setItem('theme', 'dark');
-            } else {
-                body.classList.remove('dark-mode');
-                localStorage.setItem('theme', 'light');
-            }
-        });
-
-        function updateProgressSteps(step) {
-            document.querySelectorAll('.step').forEach(s => {
-                s.classList.remove('active', 'completed');
-            });
-            
-            for (let i = 1; i <= step; i++) {
-                const stepEl = document.getElementById(`step${i}`);
-                if (i < step) {
-                    stepEl.classList.add('completed');
-                } else {
-                    stepEl.classList.add('active');
-                }
-            }
-        }
-
-        function showToast(message, type = 'info', duration = 3000) {
-            const toast = document.getElementById('toast');
-            
-            let icon = '';
-            switch(type) {
-                case 'success': icon = '✅ '; break;
-                case 'error': icon = '❌ '; break;
-                case 'warning': icon = '⚠️ '; break;
-                case 'info': icon = 'ℹ️ '; break;
-                default: icon = '';
-            }
-            
-            toast.textContent = icon + message;
-            toast.className = `toast ${type}`;
-            setTimeout(() => toast.classList.add('show'), 100);
-            
-            setTimeout(() => {
-                toast.classList.remove('show');
-            }, duration);
-        }
-
-        const dropArea = document.getElementById('drop-area');
         const fileInput = document.getElementById('fileInput');
-        const fileTypeIcon = document.getElementById('fileTypeIcon');
+        const dropArea = document.getElementById('drop-area');
 
+        // Prevent defaults
         ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-            dropArea.addEventListener(eventName, preventDefaults, false);
-            document.body.addEventListener(eventName, preventDefaults, false);
+            dropArea.addEventListener(eventName, e => { e.preventDefault(); e.stopPropagation(); }, false);
         });
 
-        function preventDefaults(e) {
-            e.preventDefault();
-            e.stopPropagation();
-        }
-
-        ['dragenter', 'dragover'].forEach(eventName => {
-            dropArea.addEventListener(eventName, () => {
-                dropArea.classList.add('hover');
-                fileTypeIcon.textContent = '📥';
-            }, false);
-        });
-
-        ['dragleave', 'drop'].forEach(eventName => {
-            dropArea.addEventListener(eventName, () => {
-                dropArea.classList.remove('hover');
-                fileTypeIcon.textContent = '📁';
-            }, false);
-        });
-
-        dropArea.addEventListener('drop', handleDrop, false);
-        fileInput.addEventListener('change', handleFileSelect, false);
-        
-        // Adicionar click no drop area
-        dropArea.addEventListener('click', function(e) {
-            if (e.target.tagName !== 'BUTTON') {
-                fileInput.click();
-            }
-        });
-
-        function handleDrop(e) {
-            const dt = e.dataTransfer;
-            const files = dt.files;
-            handleFiles(files);
-        }
-
-        function handleFileSelect(e) {
-            const files = e.target.files;
-            handleFiles(files);
-        }
-
-        function getFileExtension(filename) {
-            return filename.split('.').pop().toLowerCase();
-        }
+        // Drop handler
+        dropArea.addEventListener('drop', e => handleFiles(e.dataTransfer.files), false);
+        fileInput.addEventListener('change', e => handleFiles(e.target.files), false);
 
         function handleFiles(files) {
-            if (files.length === 0) return;
+            if (!files || files.length === 0) return;
             
             const file = files[0];
-            const extension = getFileExtension(file.name);
+            const ext = file.name.split('.').pop().toLowerCase();
             
-            console.log('Arquivo selecionado:', file.name, 'Tamanho:', file.size, 'Tipo:', extension);
+            console.log('Arquivo:', file.name, 'Tamanho:', file.size);
             
-            if (!ALLOWED_EXTENSIONS.includes(extension)) {
-                showToast('Formato não suportado. Use: PDF, PNG, JPG, JPEG, GIF, BMP, TIFF, WEBP', 'error');
+            if (!ALLOWED_EXTENSIONS.includes(ext)) {
+                showToast('Formato inválido', 'error');
                 return;
             }
             
             if (file.size > MAX_FILE_SIZE) {
-                showToast(`Arquivo muito grande. Máximo: ${MAX_FILE_SIZE / 1024 / 1024}MB`, 'error');
+                showToast('Arquivo muito grande (máx 10MB)', 'error');
                 return;
             }
             
-            if (file.size === 0) {
-                showToast('Arquivo está vazio', 'error');
-                return;
-            }
-            
-            currentFile = file;
-            
-            if (IMAGE_EXTENSIONS.includes(extension)) {
-                showImagePreview(file);
-            } else {
-                showPDFInfo(file);
-            }
-            
-            // Processar automaticamente
             uploadFile(file);
         }
 
-        function showImagePreview(file) {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                document.getElementById('previewImage').src = e.target.result;
-                document.getElementById('fileName').textContent = file.name;
-                document.getElementById('fileSize').textContent = formatFileSize(file.size);
-                document.getElementById('previewContainer').style.display = 'block';
-                document.getElementById('fileInfo').style.display = 'none';
-                fileTypeIcon.textContent = '🖼️';
-            };
-            reader.readAsDataURL(file);
-        }
-
-        function showPDFInfo(file) {
-            document.getElementById('fileNameInfo').textContent = file.name;
-            document.getElementById('fileSizeInfo').textContent = formatFileSize(file.size);
-            document.getElementById('fileInfo').style.display = 'block';
-            document.getElementById('previewContainer').style.display = 'none';
-            fileTypeIcon.textContent = '📄';
-        }
-
-        function removeFile() {
-            currentFile = null;
-            document.getElementById('previewContainer').style.display = 'none';
-            document.getElementById('fileInfo').style.display = 'none';
-            fileInput.value = '';
-            fileTypeIcon.textContent = '📁';
-            showToast('Arquivo removido', 'info');
-        }
-
-        function formatFileSize(bytes) {
-            if (bytes === 0) return '0 Bytes';
-            const k = 1024;
-            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-            const i = Math.floor(Math.log(bytes) / Math.log(k));
-            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-        }
-            console.log('uploadFile chamado com:', file);
-            
+        function uploadFile(file) {
             if (isProcessing) {
-                showToast('Aguarde o processamento atual terminar', 'warning');
+                showToast('Aguarde o processamento atual', 'error');
                 return;
             }
             
-            if (!file) {
-                console.error('Arquivo indefinido');
-                showToast('Erro: arquivo não definido', 'error');
-                return;
-            }
-            
-            console.log('Iniciando processamento...');
+            console.log('Iniciando upload...');
             isProcessing = true;
-            showLoading('Processando documento...');
-            updateProgressSteps(2);
+            showLoading('Processando...');
             
             const formData = new FormData();
             formData.append('file', file);
-            
-            console.log('FormData criado, enviando para /processar');
-            
-            let progress = 0;
-            const progressInterval = setInterval(() => {
-                progress += Math.random() * 20;
-                if (progress > 90) progress = 90;
-                updateLoadingProgress(progress);
-            }, 500);
             
             fetch('/processar', {
                 method: 'POST',
                 body: formData
             })
             .then(response => {
-                console.log('Resposta recebida:', response.status);
-                clearInterval(progressInterval);
-                updateLoadingProgress(100);
-                
+                console.log('Status:', response.status);
                 if (!response.ok) {
                     return response.json().then(data => {
-                        console.error('Erro do servidor:', data);
-                        
-                        let errorMessage = data.erro || 'Erro ao processar arquivo';
-                        
-                        if (data.detalhes) {
-                            errorMessage += '\n' + data.detalhes;
-                        }
-                        
-                        if (data.tipo_erro) {
-                            console.error('Tipo de erro:', data.tipo_erro);
-                        }
-                        
-                        if (data.sugestao) {
-                            errorMessage += '\n\n💡 ' + data.sugestao;
-                        }
-                        
-                        if (errorMessage.includes('OCR não está disponível')) {
-                            errorMessage = '❌ OCR Indisponível\n\nO servidor não tem o Tesseract OCR instalado. Entre em contato com o administrador ou use um PDF com texto selecionável.';
-                        } else if (errorMessage.includes('GEMINI_API_KEY')) {
-                            errorMessage = '❌ API não configurada\n\nA chave da API do Gemini não está configurada no servidor.';
-                        } else if (errorMessage.includes('Nenhum texto')) {
-                            errorMessage = '❌ Sem texto detectado\n\nNão foi possível extrair texto do arquivo. Verifique se:\n• O PDF contém texto selecionável\n• A imagem tem texto legível\n• O arquivo não está corrompido';
-                        }
-                        
-                        throw new Error(errorMessage);
+                        throw new Error(data.erro || 'Erro ao processar');
                     });
                 }
                 return response.json();
             })
             .then(data => {
-                console.log('Dados recebidos:', data);
+                console.log('Sucesso:', data);
                 showResult(data);
-                updateProgressSteps(3);
-                
-                if (data.tipo_documento) {
-                    showToast(`✅ ${data.tipo_documento.nome} identificado (${data.tipo_documento.confianca}% confiança)`, 'success', 4000);
-                } else {
-                    showToast('✅ Documento processado com sucesso!', 'success');
-                }
+                showToast('Processado com sucesso!', 'success');
             })
             .catch(error => {
-                console.error('Erro capturado:', error);
-                showToast(error.message || '❌ Erro ao processar arquivo', 'error', 6000);
-                updateProgressSteps(1);
+                console.error('Erro:', error);
+                showToast(error.message, 'error');
             })
             .finally(() => {
-                console.log('Finalizando processamento');
                 isProcessing = false;
                 hideLoading();
-                clearInterval(progressInterval);
             });
         }
 
         function processManualText() {
             const text = document.getElementById('manualText').value.trim();
             
-            if (!text) {
-                showToast('Por favor, insira algum texto', 'warning');
+            if (!text || text.length < 20) {
+                showToast('Texto muito curto (mín 20 caracteres)', 'error');
                 return;
             }
             
-            if (text.length < 20) {
-                showToast('Texto muito curto. Mínimo: 20 caracteres', 'warning');
-                return;
-            }
-            
-            if (text.length > 10000) {
-                showToast('Texto muito longo. Máximo: 10.000 caracteres', 'warning');
-                return;
-            }
-            
-            if (isProcessing) {
-                showToast('Aguarde o processamento atual terminar', 'warning');
-                return;
-            }
+            if (isProcessing) return;
             
             isProcessing = true;
-            showLoading('Detectando tipo de documento...');
-            updateProgressSteps(2);
+            showLoading('Processando texto...');
             
             fetch('/processar_texto', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ texto: text })
             })
             .then(response => {
-                if (!response.ok) {
-                    return response.json().then(data => {
-                        console.error('Erro do servidor:', data);
-                        
-                        let errorMessage = data.erro || 'Erro ao processar texto';
-                        
-                        if (data.detalhes) {
-                            errorMessage += '\n' + data.detalhes;
-                        }
-                        
-                        throw new Error(errorMessage);
-                    });
-                }
+                if (!response.ok) throw new Error('Erro ao processar');
                 return response.json();
             })
             .then(data => {
-                console.log('Resposta do servidor:', data);
                 showResult(data);
-                updateProgressSteps(3);
-                
-                if (data.tipo_documento) {
-                    const conf = data.tipo_documento.confianca || 0;
-                    const nome = data.tipo_documento.nome || 'Documento';
-                    showToast(`✅ ${nome} detectado (${conf}% confiança)`, 'success', 5000);
-                } else {
-                    showToast('✅ Texto processado com sucesso!', 'success');
-                }
+                showToast('Processado!', 'success');
             })
             .catch(error => {
-                console.error('Erro capturado:', error);
-                showToast(error.message || '❌ Erro ao processar texto', 'error', 6000);
-                updateProgressSteps(1);
+                showToast(error.message, 'error');
             })
             .finally(() => {
                 isProcessing = false;
                 hideLoading();
             });
-        }
-
-        function loadExample() {
-            const exampleText = `SENTENÇA
-
-Processo nº 1234567-89.2024.8.26.0100
-
-Vistos.
-
-JOÃO DA SILVA ajuizou AÇÃO DE COBRANÇA em face de EMPRESA XYZ LTDA, alegando que celebrou contrato de prestação de serviços no valor de R$ 15.000,00, tendo cumprido sua parte, porém não recebeu o pagamento.
-
-A ré foi citada, mas não contestou, tornando-se revel.
-
-É o relatório. DECIDO.
-
-FUNDAMENTAÇÃO
-
-O feito comporta julgamento antecipado. A revelia acarreta presunção de veracidade dos fatos alegados.
-
-O autor comprovou a relação contratual e o inadimplemento da ré.
-
-DISPOSITIVO
-
-Ante o exposto, JULGO PROCEDENTE o pedido para CONDENAR a ré a pagar ao autor R$ 15.000,00, corrigidos desde o vencimento e acrescidos de juros de 1% ao mês.
-
-Condeno a ré ao pagamento de custas e honorários de 10% sobre o valor da condenação.
-
-P.R.I.
-
-São Paulo, 15 de setembro de 2024.`;
-            
-            document.getElementById('manualText').value = exampleText;
-            showToast('Exemplo carregado! Clique em "Simplificar Texto"', 'info', 4000);
-        }
-
-        // Adicionar botão de diagnóstico
-        function checkDiagnostic() {
-            showLoading('Verificando sistema...');
-            
-            fetch('/diagnostico')
-                .then(response => response.json())
-                .then(data => {
-                    console.log('Diagnóstico:', data);
-                    
-                    let message = '🔍 DIAGNÓSTICO DO SISTEMA\n\n';
-                    
-                    message += '📸 OCR (Tesseract):\n';
-                    if (data.tesseract?.disponivel) {
-                        message += `✅ Disponível (${data.tesseract.version})\n`;
-                        message += `   Idiomas: ${data.tesseract.linguas?.length || 0}\n`;
-                    } else {
-                        message += '❌ NÃO disponível\n';
-                    }
-                    
-                    message += '\n🤖 IA (Gemini):\n';
-                    message += data.gemini ? '✅ Configurado\n' : '❌ NÃO configurado\n';
-                    
-                    message += '\n📚 OpenCV: ' + (data.opencv ? '✅' : '❌');
-                    message += '\n📋 Tipos de documentos: ' + (data.tipos_documentos || 0);
-                    
-                    alert(message);
-                    hideLoading();
-                })
-                .catch(error => {
-                    console.error('Erro diagnóstico:', error);
-                    alert('❌ Erro ao verificar sistema: ' + error.message);
-                    hideLoading();
-                });
-        }
-
-        // Adicionar link de diagnóstico
-        document.addEventListener('DOMContentLoaded', function() {
-            const container = document.querySelector('.container');
-            const footer = document.createElement('div');
-            footer.style.cssText = 'text-align: center; margin-top: 3rem; padding: 2rem; color: var(--text-muted); font-size: 0.875rem;';
-            footer.innerHTML = `
-                <p>Desenvolvido pela INOVASSOL - Centro de Inovação AI</p>
-                <p style="margin-top: 0.5rem;">
-                    <button onclick="checkDiagnostic()" style="background: none; border: none; color: var(--primary); cursor: pointer; text-decoration: underline;">
-                        🔍 Verificar Sistema
-                    </button>
-                </p>
-            `;
-            container.appendChild(footer);
-        });Loading('Processando documento...');
-            updateProgressSteps(2);
-            
-            const formData = new FormData();
-            formData.append('file', file);
-            
-            let progress = 0;
-            const progressInterval = setInterval(() => {
-                progress += Math.random() * 20;
-                if (progress > 90) progress = 90;
-                updateLoadingProgress(progress);
-            }, 500);
-            
-            fetch('/processar', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => {
-                clearInterval(progressInterval);
-                updateLoadingProgress(100);
-                
-                if (!response.ok) {
-                    return response.json().then(data => {
-                        throw new Error(data.erro || 'Erro ao processar arquivo');
-                    });
-                }
-                return response.json();
-            })
-            .then(data => {
-                showResult(data);
-                updateProgressSteps(3);
-                
-                if (data.tipo_documento) {
-                    showToast(`Documento identificado: ${data.tipo_documento.nome}`, 'success', 4000);
-                } else {
-                    showToast('Documento processado com sucesso!', 'success');
-                }
-            })
-            .catch(error => {
-                showToast(error.message || 'Erro ao processar arquivo', 'error');
-                console.error('Erro:', error);
-            })
-            .finally(() => {
-                isProcessing = false;
-                hideLoading();
-                clearInterval(progressInterval);
-            });
-        }
-
-        function processManualText() {
-            const text = document.getElementById('manualText').value.trim();
-            
-            if (!text) {
-                showToast('Por favor, insira algum texto', 'warning');
-                return;
-            }
-            
-            if (text.length < 20) {
-                showToast('Texto muito curto. Mínimo: 20 caracteres', 'warning');
-                return;
-            }
-            
-            if (text.length > 10000) {
-                showToast('Texto muito longo. Máximo: 10.000 caracteres', 'warning');
-                return;
-            }
-            
-            if (isProcessing) {
-                showToast('Aguarde o processamento atual terminar', 'warning');
-                return;
-            }
-            
-            isProcessing = true;
-            showLoading('Detectando tipo de documento...');
-            updateProgressSteps(2);
-            
-            fetch('/processar_texto', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ texto: text })
-            })
-            .then(response => {
-                if (!response.ok) {
-                    return response.json().then(data => {
-                        throw new Error(data.erro || 'Erro ao processar texto');
-                    });
-                }
-                return response.json();
-            })
-            .then(data => {
-                showResult(data);
-                updateProgressSteps(3);
-                
-                if (data.tipo_documento) {
-                    showToast(`Tipo detectado: ${data.tipo_documento.nome} (${data.tipo_documento.confianca}% confiança)`, 'success', 5000);
-                } else {
-                    showToast('Texto processado com sucesso!', 'success');
-                }
-            })
-            .catch(error => {
-                showToast(error.message || 'Erro ao processar texto', 'error');
-                console.error('Erro:', error);
-            })
-            .finally(() => {
-                isProcessing = false;
-                hideLoading();
-            });
-        }
-
-        function showLoading(text = 'Processando...') {
-            const overlay = document.getElementById('loadingOverlay');
-            document.getElementById('loadingText').textContent = text;
-            document.getElementById('modelInfo').textContent = 'Selecionando melhor modelo...';
-            document.getElementById('docTypeDetection').style.display = 'block';
-            overlay.classList.add('show');
-            updateLoadingProgress(0);
-        }
-
-        function hideLoading() {
-            document.getElementById('loadingOverlay').classList.remove('show');
-            document.getElementById('docTypeDetection').style.display = 'none';
-        }
-
-        function updateLoadingProgress(percent) {
-            document.getElementById('loadingProgress').style.width = percent + '%';
-            
-            if (percent < 30) {
-                document.getElementById('loadingText').textContent = 'Analisando documento...';
-            } else if (percent < 50) {
-                document.getElementById('loadingText').textContent = 'Detectando tipo de documento...';
-                document.getElementById('docTypeDetection').style.display = 'block';
-            } else if (percent < 80) {
-                document.getElementById('loadingText').textContent = 'Simplificando com IA...';
-                document.getElementById('modelInfo').textContent = 'Usando Gemini AI';
-            } else {
-                document.getElementById('loadingText').textContent = 'Finalizando...';
-            }
         }
 
         function showResult(data) {
-            // Show document type if detected
-            if (data.tipo_documento) {
-                const docTypeInfo = document.getElementById('docTypeInfo');
-                docTypeInfo.style.display = 'block';
-                
-                document.getElementById('docTypeIcon').textContent = data.tipo_documento.icone || '📄';
-                document.getElementById('docTypeName').textContent = data.tipo_documento.nome || 'Documento Jurídico';
-                
-                const confidence = data.tipo_documento.confianca || 0;
-                document.getElementById('confidencePercent').textContent = confidence + '%';
-                document.getElementById('confidenceFill').style.width = confidence + '%';
-            }
-            
-            // Format and display text
-            const formattedText = formatResultText(data.texto);
-            document.getElementById('simplifiedText').innerHTML = formattedText;
-            
-            // Show analysis
-            if (data.analise) {
-                showResultAnalysis(data.analise);
-            }
-            
-            // Show download button
-            if (data.caracteres_original) {
-                document.getElementById('downloadBtn').style.display = 'inline-flex';
-                document.getElementById('downloadBtn').href = '/download_pdf';
-            }
-            
+            document.getElementById('simplifiedText').innerHTML = data.texto.replace(/\n/g, '<br>');
             document.getElementById('resultSection').style.display = 'block';
-            document.getElementById('resultSection').scrollIntoView({ 
-                behavior: 'smooth', 
-                block: 'start' 
-            });
-        }
-
-        function showResultAnalysis(analise) {
-            let html = '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 1rem;">';
-            
-            // Document type card
-            if (analise.tipo_documento) {
-                html += `
-                    <div style="background: var(--info-bg); padding: 1rem; border-radius: 8px; text-align: center; border: 2px solid var(--primary);">
-                        <div style="font-size: 2rem;">📋</div>
-                        <div style="font-weight: bold; margin-top: 0.5rem; color: var(--primary);">${analise.tipo_documento}</div>
-                        <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">Confiança: ${analise.confianca_tipo}%</div>
-                    </div>
-                `;
-            }
-            
-            // Result type card
-            let resultIcon = '📄';
-            let resultText = 'Processado';
-            let resultBg = 'var(--light)';
-            
-            if (analise.tipo_resultado === 'vitoria') {
-                resultIcon = '✅';
-                resultText = 'Resultado Favorável';
-                resultBg = 'var(--success-bg)';
-            } else if (analise.tipo_resultado === 'derrota') {
-                resultIcon = '❌';
-                resultText = 'Resultado Desfavorável';
-                resultBg = 'var(--error-bg)';
-            } else if (analise.tipo_resultado === 'parcial') {
-                resultIcon = '⚠️';
-                resultText = 'Resultado Parcial';
-                resultBg = 'var(--warning-bg)';
-            } else if (analise.tipo_resultado === 'recurso_provido') {
-                resultIcon = '✅';
-                resultText = 'Recurso Provido';
-                resultBg = 'var(--success-bg)';
-            } else if (analise.tipo_resultado === 'recurso_negado') {
-                resultIcon = '❌';
-                resultText = 'Recurso Negado';
-                resultBg = 'var(--error-bg)';
-            } else if (analise.tipo_resultado === 'deferido') {
-                resultIcon = '✅';
-                resultText = 'Pedido Deferido';
-                resultBg = 'var(--success-bg)';
-            } else if (analise.tipo_resultado === 'indeferido') {
-                resultIcon = '❌';
-                resultText = 'Pedido Indeferido';
-                resultBg = 'var(--error-bg)';
-            } else if (analise.tipo_resultado === 'aguardando_decisao') {
-                resultIcon = '⏳';
-                resultText = 'Aguardando Decisão';
-                resultBg = 'var(--info-bg)';
-            }
-            
-            html += `
-                <div style="background: ${resultBg}; padding: 1rem; border-radius: 8px; text-align: center;">
-                    <div style="font-size: 2rem;">${resultIcon}</div>
-                    <div style="font-weight: bold; margin-top: 0.5rem;">${resultText}</div>
-                </div>
-            `;
-            
-            // Additional info cards
-            if (analise.tem_valores) {
-                html += `
-                    <div style="background: var(--light); padding: 1rem; border-radius: 8px; text-align: center;">
-                        <div style="font-size: 2rem;">💰</div>
-                        <div style="font-weight: bold; margin-top: 0.5rem;">Contém Valores</div>
-                    </div>
-                `;
-            }
-            
-            if (analise.tem_prazos) {
-                html += `
-                    <div style="background: var(--light); padding: 1rem; border-radius: 8px; text-align: center;">
-                        <div style="font-size: 2rem;">📅</div>
-                        <div style="font-weight: bold; margin-top: 0.5rem;">Contém Prazos</div>
-                    </div>
-                `;
-            }
-            
-            if (analise.tem_recursos) {
-                html += `
-                    <div style="background: var(--light); padding: 1rem; border-radius: 8px; text-align: center;">
-                        <div style="font-size: 2rem;">📤</div>
-                        <div style="font-weight: bold; margin-top: 0.5rem;">Menciona Recursos</div>
-                    </div>
-                `;
-            }
-            
-            html += '</div>';
-            
-            document.getElementById('resultAnalysis').innerHTML = html;
-        }
-
-        function formatResultText(text) {
-            let formatted = text;
-            
-            // Format bold
-            formatted = formatted.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-            
-            // Format sections with icons
-            const iconPatterns = [
-                { icon: '📊', color: 'var(--primary)' },
-                { icon: '📑', color: 'var(--secondary)' },
-                { icon: '⚖️', color: 'var(--primary)' },
-                { icon: '💰', color: 'var(--warning)' },
-                { icon: '📅', color: 'var(--primary)' },
-                { icon: '✅', color: 'var(--secondary)' },
-                { icon: '❌', color: 'var(--danger)' },
-                { icon: '⚠️', color: 'var(--warning)' },
-                { icon: '🏛️', color: 'var(--primary)' },
-                { icon: '📝', color: 'var(--primary)' },
-                { icon: '🛡️', color: 'var(--secondary)' },
-                { icon: '📋', color: 'var(--primary)' },
-                { icon: '⚡', color: 'var(--warning)' },
-                { icon: '📤', color: 'var(--primary)' },
-                { icon: '📨', color: 'var(--primary)' },
-                { icon: '⏰', color: 'var(--danger)' },
-                { icon: '📚', color: 'var(--secondary)' }
-            ];
-            
-            iconPatterns.forEach(pattern => {
-                const regex = new RegExp(`(${pattern.icon}[^\\n]+)`, 'g');
-                formatted = formatted.replace(regex, `<div style="color: ${pattern.color}; font-weight: bold; margin: 1rem 0;">$1</div>`);
-            });
-            
-            // Convert line breaks
-            formatted = formatted.replace(/\n/g, '<br>');
-            
-            return formatted;
+            document.getElementById('resultSection').scrollIntoView({ behavior: 'smooth' });
         }
 
         function copyText() {
-            const element = document.getElementById('simplifiedText');
-            const text = element.innerText || element.textContent;
-            
-            if (!text) {
-                showToast('Nenhum texto para copiar', 'warning');
-                return;
-            }
-            
-            navigator.clipboard.writeText(text)
-                .then(() => {
-                    showToast('Texto copiado com sucesso!', 'success');
-                })
-                .catch(() => {
-                    const textarea = document.createElement('textarea');
-                    textarea.value = text;
-                    document.body.appendChild(textarea);
-                    textarea.select();
-                    document.execCommand('copy');
-                    document.body.removeChild(textarea);
-                    showToast('Texto copiado!', 'success');
-                });
-        }
-
-        let isSpeaking = false;
-        function speakText() {
             const text = document.getElementById('simplifiedText').textContent;
-            const btn = document.getElementById('speakBtn');
-            
-            if (!text) {
-                showToast('Nenhum texto para ler', 'warning');
-                return;
-            }
-            
-            if (isSpeaking) {
-                window.speechSynthesis.cancel();
-                btn.innerHTML = '<span>🔊</span> Ler em Voz Alta';
-                isSpeaking = false;
-                return;
-            }
-            
-            const utterance = new SpeechSynthesisUtterance(text);
-            utterance.lang = 'pt-BR';
-            utterance.rate = 0.9;
-            
-            utterance.onend = () => {
-                btn.innerHTML = '<span>🔊</span> Ler em Voz Alta';
-                isSpeaking = false;
-            };
-            
-            utterance.onerror = () => {
-                showToast('Erro ao ler o texto', 'error');
-                btn.innerHTML = '<span>🔊</span> Ler em Voz Alta';
-                isSpeaking = false;
-            };
-            
-            window.speechSynthesis.speak(utterance);
-            btn.innerHTML = '<span>⏹️</span> Parar Leitura';
-            isSpeaking = true;
+            navigator.clipboard.writeText(text).then(() => {
+                showToast('Texto copiado!', 'success');
+            });
         }
 
         function clearAll() {
             document.getElementById('manualText').value = '';
             document.getElementById('resultSection').style.display = 'none';
-            document.getElementById('fileInfo').style.display = 'none';
-            document.getElementById('previewContainer').style.display = 'none';
-            document.getElementById('docTypeInfo').style.display = 'none';
             fileInput.value = '';
-            currentFile = null;
-            fileTypeIcon.textContent = '📁';
-            updateProgressSteps(1);
-            showToast('Tudo limpo!', 'info');
         }
 
-        function loadExample() {
-            const exampleText = `SENTENÇA
-
-Processo nº 1234567-89.2024.8.26.0100
-
-Vistos.
-
-JOÃO DA SILVA, qualificado nos autos, ajuizou a presente AÇÃO DE COBRANÇA em face de EMPRESA XYZ LTDA, também qualificada, alegando, em síntese, que celebrou contrato de prestação de serviços com a ré no valor de R$ 15.000,00 (quinze mil reais), tendo cumprido integralmente sua parte, porém não recebeu o pagamento acordado.
-
-A ré foi devidamente citada, mas não apresentou contestação no prazo legal, tornando-se revel.
-
-É o relatório. DECIDO.
-
-FUNDAMENTAÇÃO
-
-O feito comporta julgamento antecipado, nos termos do art. 355, II, do CPC, ante a revelia da parte ré.
-
-A revelia acarreta presunção de veracidade dos fatos alegados pelo autor, especialmente quando não há elementos nos autos que os contradigam.
-
-O autor comprovou a existência da relação contratual através do contrato de fls. 15/18 e das notas fiscais de fls. 20/25, demonstrando ter prestado os serviços contratados.
-
-Restou comprovado o inadimplemento da ré, que não efetuou o pagamento devido.
-
-DISPOSITIVO
-
-Ante o exposto, JULGO PROCEDENTE o pedido inicial para CONDENAR a ré EMPRESA XYZ LTDA a pagar ao autor JOÃO DA SILVA a quantia de R$ 15.000,00 (quinze mil reais), corrigida monetariamente desde o vencimento (15/03/2024) e acrescida de juros de mora de 1% ao mês a partir da citação.
-
-Condeno a ré ao pagamento das custas processuais e honorários advocatícios que fixo em 10% (dez por cento) sobre o valor da condenação, nos termos do art. 85, §2º, do CPC.
-
-Publique-se. Registre-se. Intimem-se.
-
-São Paulo, 15 de setembro de 2024.
-
-MARIA SILVA SANTOS
-Juíza de Direito`;
-            
-            document.getElementById('manualText').value = exampleText;
-            showToast('Exemplo de sentença carregado! Clique em "Simplificar Texto"', 'info', 4000);
+        function showLoading(text) {
+            document.getElementById('loadingText').textContent = text;
+            document.getElementById('loadingOverlay').classList.add('show');
         }
 
-        // Keyboard shortcuts
-        document.addEventListener('keydown', (e) => {
-            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-                const manualText = document.getElementById('manualText').value;
-                if (manualText) {
-                    processManualText();
-                }
-            }
-            
-            // Ctrl/Cmd + D para diagnóstico
-            if ((e.ctrlKey || e.metaKey) && e.key === 'd') {
-                e.preventDefault();
-                checkDiagnostic();
-            }
-        });
+        function hideLoading() {
+            document.getElementById('loadingOverlay').classList.remove('show');
+        }
+
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = `toast ${type} show`;
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        console.log('✅ JavaScript carregado corretamente');
     </script>
 </body>
 </html>
