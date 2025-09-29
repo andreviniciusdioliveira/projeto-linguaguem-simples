@@ -10,13 +10,18 @@ import requests
 import time
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
+from reportlab.lib.utils import simpleSplit
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.pdfbase import pdfmetrics
 from functools import wraps
 from datetime import datetime, timedelta
 import hashlib
 import tempfile
 import threading
+import queue
 import json
 import re
+import base64
 import subprocess
 import numpy as np
 
@@ -24,10 +29,10 @@ import numpy as np
 try:
     import cv2
     CV2_AVAILABLE = True
-    logging.info("OpenCV disponível")
+    logging.info("OpenCV disponível para processamento avançado de imagens")
 except ImportError:
     CV2_AVAILABLE = False
-    logging.warning("OpenCV não disponível")
+    logging.warning("OpenCV não disponível - usando processamento básico")
 
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", os.urandom(24))
@@ -36,6 +41,7 @@ logging.basicConfig(level=logging.INFO)
 # --- Configurações ---
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
+# Modelos Gemini disponíveis (do mais barato/rápido ao mais caro/potente)
 GEMINI_MODELS = [
     {
         "name": "gemini-1.5-flash-8b",
@@ -57,391 +63,55 @@ GEMINI_MODELS = [
     }
 ]
 
-MAX_FILE_SIZE = 10 * 1024 * 1024
+MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
 ALLOWED_EXTENSIONS = {'pdf', 'png', 'jpg', 'jpeg', 'gif', 'bmp', 'tiff', 'webp'}
 ALLOWED_IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'tiff', 'webp'}
 TEMP_DIR = tempfile.gettempdir()
 
+# Rate limiting
 request_counts = {}
-RATE_LIMIT = 10
+RATE_LIMIT = 10  # requisições por minuto
 cleanup_lock = threading.Lock()
 
+# Cache de resultados processados
 results_cache = {}
-CACHE_EXPIRATION = 3600
+CACHE_EXPIRATION = 3600  # 1 hora
 
+# Estatísticas de uso dos modelos
 model_usage_stats = {model["name"]: {"attempts": 0, "successes": 0, "failures": 0} for model in GEMINI_MODELS}
 
-# ============================================================================
-# TIPOS DE DOCUMENTOS JURÍDICOS
-# ============================================================================
-
-TIPOS_DOCUMENTOS = {
-    "sentenca": {
-        "nome": "Sentença Judicial",
-        "icone": "⚖️",
-        "padroes": [
-            r"sentença",
-            r"ante\s+o\s+exposto",
-            r"diante\s+do\s+exposto",
-            r"isto\s+posto",
-            r"julgo\s+(procedente|improcedente|parcialmente\s+procedente)",
-            r"condeno\s+(o\s+réu|a\s+ré|os\s+réus)",
-            r"extingo\s+o\s+processo",
-            r"dispositivo",
-            r"p\.?\s*r\.?\s*i\.?",
-            r"resolvo\s+o\s+mérito"
-        ],
-        "peso": 10,
-        "descricao": "Decisão final do juiz"
-    },
-    "acordao": {
-        "nome": "Acórdão",
-        "icone": "🏛️",
-        "padroes": [
-            r"acórdão",
-            r"acordão",
-            r"tribunal",
-            r"câmara",
-            r"turma\s+julgadora",
-            r"desembargador",
-            r"relator",
-            r"ementa",
-            r"por\s+unanimidade",
-            r"negaram\s+provimento"
-        ],
-        "peso": 12,
-        "descricao": "Decisão de tribunal"
-    },
-    "peticao_inicial": {
-        "nome": "Petição Inicial",
-        "icone": "📝",
-        "padroes": [
-            r"petição\s+inicial",
-            r"excelentíssimo\s+senhor",
-            r"exmo\.?\s+sr",
-            r"dos\s+fatos",
-            r"do\s+direito",
-            r"dos\s+pedidos",
-            r"pede\s+deferimento"
-        ],
-        "peso": 11,
-        "descricao": "Início do processo"
-    },
-    "contestacao": {
-        "nome": "Contestação",
-        "icone": "🛡️",
-        "padroes": [
-            r"contestação",
-            r"impugna\s+os\s+fatos",
-            r"preliminarmente",
-            r"da\s+improcedência",
-            r"no\s+mérito"
-        ],
-        "peso": 9,
-        "descricao": "Defesa do réu"
-    },
-    "despacho": {
-        "nome": "Despacho",
-        "icone": "📋",
-        "padroes": [
-            r"^despacho",
-            r"intime-se",
-            r"cite-se",
-            r"cumpra-se",
-            r"manifestem-se"
-        ],
-        "peso": 7,
-        "descricao": "Ordem de andamento"
-    },
-    "decisao_interlocutoria": {
-        "nome": "Decisão Interlocutória",
-        "icone": "⚡",
-        "padroes": [
-            r"decisão\s+interlocutória",
-            r"defiro\s+o\s+pedido",
-            r"indefiro\s+o\s+pedido",
-            r"tutela\s+de\s+urgência",
-            r"liminar"
-        ],
-        "peso": 8,
-        "descricao": "Decisão durante processo"
-    }
-}
-
-def detectar_tipo_documento(texto):
-    """Detecta tipo de documento jurídico"""
-    texto_lower = texto.lower()
-    texto_normalizado = re.sub(r'\s+', ' ', texto_lower)
-    
-    pontuacoes = {}
-    
-    for tipo, info in TIPOS_DOCUMENTOS.items():
-        pontos = 0
-        padroes_encontrados = []
-        
-        for padrao in info["padroes"]:
-            try:
-                matches = re.findall(padrao, texto_normalizado, re.IGNORECASE)
-                if matches:
-                    pontos += len(matches) * info["peso"]
-                    padroes_encontrados.append(padrao)
-            except Exception as e:
-                logging.error(f"Erro no padrão {padrao}: {e}")
-                continue
-        
-        if pontos > 0:
-            pontuacoes[tipo] = {
-                "pontos": pontos,
-                "info": info,
-                "padroes": padroes_encontrados
-            }
-    
-    if not pontuacoes:
-        logging.info("Nenhum tipo específico detectado, usando genérico")
-        return {
-            "tipo": "documento_generico",
-            "nome": "Documento Jurídico",
-            "icone": "📑",
-            "confianca": 0,
-            "descricao": "Documento não classificado",
-            "padroes_encontrados": []
-        }
-    
-    # Pegar o tipo com maior pontuação
-    tipo_detectado = max(pontuacoes.items(), key=lambda x: x[1]["pontos"])
-    tipo_id = tipo_detectado[0]
-    dados = tipo_detectado[1]
-    
-    # Calcular confiança
-    max_pontos = len(TIPOS_DOCUMENTOS[tipo_id]["padroes"]) * TIPOS_DOCUMENTOS[tipo_id]["peso"] * 3
-    confianca = min(100, int((dados["pontos"] / max_pontos) * 100))
-    
-    resultado = {
-        "tipo": tipo_id,
-        "nome": dados["info"]["nome"],
-        "icone": dados["info"]["icone"],
-        "confianca": confianca,
-        "descricao": dados["info"]["descricao"],
-        "padroes_encontrados": dados["padroes"][:5]
-    }
-    
-    logging.info(f"Tipo detectado: {resultado['nome']} com {confianca}% de confiança")
-    
-    return resultado
-
-# ============================================================================
-# PROMPTS ESPECÍFICOS POR TIPO DE DOCUMENTO
-# ============================================================================
-
-PROMPT_SENTENCA = """**INSTRUÇÕES CRÍTICAS - SENTENÇA JUDICIAL:**
-
-Você está analisando uma SENTENÇA JUDICIAL. Este é o documento que ENCERRA o processo de primeiro grau.
-
-**ESTRUTURA OBRIGATÓRIA DA ANÁLISE:**
-
-1. **IDENTIFICAÇÃO** ⚖️
-   - Tipo: Sentença Judicial
-   - Número do processo: [extrair exatamente como está]
-   - Juiz(a): [nome completo]
-   - Vara/Comarca: [identificar]
-   - Partes:
-     * Autor(es): [nome completo]
-     * Réu(s): [nome completo]
-
-2. **RESULTADO DA SENTENÇA** 🎯 (MAIS IMPORTANTE)
-   
-   **ATENÇÃO MÁXIMA:** Procure SEMPRE pela seção "DISPOSITIVO", "ANTE O EXPOSTO", "DIANTE DO EXPOSTO" ou "ISTO POSTO"
-   
-   Identificação PRECISA do resultado:
-   
-   ✅ **AUTOR GANHOU TOTALMENTE** se encontrar:
-   - "JULGO PROCEDENTE o pedido"
-   - "JULGO PROCEDENTE a ação"
-   - "CONDENO o réu a pagar"
-   - "DEFIRO o pedido"
-   
-   ❌ **AUTOR PERDEU** se encontrar:
-   - "JULGO IMPROCEDENTE"
-   - "JULGO IMPROCEDENTE o pedido"
-   - "CONDENO o autor ao pagamento de honorários"
-   - "INDEFIRO o pedido"
-   
-   ⚠️ **VITÓRIA PARCIAL** se encontrar:
-   - "JULGO PARCIALMENTE PROCEDENTE"
-   - Parte dos pedidos foi deferida
-   
-   🚫 **PROCESSO EXTINTO SEM JULGAMENTO DE MÉRITO** se encontrar:
-   - "EXTINGO o processo SEM RESOLUÇÃO DE MÉRITO"
-
-3. **FORMATAÇÃO DA RESPOSTA**
-
-📊 **RESUMO EXECUTIVO**
-[Ícone apropriado: ✅/❌/⚠️/🚫] **[VITÓRIA TOTAL/DERROTA/VITÓRIA PARCIAL/EXTINÇÃO]**
-
-**Em uma frase:** [Explicar o resultado em linguagem muito clara - exemplo: "O juiz decidiu que a empresa deve pagar R$ 15.000 ao autor"]
-
-📑 **O QUE ACONTECEU**
-[Explicar em 3-5 linhas o contexto: qual era a disputa]
-
-⚖️ **O QUE O JUIZ DECIDIU**
-[Detalhar a decisão em linguagem simples, parágrafo por parágrafo]
-- Fundamentos principais
-- Cada pedido e se foi aceito ou negado
-
-💰 **VALORES E OBRIGAÇÕES**
-• Valor da causa: R$ [se houver]
-• Valores que o AUTOR vai receber: R$ [detalhar]
-• Valores que o RÉU tem que pagar: R$ [detalhar]
-• Honorários advocatícios: [percentual] = R$ [valor]
-• Custas processuais: [quem paga]
-• Correção monetária: [desde quando]
-• Juros: [percentual e desde quando]
-
-⏰ **PRAZOS IMPORTANTES**
-• Prazo para recurso: [geralmente 15 dias]
-• Outras obrigações com prazo
-
-📚 **MINI DICIONÁRIO DOS TERMOS JURÍDICOS**
-[Apenas termos que APARECEM no texto original]
-• **Termo 1:** Explicação simples
-• **Termo 2:** Explicação simples
-• **Termo 3:** Explicação simples
-
-📤 **PODE RECORRER?**
-• Tipo de recurso: Apelação
-• Prazo: 15 dias úteis
-• Para quem: Tribunal [identificar]
-
----
-
-**REGRAS ABSOLUTAS:**
-1. ❌ NUNCA invente informações que não estão no texto
-2. ❌ NUNCA adicione valores que não foram mencionados
-3. ❌ NUNCA especule sobre possíveis recursos ou consequências
-4. ✅ Se algo não estiver claro no texto, escreva "Não informado no documento"
-5. ✅ Transcreva nomes, números de processo e valores EXATAMENTE como aparecem
-6. ✅ Use frases com máximo 20 palavras
-7. ✅ Mantenha tom respeitoso e neutro
-
-**TEXTO DA SENTENÇA:**
-{texto}
-
----
-*Documento processado em: {data}*
-*Este é um resumo simplificado. Consulte seu advogado para orientações específicas.*
-"""
-
-PROMPT_GENERICO = """**INSTRUÇÕES CRÍTICAS - DOCUMENTO JURÍDICO:**
-
-Você está analisando um DOCUMENTO JURÍDICO: {tipo_documento}
-
-**ESTRUTURA OBRIGATÓRIA:**
-
-1. **IDENTIFICAÇÃO** 📋
-   - Tipo: {tipo_documento}
-   - Processo: [se houver]
-   - Partes: [se identificáveis]
-
-2. **ANÁLISE DO RESULTADO**
-   [Identifique o objetivo e resultado do documento]
-
-3. **FORMATAÇÃO DA RESPOSTA**
-
-📊 **RESUMO EXECUTIVO**
-[Ícone apropriado] **[STATUS/RESULTADO]**
-
-**Em uma frase:** [Explicar o propósito/resultado do documento]
-
-📑 **O QUE ACONTECEU**
-[Explicar o contexto em 3-5 linhas]
-
-📋 **CONTEÚDO PRINCIPAL**
-[Explicar o conteúdo em linguagem simples]
-
-💰 **VALORES E OBRIGAÇÕES** (se houver)
-• Valores mencionados: R$ [listar]
-• Obrigações: [detalhar]
-
-⏰ **PRAZOS IMPORTANTES** (se houver)
-• Prazo: [X dias]
-• Para fazer: [ação específica]
-
-📚 **MINI DICIONÁRIO DOS TERMOS JURÍDICOS**
-[Apenas termos que APARECEM no texto]
-• **Termo 1:** Explicação simples e clara
-• **Termo 2:** Explicação simples e clara
-• **Termo 3:** Explicação simples e clara
-
----
-
-**REGRAS ABSOLUTAS:**
-1. ❌ NUNCA invente informações
-2. ❌ NUNCA adicione valores não mencionados
-3. ✅ Use APENAS o que está no texto
-4. ✅ Se não souber, escreva "Não informado no documento"
-5. ✅ Transcreva nomes e números EXATAMENTE
-6. ✅ Use frases com máximo 20 palavras
-7. ✅ Explique todos os termos jurídicos que aparecem no texto
-
-**TEXTO DO DOCUMENTO:**
-{texto}
-
----
-*Documento processado em: {data}*
-*Este é um resumo simplificado. Consulte seu advogado para orientações específicas.*
-"""
-
-def gerar_prompt_completo(texto, tipo_detectado):
-    """Gera prompt baseado no tipo detectado"""
-    
-    tipo = tipo_detectado.get("tipo", "documento_generico")
-    nome = tipo_detectado.get("nome", "Documento Jurídico")
-    data = datetime.now().strftime('%d/%m/%Y às %H:%M')
-    
-    # Usar prompt específico para sentença
-    if tipo == "sentenca":
-        return PROMPT_SENTENCA.format(texto=texto, data=data)
-    
-    # Prompt genérico para outros tipos
-    return PROMPT_GENERICO.format(
-        tipo_documento=nome,
-        texto=texto,
-        data=data
-    )
-
-# ============================================================================
-# TESSERACT
-# ============================================================================
-
 def verificar_tesseract():
-    """Verifica Tesseract"""
+    """Verifica se o Tesseract está disponível e configurado"""
     try:
         result = subprocess.run(['tesseract', '--version'], 
                               capture_output=True, text=True, check=True, timeout=10)
         version = result.stdout.split('\n')[0]
-        logging.info(f"Tesseract: {version}")
+        logging.info(f"Tesseract detectado: {version}")
         
+        # Verificar idiomas disponíveis
         langs_result = subprocess.run(['tesseract', '--list-langs'], 
                                     capture_output=True, text=True, check=True, timeout=10)
         langs = langs_result.stdout.strip().split('\n')[1:]
-        logging.info(f"Idiomas: {langs}")
+        logging.info(f"Idiomas disponíveis: {langs}")
         
+        if 'por' not in langs:
+            logging.warning("Português não disponível no Tesseract")
+            
         return True, version, langs
     except Exception as e:
-        logging.error(f"Tesseract não disponível: {e}")
+        logging.error(f"Tesseract não está disponível: {e}")
         return False, None, []
 
+# Verificar Tesseract na inicialização
 TESSERACT_AVAILABLE, TESSERACT_VERSION, TESSERACT_LANGS = verificar_tesseract()
-
-# ============================================================================
-# RATE LIMIT
-# ============================================================================
 
 def cleanup_old_requests():
     with cleanup_lock:
         now = datetime.now()
-        to_remove = [ip for ip, (count, timestamp) in request_counts.items() 
-                     if now - timestamp > timedelta(minutes=1)]
+        to_remove = []
+        for ip, (count, timestamp) in request_counts.items():
+            if now - timestamp > timedelta(minutes=1):
+                to_remove.append(ip)
         for ip in to_remove:
             del request_counts[ip]
 
@@ -458,7 +128,7 @@ def rate_limit(f):
                 count, first_request = request_counts[ip]
                 if now - first_request < timedelta(minutes=1):
                     if count >= RATE_LIMIT:
-                        return jsonify({"erro": "Limite excedido"}), 429
+                        return jsonify({"erro": "Limite de requisições excedido. Tente novamente em alguns minutos."}), 429
                     request_counts[ip] = (count + 1, first_request)
                 else:
                     request_counts[ip] = (1, now)
@@ -468,229 +138,672 @@ def rate_limit(f):
         return f(*args, **kwargs)
     return decorated_function
 
-# ============================================================================
-# OCR
-# ============================================================================
+# Prompt otimizado e estruturado
+PROMPT_SIMPLIFICACAO = """**Papel:** Você é um especialista em linguagem simples aplicada ao Poder Judiciário, com experiência em transformar textos jurídicos complexos em comunicações claras e acessíveis.
+
+**ESTRUTURA DE ANÁLISE OBRIGATÓRIA:**
+
+1. IDENTIFICAÇÃO DO DOCUMENTO
+- Tipo: [Sentença/Despacho/Decisão/Acórdão]
+- Número do processo: [identificar]
+- Partes envolvidas: [Autor x Réu]
+- Assunto principal: [identificar]
+
+2. ANÁLISE DO RESULTADO (MAIS IMPORTANTE)
+**ATENÇÃO:** Procure SEMPRE pela seção "DISPOSITIVO", "DECIDE", "ANTE O EXPOSTO" ou "DIANTE DO EXPOSTO"
+
+Identificação do Vencedor:
+- ✅ AUTOR GANHOU se encontrar: "JULGO PROCEDENTE", "CONDENO o réu/requerido", "DEFIRO"
+- ❌ AUTOR PERDEU se encontrar: "JULGO IMPROCEDENTE", "CONDENO o autor/requerente", "INDEFIRO"  
+- ⚠️ PARCIAL se encontrar: "JULGO PARCIALMENTE PROCEDENTE"
+
+3. FORMATAÇÃO DA RESPOSTA
+
+📊 RESUMO EXECUTIVO
+[Use sempre um dos ícones abaixo]
+✅ **VITÓRIA TOTAL** - Você ganhou completamente a causa
+❌ **DERROTA** - Você perdeu a causa
+⚠️ **VITÓRIA PARCIAL** - Você ganhou parte do que pediu
+⏳ **AGUARDANDO** - Ainda não há decisão final
+📋 **ANDAMENTO** - Apenas um despacho processual
+
+**Em uma frase:** [Explicar o resultado em linguagem muito simples]
+
+📑 O QUE ACONTECEU
+[Explicar em 3-4 linhas o contexto do processo]
+
+⚖️ O QUE O JUIZ DECIDIU
+[Detalhar a decisão em linguagem simples, usando parágrafos curtos]
+
+💰 VALORES E OBRIGAÇÕES
+• Valor da causa: R$ [valor]
+• Valores a receber: R$ [detalhar]
+• Valores a pagar: R$ [detalhar]
+• Honorários: [percentual e valor]
+• Custas processuais: [quem paga]
+
+📚 MINI DICIONÁRIO DOS TERMOS JURÍDICOS
+[Listar apenas os termos jurídicos que aparecem no texto com explicação simples]
+• **Termo 1:** Explicação clara e simples
+• **Termo 2:** Explicação clara e simples
+• **Termo 3:** Explicação clara e simples
+
+---
+*Documento processado em: [data/hora]*
+*Este é um resumo simplificado. Consulte seu advogado para orientações específicas.*
+
+**REGRAS DE SIMPLIFICAÇÃO:**
+1. Use frases com máximo 20 palavras
+2. Substitua jargões por palavras comuns
+3. Explique siglas na primeira vez que aparecem
+4. Use exemplos concretos quando possível
+5. Mantenha tom respeitoso mas acessível
+6. Destaque informações críticas com formatação
+
+**TEXTO ORIGINAL A SIMPLIFICAR:**
+"""
 
 def processar_imagem_para_texto(image_bytes, formato='PNG'):
-    """Extrai texto de imagem"""
+    """Extrai texto de uma imagem usando OCR com melhor pré-processamento"""
+    texto = ""
+    metadados = {
+        "tipo": "imagem",
+        "formato": formato,
+        "usou_ocr": True,
+        "dimensoes": None,
+        "qualidade_ocr": "indefinida",
+        "tesseract_disponivel": TESSERACT_AVAILABLE
+    }
+    
     if not TESSERACT_AVAILABLE:
-        raise ValueError("OCR não disponível")
+        raise ValueError("OCR não está disponível neste servidor. Tesseract não foi encontrado.")
     
     try:
+        # Abrir a imagem
         img = Image.open(io.BytesIO(image_bytes))
         
+        # Salvar dimensões originais
+        metadados["dimensoes"] = f"{img.width}x{img.height}"
+        logging.info(f"Processando imagem: {metadados['dimensoes']}, formato: {formato}")
+        
+        # Converter para RGB se necessário
         if img.mode not in ('RGB', 'L'):
+            original_mode = img.mode
             img = img.convert('RGB')
+            logging.info(f"Convertido de {original_mode} para RGB")
         
-        # Melhorar contraste
-        enhancer = ImageEnhance.Contrast(img)
-        img = enhancer.enhance(1.5)
-        
-        # OCR
-        config = r'--oem 3 --psm 6'
-        if 'por' in TESSERACT_LANGS:
-            config += ' -l por+eng'
+        # Pré-processamento avançado com OpenCV se disponível
+        if CV2_AVAILABLE:
+            texto = processar_com_opencv(img, metadados)
         else:
-            config += ' -l eng'
+            texto = processar_com_pil(img, metadados)
         
-        texto = pytesseract.image_to_string(img, config=config)
+        # Limpar texto extraído
+        texto = limpar_texto_ocr(texto)
         
-        metadados = {
-            "tipo": "imagem",
-            "formato": formato,
-            "usou_ocr": True,
-            "dimensoes": f"{img.width}x{img.height}",
-            "qualidade_ocr": "boa" if len(texto) > 200 else "média"
-        }
+        if not texto.strip():
+            raise ValueError("Nenhum texto foi extraído da imagem")
         
-        return texto.strip(), metadados
+        logging.info(f"OCR concluído. Qualidade: {metadados['qualidade_ocr']}, Caracteres: {len(texto)}")
         
     except Exception as e:
-        logging.error(f"Erro OCR: {e}")
+        logging.error(f"Erro ao processar imagem: {e}")
         raise
+    
+    return texto, metadados
 
-# ============================================================================
-# PDF
-# ============================================================================
+def processar_com_opencv(img, metadados):
+    """Processamento avançado com OpenCV"""
+    logging.info("Usando processamento avançado com OpenCV")
+    
+    # Converter PIL para OpenCV
+    img_cv = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
+    
+    # Redimensionar se muito grande (otimização)
+    height, width = img_cv.shape[:2]
+    if width > 3000 or height > 3000:
+        scale = min(3000/width, 3000/height)
+        new_width = int(width * scale)
+        new_height = int(height * scale)
+        img_cv = cv2.resize(img_cv, (new_width, new_height), interpolation=cv2.INTER_LANCZOS4)
+        logging.info(f"Imagem redimensionada para {new_width}x{new_height}")
+    
+    # Converter para escala de cinza
+    gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
+    
+    # Aplicar filtros para melhorar OCR
+    # 1. Denoising
+    denoised = cv2.fastNlMeansDenoising(gray)
+    
+    # 2. Aumentar contraste
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+    contrast = clahe.apply(denoised)
+    
+    # 3. Binarização adaptativa
+    binary = cv2.adaptiveThreshold(contrast, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, 
+                                 cv2.THRESH_BINARY, 11, 2)
+    
+    # Converter de volta para PIL
+    img_processed = Image.fromarray(binary)
+    
+    return executar_ocr_multiplas_configs(img_processed, metadados)
+
+def processar_com_pil(img, metadados):
+    """Processamento básico com PIL"""
+    logging.info("Usando processamento básico com PIL")
+    
+    # Redimensionar se muito grande
+    if img.width > 3000 or img.height > 3000:
+        ratio = min(3000/img.width, 3000/img.height)
+        new_size = (int(img.width * ratio), int(img.height * ratio))
+        img = img.resize(new_size, Image.Resampling.LANCZOS)
+        logging.info(f"Imagem redimensionada para {new_size}")
+    
+    # Aumentar contraste
+    enhancer = ImageEnhance.Contrast(img)
+    img = enhancer.enhance(1.5)
+    
+    # Converter para escala de cinza
+    img = img.convert('L')
+    
+    # Aplicar threshold para binarização
+    threshold = 180
+    img = img.point(lambda p: 255 if p > threshold else 0)
+    
+    return executar_ocr_multiplas_configs(img, metadados)
+
+def executar_ocr_multiplas_configs(img_processed, metadados):
+    """Executa OCR com múltiplas configurações e escolhe o melhor resultado"""
+    
+    # Configurações otimizadas do Tesseract
+    custom_configs = [
+        r'--oem 3 --psm 6 -l por+eng',  # Melhor para documentos
+        r'--oem 3 --psm 3 -l por+eng',  # Automático
+        r'--oem 3 --psm 4 -l por+eng',  # Coluna única
+        r'--oem 3 --psm 6 -l por',      # Só português
+        r'--oem 3 --psm 3 -l eng',      # Só inglês
+    ]
+    
+    # Se português não estiver disponível, usar apenas inglês
+    if 'por' not in TESSERACT_LANGS:
+        custom_configs = [
+            r'--oem 3 --psm 6 -l eng',
+            r'--oem 3 --psm 3 -l eng',
+            r'--oem 3 --psm 4 -l eng',
+        ]
+        logging.warning("Português não disponível, usando apenas inglês")
+    
+    best_text = ""
+    best_score = 0
+    
+    for i, config in enumerate(custom_configs):
+        try:
+            logging.info(f"Tentativa OCR {i+1}/{len(custom_configs)}: {config}")
+            texto_temp = pytesseract.image_to_string(img_processed, config=config)
+            
+            # Avaliar qualidade do texto
+            score = avaliar_qualidade_texto(texto_temp)
+            logging.info(f"Score: {score}, Caracteres: {len(texto_temp.strip())}")
+            
+            if score > best_score or (score == best_score and len(texto_temp.strip()) > len(best_text.strip())):
+                best_text = texto_temp
+                best_score = score
+                logging.info(f"Novo melhor resultado encontrado")
+            
+        except Exception as e:
+            logging.warning(f"Erro com configuração {config}: {e}")
+            continue
+    
+    # Avaliar qualidade final
+    if len(best_text.strip()) < 50 or best_score < 0.3:
+        metadados["qualidade_ocr"] = "baixa"
+    elif len(best_text.strip()) < 200 or best_score < 0.6:
+        metadados["qualidade_ocr"] = "média"
+    else:
+        metadados["qualidade_ocr"] = "boa"
+    
+    return best_text
+
+def avaliar_qualidade_texto(texto):
+    """Avalia a qualidade do texto extraído"""
+    if not texto or len(texto.strip()) == 0:
+        return 0
+    
+    # Proporção de caracteres alfabéticos
+    alpha_ratio = sum(1 for c in texto if c.isalpha()) / len(texto)
+    
+    # Proporção de caracteres especiais/ruído
+    special_ratio = sum(1 for c in texto if c in '!@#$%^&*()[]{}|\\<>?~`') / len(texto)
+    
+    # Proporção de espaços (texto bem formatado tem espaços)
+    space_ratio = texto.count(' ') / len(texto)
+    
+    # Score combinado
+    score = alpha_ratio * 0.6 + (1 - special_ratio) * 0.3 + min(space_ratio * 4, 0.1) * 1.0
+    
+    return min(score, 1.0)
+
+def limpar_texto_ocr(texto):
+    """Limpa e melhora o texto extraído via OCR"""
+    if not texto:
+        return ""
+    
+    # Remove caracteres de controle mantendo quebras de linha
+    texto = ''.join(char if char.isprintable() or char in '\n\r\t' else ' ' for char in texto)
+    
+    # Remove linhas com apenas caracteres especiais
+    linhas = texto.split('\n')
+    linhas_limpas = []
+    
+    for linha in linhas:
+        linha_strip = linha.strip()
+        if linha_strip:
+            # Conta caracteres alfabéticos
+            alpha_count = sum(1 for c in linha_strip if c.isalpha())
+            # Só mantém a linha se tiver pelo menos 30% de letras
+            if len(linha_strip) > 0 and alpha_count / len(linha_strip) >= 0.3:
+                linhas_limpas.append(linha)
+    
+    texto = '\n'.join(linhas_limpas)
+    
+    # Remove espaços múltiplos
+    texto = re.sub(r' +', ' ', texto)
+    
+    # Remove quebras de linha múltiplas
+    texto = re.sub(r'\n{3,}', '\n\n', texto)
+    
+    return texto.strip()
 
 def extrair_texto_pdf(pdf_bytes):
-    """Extrai texto de PDF"""
+    """Extrai texto de PDF com melhor tratamento de erros e OCR otimizado"""
+    texto = ""
+    metadados = {
+        "total_paginas": 0,
+        "tem_texto": False,
+        "usou_ocr": False,
+        "paginas_com_ocr": [],
+        "tipo": "pdf"
+    }
+    
     try:
         with fitz.open(stream=pdf_bytes, filetype="pdf") as doc:
-            texto = ""
-            for page in doc:
-                texto += page.get_text() + "\n"
+            total_pages = len(doc)
+            metadados["total_paginas"] = total_pages
+            logging.info(f"Processando PDF com {total_pages} páginas")
             
-            metadados = {
-                "tipo": "pdf",
-                "total_paginas": len(doc),
-                "tem_texto": bool(texto.strip())
-            }
+            texto_completo = ""
             
-            if not texto.strip():
-                raise ValueError("PDF sem texto")
+            for i, page in enumerate(doc):
+                try:
+                    # Primeiro tenta extrair texto normal
+                    conteudo = page.get_text()
+                    
+                    if conteudo.strip():
+                        metadados["tem_texto"] = True
+                        texto_completo += conteudo + "\n"
+                    # Se não há texto e OCR está disponível, tenta OCR
+                    elif TESSERACT_AVAILABLE:
+                        logging.info(f"Aplicando OCR na página {i+1}")
+                        metadados["usou_ocr"] = True
+                        metadados["paginas_com_ocr"].append(i+1)
+                        
+                        pix = page.get_pixmap(dpi=150)
+                        img_data = pix.tobytes()
+                        
+                        # Usar a função melhorada de OCR
+                        conteudo_ocr, _ = processar_imagem_para_texto(img_data, 'PNG')
+                        texto_completo += conteudo_ocr + "\n"
+                    
+                except Exception as e:
+                    logging.error(f"Erro ao processar página {i+1}: {e}")
             
-            return texto.strip(), metadados
-            
+            texto = texto_completo.strip()
+            if not texto:
+                raise ValueError("Nenhum texto foi extraído do PDF")
+                
     except Exception as e:
-        logging.error(f"Erro PDF: {e}")
+        logging.error(f"Erro ao extrair texto do PDF: {e}")
         raise
+    
+    return texto, metadados
 
-# ============================================================================
-# GEMINI
-# ============================================================================
+def analisar_complexidade_texto(texto):
+    """Analisa a complexidade do texto para escolher o modelo apropriado"""
+    complexidade = {
+        "caracteres": len(texto),
+        "palavras": len(texto.split()),
+        "termos_tecnicos": 0,
+        "citacoes": 0,
+        "nivel": "baixo"  # baixo, médio, alto
+    }
+    
+    # Termos técnicos comuns em documentos jurídicos
+    termos_tecnicos = [
+        "exordial", "sucumbência", "litispendência", "coisa julgada",
+        "tutela antecipada", "liminar", "agravo", "embargo", "mandamus",
+        "quantum", "extra petita", "ultra petita", "iura novit curia"
+    ]
+    
+    texto_lower = texto.lower()
+    for termo in termos_tecnicos:
+        complexidade["termos_tecnicos"] += texto_lower.count(termo)
+    
+    # Contar citações de leis/artigos
+    complexidade["citacoes"] = len(re.findall(r'art\.\s*\d+|artigo\s*\d+|§\s*\d+|lei\s*n[º°]\s*[\d\.]+', texto_lower))
+    
+    # Determinar nível de complexidade
+    if complexidade["caracteres"] > 10000 or complexidade["termos_tecnicos"] > 20 or complexidade["citacoes"] > 15:
+        complexidade["nivel"] = "alto"
+    elif complexidade["caracteres"] > 5000 or complexidade["termos_tecnicos"] > 10 or complexidade["citacoes"] > 8:
+        complexidade["nivel"] = "médio"
+    
+    return complexidade
+
+def escolher_modelo_gemini(complexidade, tentativa=0):
+    """Escolhe o modelo Gemini mais apropriado baseado na complexidade"""
+    if complexidade["nivel"] == "baixo" and tentativa == 0:
+        return GEMINI_MODELS[0]  # Modelo mais leve
+    elif complexidade["nivel"] == "médio" or tentativa == 1:
+        return GEMINI_MODELS[1]  # Modelo intermediário
+    else:
+        return GEMINI_MODELS[2] if tentativa < len(GEMINI_MODELS) else GEMINI_MODELS[-1]  # Modelo mais potente
 
 def simplificar_com_gemini(texto, max_retries=3):
-    """Chama Gemini API"""
+    """Chama a API do Gemini com fallback automático entre modelos"""
     
-    # Detectar tipo SEMPRE
-    logging.info("=" * 50)
-    logging.info("INICIANDO DETECÇÃO DE TIPO DE DOCUMENTO")
-    logging.info(f"Tamanho do texto: {len(texto)} caracteres")
-    logging.info(f"Primeiros 200 caracteres: {texto[:200]}")
+    # Para textos muito grandes, dividir em chunks se necessário
+    MAX_CHUNK_SIZE = 30000  # Aumentado para processar textos maiores
     
-    tipo_detectado = detectar_tipo_documento(texto)
+    # Se o texto for muito grande, processar em partes
+    if len(texto) > MAX_CHUNK_SIZE:
+        # Dividir o texto preservando a estrutura
+        chunks = []
+        current_chunk = ""
+        paragrafos = texto.split('\n\n')
+        
+        for paragrafo in paragrafos:
+            if len(current_chunk) + len(paragrafo) < MAX_CHUNK_SIZE:
+                current_chunk += paragrafo + "\n\n"
+            else:
+                if current_chunk:
+                    chunks.append(current_chunk)
+                current_chunk = paragrafo + "\n\n"
+        
+        if current_chunk:
+            chunks.append(current_chunk)
+        
+        # Processar o chunk mais importante (geralmente o que contém o dispositivo)
+        texto_principal = chunks[-1] if "DISPOSITIVO" in chunks[-1] or "JULGO" in chunks[-1] else chunks[0]
+        
+        # Adicionar contexto dos outros chunks
+        if len(chunks) > 1:
+            texto_contexto = "\n\n[CONTEXTO ADICIONAL DO PROCESSO]\n"
+            for i, chunk in enumerate(chunks):
+                if chunk != texto_principal:
+                    texto_contexto += f"\nParte {i+1}: " + chunk[:500] + "...\n"
+            texto = texto_principal + texto_contexto
     
-    logging.info(f"TIPO DETECTADO: {tipo_detectado['nome']}")
-    logging.info(f"CONFIANÇA: {tipo_detectado['confianca']}%")
-    logging.info(f"ÍCONE: {tipo_detectado['icone']}")
-    logging.info(f"PADRÕES ENCONTRADOS: {len(tipo_detectado['padroes_encontrados'])}")
-    logging.info("=" * 50)
-    
-    # Cache
+    # Verificar cache
     texto_hash = hashlib.md5(texto.encode()).hexdigest()
     if texto_hash in results_cache:
         cache_entry = results_cache[texto_hash]
         if time.time() - cache_entry["timestamp"] < CACHE_EXPIRATION:
-            logging.info("Usando resultado do cache")
-            return cache_entry["result"], None, tipo_detectado
+            logging.info(f"Resultado encontrado no cache para hash {texto_hash[:8]}")
+            return cache_entry["result"], None
     
-    # Gerar prompt
-    prompt = gerar_prompt_completo(texto, tipo_detectado)
-    logging.info(f"Prompt gerado com {len(prompt)} caracteres")
+    # Analisar complexidade
+    complexidade = analisar_complexidade_texto(texto)
+    logging.info(f"Complexidade do texto: {complexidade}")
+    
+    prompt_completo = PROMPT_SIMPLIFICACAO + texto
     
     headers = {
         "Content-Type": "application/json",
         "X-goog-api-key": GEMINI_API_KEY
     }
     
-    for tentativa, modelo in enumerate(GEMINI_MODELS):
-        logging.info(f"Tentativa {tentativa + 1}: Usando {modelo['name']}")
+    errors = []
+    
+    # Tentar com diferentes modelos
+    for tentativa in range(len(GEMINI_MODELS)):
+        modelo = escolher_modelo_gemini(complexidade, tentativa)
+        logging.info(f"Tentativa {tentativa + 1}: Usando modelo {modelo['name']}")
+        
+        model_usage_stats[modelo["name"]]["attempts"] += 1
+        
+        # Ajustar tokens baseado no modelo
+        max_tokens = min(4000, modelo["max_tokens"] // 2)
         
         payload = {
-            "contents": [{
-                "parts": [{"text": prompt}]
-            }],
+            "contents": [
+                {
+                    "parts": [
+                        {
+                            "text": prompt_completo
+                        }
+                    ]
+                }
+            ],
             "generationConfig": {
-                "temperature": 0.2,
-                "maxOutputTokens": 4000,
+                "temperature": 0.3,
+                "maxOutputTokens": max_tokens,
                 "topP": 0.8,
                 "topK": 10
-            }
+            },
+            "safetySettings": [
+                {
+                    "category": "HARM_CATEGORY_HARASSMENT",
+                    "threshold": "BLOCK_NONE"
+                },
+                {
+                    "category": "HARM_CATEGORY_HATE_SPEECH",
+                    "threshold": "BLOCK_NONE"
+                },
+                {
+                    "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+                    "threshold": "BLOCK_NONE"
+                },
+                {
+                    "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
+                    "threshold": "BLOCK_NONE"
+                }
+            ]
         }
         
-        try:
-            response = requests.post(
-                modelo["url"],
-                headers=headers,
-                json=payload,
-                timeout=120
-            )
-            
-            if response.status_code == 200:
-                data = response.json()
-                if "candidates" in data and len(data["candidates"]) > 0:
-                    texto_simplificado = data["candidates"][0]["content"]["parts"][0]["text"]
+        for retry in range(max_retries):
+            try:
+                start_time = time.time()
+                response = requests.post(
+                    modelo["url"],
+                    headers=headers,
+                    json=payload,
+                    timeout=120
+                )
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    elapsed = round(time.time() - start_time, 2)
                     
-                    results_cache[texto_hash] = {
-                        "result": texto_simplificado,
-                        "timestamp": time.time(),
-                        "modelo": modelo["name"],
-                        "tipo_documento": tipo_detectado
-                    }
+                    if "candidates" in data and len(data["candidates"]) > 0:
+                        texto_simplificado = data["candidates"][0]["content"]["parts"][0]["text"]
+                        
+                        # Adicionar ao cache
+                        results_cache[texto_hash] = {
+                            "result": texto_simplificado,
+                            "timestamp": time.time(),
+                            "modelo": modelo["name"]
+                        }
+                        
+                        model_usage_stats[modelo["name"]]["successes"] += 1
+                        logging.info(f"Sucesso com {modelo['name']} em {elapsed}s")
+                        
+                        return texto_simplificado, None
+                    else:
+                        errors.append(f"{modelo['name']}: Resposta vazia")
+                        
+                elif response.status_code == 429:
+                    # Rate limit - tentar próximo modelo
+                    errors.append(f"{modelo['name']}: Limite de requisições excedido")
+                    model_usage_stats[modelo["name"]]["failures"] += 1
+                    break  # Sair do loop de retry, tentar próximo modelo
                     
-                    logging.info(f"✅ Sucesso com {modelo['name']}")
-                    logging.info(f"Texto simplificado: {len(texto_simplificado)} caracteres")
+                elif response.status_code == 400:
+                    # Bad request - pode ser tokens demais
+                    errors.append(f"{modelo['name']}: Requisição inválida (possível excesso de tokens)")
+                    model_usage_stats[modelo["name"]]["failures"] += 1
+                    break
                     
-                    return texto_simplificado, None, tipo_detectado
+                else:
+                    errors.append(f"{modelo['name']}: Erro HTTP {response.status_code}")
                     
-        except Exception as e:
-            logging.error(f"Erro {modelo['name']}: {e}")
-            continue
+            except requests.exceptions.Timeout:
+                errors.append(f"{modelo['name']}: Timeout")
+                if retry < max_retries - 1:
+                    time.sleep(2 ** retry)
+                    
+            except Exception as e:
+                errors.append(f"{modelo['name']}: {str(e)}")
+                logging.error(f"Erro com {modelo['name']}: {e}")
+        
+        # Pequena pausa antes de tentar próximo modelo
+        if tentativa < len(GEMINI_MODELS) - 1:
+            time.sleep(1)
     
-    return None, "Erro ao processar com IA", tipo_detectado
+    # Se todos os modelos falharam
+    error_summary = " | ".join(errors)
+    logging.error(f"Todos os modelos falharam: {error_summary}")
+    return None, f"Erro ao processar. Tentativas: {error_summary}"
 
-# ============================================================================
-# PDF GERAÇÃO
-# ============================================================================
-
-def gerar_pdf_simplificado(texto, metadados=None, tipo_documento=None, filename="documento.pdf"):
-    """Gera PDF"""
+def gerar_pdf_simplificado(texto, metadados=None, filename="documento_simplificado.pdf"):
+    """Gera PDF com melhor formatação e metadados"""
     output_path = os.path.join(TEMP_DIR, filename)
     
     try:
         c = canvas.Canvas(output_path, pagesize=letter)
         largura, altura = letter
         
-        y = altura - 50
+        # Margens
+        margem_esq = 50
+        margem_dir = 50
+        margem_top = 50
+        margem_bottom = 50
+        largura_texto = largura - margem_esq - margem_dir
         
-        # Título
-        c.setFont("Helvetica-Bold", 16)
-        c.drawString(50, y, "Documento Simplificado")
-        y -= 40
-        
-        # Tipo
-        if tipo_documento:
-            c.setFont("Helvetica-Bold", 12)
-            c.drawString(50, y, f"{tipo_documento.get('icone', '')} {tipo_documento.get('nome', '')}")
-            y -= 30
-        
-        # Texto
+        # Configurações de fonte
         c.setFont("Helvetica", 11)
-        for linha in texto.split('\n'):
-            if y < 100:
-                c.showPage()
-                y = altura - 50
-                c.setFont("Helvetica", 11)
+        altura_linha = 14
+        
+        y = altura - margem_top
+        
+        # Cabeçalho
+        c.setFont("Helvetica-Bold", 16)
+        c.drawString(margem_esq, y, "Documento em Linguagem Simples")
+        y -= 30
+        
+        # Informações do processamento
+        c.setFont("Helvetica", 9)
+        c.setFillColorRGB(0.5, 0.5, 0.5)
+        c.drawString(margem_esq, y, f"Gerado em: {datetime.now().strftime('%d/%m/%Y às %H:%M')}")
+        y -= 15
+        
+        if metadados:
+            if metadados.get("modelo"):
+                c.drawString(margem_esq, y, f"Processado com: {metadados['modelo']}")
+                y -= 15
+            if metadados.get("tipo"):
+                c.drawString(margem_esq, y, f"Tipo de arquivo original: {metadados['tipo'].upper()}")
+                y -= 15
+            if metadados.get("paginas"):
+                c.drawString(margem_esq, y, f"Páginas do original: {metadados['paginas']}")
+                y -= 15
+            elif metadados.get("dimensoes"):
+                c.drawString(margem_esq, y, f"Dimensões da imagem: {metadados['dimensoes']}")
+                y -= 15
+            if metadados.get("qualidade_ocr"):
+                c.drawString(margem_esq, y, f"Qualidade do OCR: {metadados['qualidade_ocr']}")
+                y -= 15
+        
+        # Linha separadora
+        c.setStrokeColorRGB(0.8, 0.8, 0.8)
+        c.line(margem_esq, y, largura - margem_dir, y)
+        y -= 20
+        
+        # Processar texto com formatação especial para ícones
+        c.setFont("Helvetica", 11)
+        c.setFillColorRGB(0, 0, 0)
+        
+        linhas = texto.split('\n')
+        
+        for linha in linhas:
+            if not linha.strip():
+                y -= altura_linha
+                continue
             
-            if linha.strip():
-                c.drawString(50, y, linha[:100])
-                y -= 14
+            # Detectar e formatar linhas com ícones especiais
+            if any(icon in linha for icon in ['✅', '❌', '⚠️', '📊', '📑', '⚖️', '💰', '📅', '💡']):
+                c.setFont("Helvetica-Bold", 12)
+                # Remover asteriscos do texto para PDF
+                linha_limpa = linha.replace('**', '')
+                if y < margem_bottom + altura_linha * 2:
+                    c.showPage()
+                    y = altura - margem_top
+                c.drawString(margem_esq, y, linha_limpa)
+                c.setFont("Helvetica", 11)
+                y -= altura_linha * 1.5
+                continue
+            
+            # Detectar títulos de seção
+            if linha.strip().startswith('**') and linha.strip().endswith('**'):
+                titulo = linha.strip()[2:-2]
+                c.setFont("Helvetica-Bold", 12)
+                if y < margem_bottom + altura_linha * 2:
+                    c.showPage()
+                    y = altura - margem_top
+                c.drawString(margem_esq, y, titulo)
+                c.setFont("Helvetica", 11)
+                y -= altura_linha * 1.5
+                continue
+            
+            # Processar linha normal com quebra
+            palavras = linha.split()
+            linhas_formatadas = []
+            linha_atual = []
+            
+            for palavra in palavras:
+                linha_teste = ' '.join(linha_atual + [palavra])
+                if c.stringWidth(linha_teste, "Helvetica", 11) <= largura_texto:
+                    linha_atual.append(palavra)
+                else:
+                    if linha_atual:
+                        linhas_formatadas.append(' '.join(linha_atual))
+                        linha_atual = [palavra]
+                    else:
+                        linhas_formatadas.append(palavra)
+            
+            if linha_atual:
+                linhas_formatadas.append(' '.join(linha_atual))
+            
+            for linha_formatada in linhas_formatadas:
+                if y < margem_bottom + altura_linha:
+                    c.showPage()
+                    y = altura - margem_top
+                    c.setFont("Helvetica", 11)
+                
+                c.drawString(margem_esq, y, linha_formatada)
+                y -= altura_linha
+        
+        # Rodapé
+        c.setFont("Helvetica", 8)
+        c.setFillColorRGB(0.6, 0.6, 0.6)
+        c.drawString(margem_esq, 30, "Desenvolvido pela INOVASSOL")
+        c.drawString(largura - margem_dir - 150, 30, "Consulte seu advogado para orientações")
         
         c.save()
         return output_path
         
     except Exception as e:
-        logging.error(f"Erro gerar PDF: {e}")
+        logging.error(f"Erro ao gerar PDF: {e}")
         raise
-
-# ============================================================================
-# ANÁLISE
-# ============================================================================
-
-def analisar_resultado_judicial(texto, tipo_documento=None):
-    """Analisa resultado"""
-    analise = {
-        "tipo_resultado": "indefinido",
-        "tem_valores": "r$" in texto.lower(),
-        "tem_prazos": "prazo" in texto.lower() or "dias" in texto.lower(),
-        "tipo_documento": tipo_documento.get("nome") if tipo_documento else "Não identificado",
-        "confianca_tipo": tipo_documento.get("confianca") if tipo_documento else 0
-    }
-    
-    texto_lower = texto.lower()
-    
-    if "✅" in texto or "procedente" in texto_lower:
-        analise["tipo_resultado"] = "vitoria"
-    elif "❌" in texto or "improcedente" in texto_lower:
-        analise["tipo_resultado"] = "derrota"
-    
-    return analise
-
-# ============================================================================
-# ROTAS
-# ============================================================================
 
 @app.route("/")
 def index():
@@ -699,146 +812,369 @@ def index():
 @app.route("/processar", methods=["POST"])
 @rate_limit
 def processar():
-    """Processa arquivo"""
+    """Processa upload de PDF ou imagem com análise aprimorada"""
     try:
         if 'file' not in request.files:
-            return jsonify({"erro": "Nenhum arquivo"}), 400
+            return jsonify({"erro": "Nenhum arquivo enviado"}), 400
             
         file = request.files['file']
-        if not file.filename:
-            return jsonify({"erro": "Arquivo vazio"}), 400
+        if file.filename == '':
+            return jsonify({"erro": "Nenhum arquivo selecionado"}), 400
+            
+        if not allowed_file(file.filename):
+            return jsonify({"erro": "Formato inválido. Aceitos: PDF, PNG, JPG, JPEG, GIF, BMP, TIFF, WEBP"}), 400
         
+        # Verifica tamanho
         file.seek(0, os.SEEK_END)
         size = file.tell()
         file.seek(0)
         
         if size > MAX_FILE_SIZE:
-            return jsonify({"erro": "Arquivo grande demais"}), 400
+            return jsonify({"erro": f"Arquivo muito grande. Máximo: {MAX_FILE_SIZE//1024//1024}MB"}), 400
         
+        # Lê o arquivo
         file_bytes = file.read()
         file_extension = file.filename.rsplit('.', 1)[1].lower()
         
-        logging.info(f"Processando: {file.filename}")
+        # Hash do arquivo para cache
+        file_hash = hashlib.md5(file_bytes).hexdigest()
+        logging.info(f"Processando arquivo: {secure_filename(file.filename)} ({size/1024:.1f}KB) - Hash: {file_hash}")
         
-        # Extrair texto
+        # Determina se é PDF ou imagem
         if file_extension == 'pdf':
+            # Processa PDF
             texto_original, metadados = extrair_texto_pdf(file_bytes)
         elif file_extension in ALLOWED_IMAGE_EXTENSIONS:
-            if not TESSERACT_AVAILABLE:
-                return jsonify({"erro": "OCR não disponível"}), 500
-            texto_original, metadados = processar_imagem_para_texto(file_bytes, file_extension.upper())
+            # Processa imagem
+            try:
+                texto_original, metadados = processar_imagem_para_texto(file_bytes, file_extension.upper())
+            except ValueError as e:
+                if "OCR não está disponível" in str(e):
+                    return jsonify({
+                        "erro": "OCR não está disponível neste servidor. O Tesseract não foi encontrado.",
+                        "detalhes": "Entre em contato com o administrador para instalar o Tesseract OCR."
+                    }), 500
+                else:
+                    raise
+            
+            # Adiciona aviso sobre qualidade do OCR se necessário
+            if metadados.get("qualidade_ocr") == "baixa":
+                texto_original = "[AVISO: A qualidade do OCR foi baixa. Alguns trechos podem estar incorretos.]\n\n" + texto_original
         else:
-            return jsonify({"erro": "Formato inválido"}), 400
+            return jsonify({"erro": "Tipo de arquivo não suportado"}), 400
         
         if len(texto_original) < 10:
-            return jsonify({"erro": "Texto insuficiente"}), 400
+            return jsonify({"erro": "Arquivo não contém texto suficiente para processar"}), 400
         
-        # Simplificar
-        texto_simplificado, erro, tipo_documento = simplificar_com_gemini(texto_original)
+        # Simplificar com Gemini
+        texto_simplificado, erro = simplificar_com_gemini(texto_original)
         
         if erro:
             return jsonify({"erro": erro}), 500
         
-        # Gerar PDF
-        pdf_filename = f"simplificado_{int(time.time())}.pdf"
-        pdf_path = gerar_pdf_simplificado(texto_simplificado, metadados, tipo_documento, pdf_filename)
+        # Preparar metadados para o PDF
+        metadados_geracao = {
+            "modelo": results_cache.get(file_hash, {}).get("modelo", "Gemini"),
+            "tipo": metadados.get("tipo", file_extension)
+        }
         
+        # Adiciona informações específicas do tipo de arquivo
+        if file_extension == 'pdf':
+            metadados_geracao["paginas"] = metadados.get("total_paginas")
+            metadados_geracao["usou_ocr"] = metadados.get("usou_ocr")
+        else:
+            metadados_geracao["dimensoes"] = metadados.get("dimensoes")
+            metadados_geracao["qualidade_ocr"] = metadados.get("qualidade_ocr")
+        
+        # Gerar PDF simplificado
+        pdf_filename = f"simplificado_{file_hash[:8]}.pdf"
+        pdf_path = gerar_pdf_simplificado(texto_simplificado, metadados_geracao, pdf_filename)
+        
+        # Salvar o caminho na sessão
         session['pdf_path'] = pdf_path
         session['pdf_filename'] = pdf_filename
         
-        # Análise
-        analise = analisar_resultado_judicial(texto_simplificado, tipo_documento)
+        # Análise adicional do resultado
+        analise = analisar_resultado_judicial(texto_simplificado)
         
         return jsonify({
             "texto": texto_simplificado,
             "caracteres_original": len(texto_original),
             "caracteres_simplificado": len(texto_simplificado),
-            "tipo_documento": tipo_documento,
-            "analise": analise
+            "reducao_percentual": round((1 - len(texto_simplificado)/len(texto_original)) * 100, 1),
+            "metadados": metadados,
+            "analise": analise,
+            "modelo_usado": metadados_geracao.get("modelo", "Gemini"),
+            "tipo_arquivo": file_extension
         })
         
     except Exception as e:
-        logging.error(f"Erro: {e}", exc_info=True)
-        return jsonify({"erro": str(e)}), 500
+        logging.error(f"Erro ao processar arquivo: {e}")
+        return jsonify({"erro": "Erro ao processar o arquivo. Verifique se não está corrompido"}), 500
 
 @app.route("/processar_texto", methods=["POST"])
 @rate_limit
 def processar_texto():
-    """Processa texto manual"""
+    """Processa texto manual com análise aprimorada"""
     try:
         data = request.get_json()
         texto = data.get("texto", "").strip()
         
-        if not texto or len(texto) < 20:
-            return jsonify({"erro": "Texto muito curto"}), 400
+        if not texto:
+            return jsonify({"erro": "Nenhum texto fornecido"}), 400
+            
+        if len(texto) < 20:
+            return jsonify({"erro": "Texto muito curto. Mínimo: 20 caracteres"}), 400
+            
+        if len(texto) > 10000:
+            return jsonify({"erro": "Texto muito longo. Máximo: 10.000 caracteres"}), 400
         
-        texto_simplificado, erro, tipo_documento = simplificar_com_gemini(texto)
+        texto_simplificado, erro = simplificar_com_gemini(texto)
         
         if erro:
             return jsonify({"erro": erro}), 500
         
-        analise = analisar_resultado_judicial(texto_simplificado, tipo_documento)
+        # Análise adicional
+        analise = analisar_resultado_judicial(texto_simplificado)
         
         return jsonify({
             "texto": texto_simplificado,
-            "tipo_documento": tipo_documento,
+            "caracteres_original": len(texto),
+            "caracteres_simplificado": len(texto_simplificado),
+            "reducao_percentual": round((1 - len(texto_simplificado)/len(texto)) * 100, 1),
             "analise": analise
         })
         
     except Exception as e:
-        logging.error(f"Erro: {e}")
-        return jsonify({"erro": str(e)}), 500
+        logging.error(f"Erro ao processar texto: {e}")
+        return jsonify({"erro": "Erro ao processar o texto"}), 500
 
-@app.route("/download_pdf")
-def download_pdf():
-    """Download PDF"""
-    pdf_path = session.get('pdf_path')
-    pdf_filename = session.get('pdf_filename', 'documento.pdf')
+def analisar_resultado_judicial(texto):
+    """Analisa o texto simplificado para extrair informações estruturadas"""
+    analise = {
+        "tipo_resultado": "indefinido",
+        "tem_valores": False,
+        "tem_prazos": False,
+        "tem_recursos": False,
+        "sentimento": "neutro",
+        "palavras_chave": []
+    }
     
-    if not pdf_path or not os.path.exists(pdf_path):
-        return jsonify({"erro": "PDF não encontrado"}), 404
+    texto_lower = texto.lower()
     
-    return send_file(pdf_path, as_attachment=True, download_name=pdf_filename)
+    # Identificar tipo de resultado
+    if "✅" in texto or "vitória" in texto_lower or "procedente" in texto_lower:
+        analise["tipo_resultado"] = "vitoria"
+        analise["sentimento"] = "positivo"
+    elif "❌" in texto or "derrota" in texto_lower or "improcedente" in texto_lower:
+        analise["tipo_resultado"] = "derrota"
+        analise["sentimento"] = "negativo"
+    elif "⚠️" in texto or "parcial" in texto_lower:
+        analise["tipo_resultado"] = "parcial"
+        analise["sentimento"] = "neutro"
+    
+    # Verificar presença de elementos importantes
+    if "r$" in texto_lower or "valor" in texto_lower or "💰" in texto:
+        analise["tem_valores"] = True
+        analise["palavras_chave"].append("valores")
+    
+    if "prazo" in texto_lower or "dias" in texto_lower or "📅" in texto:
+        analise["tem_prazos"] = True
+        analise["palavras_chave"].append("prazos")
+    
+    if "recurso" in texto_lower or "apelação" in texto_lower or "agravo" in texto_lower:
+        analise["tem_recursos"] = True
+        analise["palavras_chave"].append("recursos")
+    
+    return analise
 
 @app.route("/diagnostico")
 def diagnostico():
-    """Diagnóstico"""
+    """Endpoint para diagnosticar problemas de OCR e configuração"""
+    diagnostico_info = {
+        "tesseract_disponivel": TESSERACT_AVAILABLE,
+        "tesseract_version": TESSERACT_VERSION,
+        "tesseract_langs": TESSERACT_LANGS,
+        "python_libs": {},
+        "sistema": {},
+        "configuracao": {}
+    }
+    
+    # Verificar bibliotecas Python
+    try:
+        import pytesseract
+        diagnostico_info["python_libs"]["pytesseract"] = pytesseract.__version__
+    except Exception as e:
+        diagnostico_info["python_libs"]["pytesseract"] = f"Erro: {str(e)}"
+    
+    try:
+        import cv2
+        diagnostico_info["python_libs"]["opencv"] = cv2.__version__
+        diagnostico_info["configuracao"]["opencv_disponivel"] = CV2_AVAILABLE
+    except Exception as e:
+        diagnostico_info["python_libs"]["opencv"] = f"Erro: {str(e)}"
+        diagnostico_info["configuracao"]["opencv_disponivel"] = False
+    
+    try:
+        from PIL import Image
+        diagnostico_info["python_libs"]["pillow"] = Image.__version__
+    except Exception as e:
+        diagnostico_info["python_libs"]["pillow"] = f"Erro: {str(e)}"
+    
+    try:
+        import numpy
+        diagnostico_info["python_libs"]["numpy"] = numpy.__version__
+    except Exception as e:
+        diagnostico_info["python_libs"]["numpy"] = f"Erro: {str(e)}"
+    
+    # Info do sistema
+    import platform
+    diagnostico_info["sistema"]["os"] = platform.system()
+    diagnostico_info["sistema"]["arquitetura"] = platform.machine()
+    diagnostico_info["sistema"]["python_version"] = platform.python_version()
+    
+    # Configurações
+    diagnostico_info["configuracao"]["gemini_api_configurada"] = bool(GEMINI_API_KEY)
+    diagnostico_info["configuracao"]["temp_dir"] = TEMP_DIR
+    diagnostico_info["configuracao"]["max_file_size_mb"] = MAX_FILE_SIZE // 1024 // 1024
+    
+    # Variáveis de ambiente relevantes
+    diagnostico_info["configuracao"]["tessdata_prefix"] = os.getenv("TESSDATA_PREFIX", "Não configurado")
+    
+    return jsonify(diagnostico_info)
+
+@app.route("/estatisticas")
+def estatisticas():
+    """Retorna estatísticas de uso dos modelos"""
     return jsonify({
-        "status": "online",
-        "tesseract": {
-            "disponivel": TESSERACT_AVAILABLE,
-            "version": TESSERACT_VERSION,
-            "linguas": TESSERACT_LANGS
-        },
-        "opencv": CV2_AVAILABLE,
-        "gemini": bool(GEMINI_API_KEY),
-        "tipos_documentos": len(TIPOS_DOCUMENTOS)
+        "modelos": model_usage_stats,
+        "cache_size": len(results_cache),
+        "tesseract_disponivel": TESSERACT_AVAILABLE,
+        "opencv_disponivel": CV2_AVAILABLE,
+        "timestamp": datetime.now().isoformat()
     })
+
+@app.route("/download_pdf")
+def download_pdf():
+    """Download do PDF com verificação de sessão"""
+    pdf_path = session.get('pdf_path')
+    pdf_filename = session.get('pdf_filename', 'documento_simplificado.pdf')
+    
+    if not pdf_path or not os.path.exists(pdf_path):
+        return jsonify({"erro": "PDF não encontrado. Por favor, processe um documento primeiro"}), 404
+    
+    try:
+        return send_file(
+            pdf_path, 
+            as_attachment=True, 
+            download_name=pdf_filename,
+            mimetype='application/pdf'
+        )
+    except Exception as e:
+        logging.error(f"Erro ao fazer download: {e}")
+        return jsonify({"erro": "Erro ao baixar o arquivo"}), 500
+
+@app.route("/feedback", methods=["POST"])
+def feedback():
+    """Recebe feedback do usuário sobre a simplificação"""
+    try:
+        data = request.get_json()
+        rating = data.get("rating")
+        comment = data.get("comment", "")
+        resultado_hash = data.get("hash", "")
+        
+        # Aqui você pode salvar em um banco de dados ou arquivo
+        logging.info(f"Feedback recebido - Rating: {rating}, Hash: {resultado_hash[:8]}, Comentário: {comment}")
+        
+        return jsonify({"sucesso": True, "mensagem": "Obrigado pelo seu feedback!"})
+    except Exception as e:
+        logging.error(f"Erro ao processar feedback: {e}")
+        return jsonify({"erro": "Erro ao processar feedback"}), 500
+
+@app.route("/static/<path:filename>")
+def serve_static(filename):
+    """Serve arquivos estáticos"""
+    return send_from_directory('static', filename)
 
 @app.route("/health")
 def health():
-    """Health check"""
-    return jsonify({"status": "healthy"})
+    """Endpoint de health check para o Render"""
+    return jsonify({
+        "status": "healthy",
+        "timestamp": datetime.now().isoformat(),
+        "api_configured": bool(GEMINI_API_KEY),
+        "models_available": len(GEMINI_MODELS),
+        "cache_entries": len(results_cache),
+        "tesseract_available": TESSERACT_AVAILABLE,
+        "tesseract_version": TESSERACT_VERSION,
+        "tesseract_langs": TESSERACT_LANGS,
+        "opencv_available": CV2_AVAILABLE,
+        "supported_formats": list(ALLOWED_EXTENSIONS)
+    })
+
+@app.errorhandler(404)
+def not_found(e):
+    return jsonify({"erro": "Endpoint não encontrado"}), 404
+
+@app.errorhandler(500)
+def server_error(e):
+    logging.error(f"Erro interno: {e}")
+    return jsonify({"erro": "Erro interno do servidor"}), 500
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-# Limpeza
+def detectar_tipo_arquivo(file_bytes):
+    """Detecta o tipo de arquivo pelos bytes iniciais (magic numbers)"""
+    # Magic numbers para diferentes formatos
+    if file_bytes[:4] == b'%PDF':
+        return 'pdf'
+    elif file_bytes[:8] == b'\x89PNG\r\n\x1a\n':
+        return 'png'
+    elif file_bytes[:3] == b'\xff\xd8\xff':
+        return 'jpeg'
+    elif file_bytes[:6] in (b'GIF87a', b'GIF89a'):
+        return 'gif'
+    elif file_bytes[:2] == b'BM':
+        return 'bmp'
+    elif file_bytes[:4] in (b'II\x2a\x00', b'MM\x00\x2a'):
+        return 'tiff'
+    elif file_bytes[:4] == b'RIFF' and file_bytes[8:12] == b'WEBP':
+        return 'webp'
+    else:
+        return None
+
+# Limpa arquivos temporários antigos periodicamente
 def cleanup_temp_files():
     while True:
         try:
-            time.sleep(3600)
+            time.sleep(3600)  # A cada hora
             now = time.time()
             
+            # Limpar arquivos temporários
             for filename in os.listdir(TEMP_DIR):
                 if filename.startswith('simplificado_'):
                     filepath = os.path.join(TEMP_DIR, filename)
-                    if os.stat(filepath).st_mtime < now - 3600:
+                    if os.stat(filepath).st_mtime < now - 3600:  # Arquivos com mais de 1 hora
                         os.remove(filepath)
-                        
+                        logging.info(f"Arquivo temporário removido: {filename}")
+            
+            # Limpar cache antigo
+            to_remove = []
+            for key, value in results_cache.items():
+                if time.time() - value["timestamp"] > CACHE_EXPIRATION:
+                    to_remove.append(key)
+            
+            for key in to_remove:
+                del results_cache[key]
+            
+            if to_remove:
+                logging.info(f"Removidos {len(to_remove)} itens do cache")
+                
         except Exception as e:
-            logging.error(f"Erro limpeza: {e}")
+            logging.error(f"Erro na limpeza de arquivos: {e}")
 
+# Inicia thread de limpeza
 cleanup_thread = threading.Thread(target=cleanup_temp_files, daemon=True)
 cleanup_thread.start()
 
