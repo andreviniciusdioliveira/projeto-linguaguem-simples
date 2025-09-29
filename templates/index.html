@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Entenda aqui - Simplificador Jurídico | INOVASSOL</title>
+    <title>Entenda aqui - PDF e Imagens | INOVASSOL</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='50%' x='50%' text-anchor='middle' font-size='80'>⚖️</text></svg>">
     <style>
         :root {
@@ -40,7 +40,7 @@
             background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
         }
         .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
-        .header { text-align: center; margin-bottom: 3rem; }
+        .header { text-align: center; margin-bottom: 3rem; animation: fadeInDown 0.8s ease; }
         .header h1 {
             font-size: 2.5rem;
             background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
@@ -49,6 +49,21 @@
             margin-bottom: 0.5rem;
             font-weight: 700;
         }
+        .format-badges {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-top: 1rem;
+            flex-wrap: wrap;
+        }
+        .format-badge {
+            background: var(--info-bg);
+            color: var(--primary);
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
         .card {
             background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(10px);
@@ -56,9 +71,12 @@
             box-shadow: 0 8px 32px var(--shadow);
             padding: 2rem;
             margin-bottom: 2rem;
+            transition: all 0.3s ease;
+            animation: fadeInUp 0.8s ease;
             border: 1px solid var(--border);
         }
         body.dark-mode .card { background: rgba(42, 42, 42, 0.95); }
+        .card:hover { transform: translateY(-4px); }
         #drop-area {
             border: 2px dashed var(--primary);
             border-radius: 12px;
@@ -81,6 +99,7 @@
             display: inline-flex;
             align-items: center;
             gap: 0.5rem;
+            text-decoration: none;
         }
         .button:hover { transform: translateY(-2px); }
         .loading-overlay {
@@ -125,58 +144,144 @@
             border-radius: 8px;
             transition: bottom 0.3s ease;
             z-index: 10000;
+            max-width: 90%;
+            text-align: center;
         }
         .toast.show { bottom: 2rem; }
         .toast.success { background: var(--secondary); }
         .toast.error { background: var(--danger); }
+        .toast.warning { background: var(--warning); color: var(--dark); }
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .doc-type-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: var(--info-bg);
+            color: var(--primary);
+            padding: 0.75rem 1.5rem;
+            border-radius: 25px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin: 1rem 0;
+            border: 2px solid var(--primary);
+        }
+        .confidence-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+            font-size: 0.875rem;
+            color: var(--text-muted);
+        }
+        .confidence-bar {
+            width: 100px;
+            height: 6px;
+            background: var(--border);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .confidence-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--danger) 0%, var(--warning) 50%, var(--secondary) 100%);
+            transition: width 0.5s ease;
+        }
     </style>
 </head>
 <body>
     <div class="loading-overlay" id="loadingOverlay">
         <div class="loading-content">
             <div class="loading-spinner"></div>
-            <div id="loadingText">Processando...</div>
+            <div id="loadingText">Processando com IA...</div>
         </div>
     </div>
 
     <div class="container">
         <header class="header">
             <h1>⚖️ Entenda Aqui</h1>
-            <p>Transforme documentos jurídicos em linguagem simples</p>
+            <p>Transforme documentos jurídicos em linguagem simples com IA</p>
+            <div class="format-badges">
+                <span class="format-badge">📄 PDF</span>
+                <span class="format-badge">🖼️ Imagens</span>
+                <span class="format-badge">🔍 Detecção Automática</span>
+                <span class="format-badge">⚖️ 7 Tipos de Documentos</span>
+            </div>
+            <div style="text-align: center; margin-top: 1.5rem;">
+                <p style="color: var(--text-muted); font-size: 0.9rem; max-width: 600px; margin: 0 auto;">
+                    ⚠️ Queremos facilitar sua vida com informações mais simples, mas só um advogado pode te dar orientação correta para seu caso.
+                </p>
+            </div>
         </header>
 
         <div class="card">
             <h2 style="color: var(--primary); margin-bottom: 1.5rem;">📤 Enviar Documento</h2>
             <div id="drop-area">
-                <div style="font-size: 3rem; margin-bottom: 1rem;">📁</div>
-                <p>Arraste seu arquivo ou clique para selecionar</p>
+                <div style="font-size: 3rem; margin-bottom: 1rem;" id="fileIcon">📁</div>
+                <p style="font-size: 1.1rem; color: var(--text); margin-bottom: 1rem;">
+                    Arraste seu arquivo ou clique para selecionar
+                </p>
                 <input type="file" id="fileInput" accept=".pdf,image/*" style="display: none;">
                 <button class="button" onclick="document.getElementById('fileInput').click()">
-                    📎 Escolher Arquivo
+                    <span>📎</span> Escolher Arquivo
                 </button>
                 <p style="font-size: 0.875rem; color: var(--text-muted); margin-top: 1rem;">
-                    Máximo: 10MB | PDF ou Imagens
+                    Máximo: 10MB | Detecção automática do tipo de documento
                 </p>
             </div>
         </div>
 
         <div class="card">
             <h2 style="color: var(--primary); margin-bottom: 1.5rem;">✍️ Ou Cole o Texto</h2>
-            <textarea id="manualText" placeholder="Cole o texto jurídico aqui..." 
-                style="width: 100%; min-height: 150px; padding: 1rem; border: 2px solid var(--border); border-radius: 8px; font-family: inherit; font-size: 1rem;"></textarea>
-            <div style="margin-top: 1rem;">
-                <button class="button" onclick="processManualText()">🔄 Simplificar Texto</button>
-                <button class="button" style="background: var(--danger); margin-left: 1rem;" onclick="clearAll()">🗑️ Limpar</button>
+            <textarea id="manualText" placeholder="Cole aqui o texto jurídico que deseja simplificar..." 
+                style="width: 100%; min-height: 150px; padding: 1rem; border: 2px solid var(--border); border-radius: 8px; font-family: inherit; font-size: 1rem; resize: vertical;"></textarea>
+            <div style="display: flex; gap: 1rem; margin-top: 1rem; flex-wrap: wrap;">
+                <button class="button" onclick="processManualText()">
+                    <span>🔄</span> Simplificar Texto
+                </button>
+                <button class="button" style="background: var(--danger);" onclick="clearAll()">
+                    <span>🗑️</span> Limpar Tudo
+                </button>
+                <button class="button" style="background: var(--warning); color: var(--dark); margin-left: auto;" onclick="loadExample()">
+                    <span>📝</span> Exemplo
+                </button>
             </div>
         </div>
 
         <div id="resultSection" style="display: none;">
             <div class="card">
-                <h2 style="color: var(--primary); margin-bottom: 1.5rem;">✅ Resultado</h2>
-                <div id="simplifiedText" style="background: var(--light); padding: 1.5rem; border-radius: 8px; max-height: 500px; overflow-y: auto;"></div>
-                <div style="margin-top: 1rem;">
-                    <a href="/download_pdf" class="button">📥 Baixar PDF</a>
-                    <button class="button" onclick="copyText()">📋 Copiar</button>
+                <h2 style="color: var(--primary); margin-bottom: 1.5rem;">✅ Resultado Simplificado</h2>
+                
+                <div id="docTypeInfo" style="text-align: center; margin-bottom: 2rem; display: none;">
+                    <div class="doc-type-badge">
+                        <span id="docTypeIcon">📄</span>
+                        <span id="docTypeName">Documento Jurídico</span>
+                    </div>
+                    <div class="confidence-indicator" style="justify-content: center;">
+                        <span>Confiança:</span>
+                        <div class="confidence-bar">
+                            <div class="confidence-fill" id="confidenceFill"></div>
+                        </div>
+                        <span id="confidencePercent">0%</span>
+                    </div>
+                </div>
+                
+                <div id="resultAnalysis" style="margin-bottom: 1.5rem;"></div>
+                
+                <div id="simplifiedText" style="background: var(--light); padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem; max-height: 500px; overflow-y: auto;"></div>
+                
+                <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                    <a href="/download_pdf" class="button" id="downloadBtn">
+                        <span>📥</span> Baixar PDF
+                    </a>
+                    <button class="button" onclick="copyText()">
+                        <span>📋</span> Copiar Texto
+                    </button>
                 </div>
             </div>
         </div>
@@ -187,14 +292,24 @@
     <script>
         const MAX_FILE_SIZE = 10 * 1024 * 1024;
         const ALLOWED_EXTENSIONS = ['pdf', 'png', 'jpg', 'jpeg', 'gif', 'bmp', 'tiff', 'webp'];
+        const IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'tiff', 'webp'];
         let isProcessing = false;
 
         const fileInput = document.getElementById('fileInput');
         const dropArea = document.getElementById('drop-area');
+        const fileIcon = document.getElementById('fileIcon');
 
         // Prevent defaults
         ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
             dropArea.addEventListener(eventName, e => { e.preventDefault(); e.stopPropagation(); }, false);
+        });
+
+        // Highlight on drag
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropArea.addEventListener(eventName, () => fileIcon.textContent = '📥', false);
+        });
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, () => fileIcon.textContent = '📁', false);
         });
 
         // Drop handler
@@ -207,10 +322,10 @@
             const file = files[0];
             const ext = file.name.split('.').pop().toLowerCase();
             
-            console.log('Arquivo:', file.name, 'Tamanho:', file.size);
+            console.log('✅ Arquivo selecionado:', file.name, 'Tamanho:', file.size, 'Tipo:', ext);
             
             if (!ALLOWED_EXTENSIONS.includes(ext)) {
-                showToast('Formato inválido', 'error');
+                showToast('Formato inválido. Use: PDF ou Imagens', 'error');
                 return;
             }
             
@@ -219,18 +334,26 @@
                 return;
             }
             
+            if (file.size === 0) {
+                showToast('Arquivo está vazio', 'error');
+                return;
+            }
+            
+            // Atualizar ícone
+            fileIcon.textContent = IMAGE_EXTENSIONS.includes(ext) ? '🖼️' : '📄';
+            
             uploadFile(file);
         }
 
         function uploadFile(file) {
             if (isProcessing) {
-                showToast('Aguarde o processamento atual', 'error');
+                showToast('Aguarde o processamento atual', 'warning');
                 return;
             }
             
-            console.log('Iniciando upload...');
+            console.log('▶️ Iniciando upload...');
             isProcessing = true;
-            showLoading('Processando...');
+            showLoading('Analisando documento...');
             
             const formData = new FormData();
             formData.append('file', file);
@@ -240,22 +363,26 @@
                 body: formData
             })
             .then(response => {
-                console.log('Status:', response.status);
+                console.log('📡 Status HTTP:', response.status);
                 if (!response.ok) {
                     return response.json().then(data => {
-                        throw new Error(data.erro || 'Erro ao processar');
+                        throw new Error(data.erro || 'Erro ao processar arquivo');
                     });
                 }
                 return response.json();
             })
             .then(data => {
-                console.log('Sucesso:', data);
+                console.log('✅ Sucesso:', data);
                 showResult(data);
-                showToast('Processado com sucesso!', 'success');
+                if (data.tipo_documento) {
+                    showToast(`${data.tipo_documento.nome} identificado (${data.tipo_documento.confianca}% confiança)`, 'success', 4000);
+                } else {
+                    showToast('Documento processado com sucesso!', 'success');
+                }
             })
             .catch(error => {
-                console.error('Erro:', error);
-                showToast(error.message, 'error');
+                console.error('❌ Erro:', error);
+                showToast(error.message, 'error', 5000);
             })
             .finally(() => {
                 isProcessing = false;
@@ -266,15 +393,20 @@
         function processManualText() {
             const text = document.getElementById('manualText').value.trim();
             
-            if (!text || text.length < 20) {
-                showToast('Texto muito curto (mín 20 caracteres)', 'error');
+            if (!text) {
+                showToast('Por favor, insira algum texto', 'warning');
+                return;
+            }
+            
+            if (text.length < 20) {
+                showToast('Texto muito curto (mín 20 caracteres)', 'warning');
                 return;
             }
             
             if (isProcessing) return;
             
             isProcessing = true;
-            showLoading('Processando texto...');
+            showLoading('Detectando tipo de documento...');
             
             fetch('/processar_texto', {
                 method: 'POST',
@@ -282,15 +414,23 @@
                 body: JSON.stringify({ texto: text })
             })
             .then(response => {
-                if (!response.ok) throw new Error('Erro ao processar');
+                if (!response.ok) {
+                    return response.json().then(data => {
+                        throw new Error(data.erro || 'Erro ao processar');
+                    });
+                }
                 return response.json();
             })
             .then(data => {
                 showResult(data);
-                showToast('Processado!', 'success');
+                if (data.tipo_documento) {
+                    showToast(`${data.tipo_documento.nome} detectado (${data.tipo_documento.confianca}% confiança)`, 'success', 5000);
+                } else {
+                    showToast('Texto processado!', 'success');
+                }
             })
             .catch(error => {
-                showToast(error.message, 'error');
+                showToast(error.message, 'error', 5000);
             })
             .finally(() => {
                 isProcessing = false;
@@ -299,22 +439,171 @@
         }
 
         function showResult(data) {
-            document.getElementById('simplifiedText').innerHTML = data.texto.replace(/\n/g, '<br>');
+            // Show document type
+            if (data.tipo_documento) {
+                document.getElementById('docTypeInfo').style.display = 'block';
+                document.getElementById('docTypeIcon').textContent = data.tipo_documento.icone || '📄';
+                document.getElementById('docTypeName').textContent = data.tipo_documento.nome || 'Documento Jurídico';
+                
+                const confidence = data.tipo_documento.confianca || 0;
+                document.getElementById('confidencePercent').textContent = confidence + '%';
+                document.getElementById('confidenceFill').style.width = confidence + '%';
+            }
+            
+            // Show analysis
+            if (data.analise) {
+                showResultAnalysis(data.analise);
+            }
+            
+            // Format and display text with proper formatting for icons
+            const formattedText = formatResultText(data.texto);
+            document.getElementById('simplifiedText').innerHTML = formattedText;
+            
+            // Show result section
             document.getElementById('resultSection').style.display = 'block';
-            document.getElementById('resultSection').scrollIntoView({ behavior: 'smooth' });
+            document.getElementById('resultSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function showResultAnalysis(analise) {
+            let html = '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem;">';
+            
+            if (analise.tipo_documento) {
+                html += `<div style="background: var(--info-bg); padding: 1rem; border-radius: 8px; text-align: center; border: 2px solid var(--primary);">
+                    <div style="font-size: 2rem;">📋</div>
+                    <div style="font-weight: bold; margin-top: 0.5rem; color: var(--primary);">${analise.tipo_documento}</div>
+                </div>`;
+            }
+            
+            let resultIcon = '📄';
+            let resultText = 'Processado';
+            let resultBg = 'var(--light)';
+            
+            if (analise.tipo_resultado === 'vitoria') {
+                resultIcon = '✅';
+                resultText = 'Resultado Favorável';
+                resultBg = 'var(--success-bg)';
+            } else if (analise.tipo_resultado === 'derrota') {
+                resultIcon = '❌';
+                resultText = 'Resultado Desfavorável';
+                resultBg = 'var(--error-bg)';
+            }
+            
+            html += `<div style="background: ${resultBg}; padding: 1rem; border-radius: 8px; text-align: center;">
+                <div style="font-size: 2rem;">${resultIcon}</div>
+                <div style="font-weight: bold; margin-top: 0.5rem;">${resultText}</div>
+            </div>`;
+            
+            if (analise.tem_valores) {
+                html += `<div style="background: var(--light); padding: 1rem; border-radius: 8px; text-align: center;">
+                    <div style="font-size: 2rem;">💰</div>
+                    <div style="font-weight: bold; margin-top: 0.5rem;">Contém Valores</div>
+                </div>`;
+            }
+            
+            if (analise.tem_prazos) {
+                html += `<div style="background: var(--light); padding: 1rem; border-radius: 8px; text-align: center;">
+                    <div style="font-size: 2rem;">📅</div>
+                    <div style="font-weight: bold; margin-top: 0.5rem;">Contém Prazos</div>
+                </div>`;
+            }
+            
+            html += '</div>';
+            document.getElementById('resultAnalysis').innerHTML = html;
+        }
+
+        function formatResultText(text) {
+            let formatted = text;
+            
+            // Bold
+            formatted = formatted.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+            
+            // Icons with colors
+            const iconPatterns = [
+                { icon: '📊', color: 'var(--primary)' },
+                { icon: '📑', color: 'var(--secondary)' },
+                { icon: '⚖️', color: 'var(--primary)' },
+                { icon: '💰', color: 'var(--warning)' },
+                { icon: '📅', color: 'var(--primary)' },
+                { icon: '⏰', color: 'var(--danger)' },
+                { icon: '📚', color: 'var(--secondary)' },
+                { icon: '✅', color: 'var(--secondary)' },
+                { icon: '❌', color: 'var(--danger)' },
+                { icon: '⚠️', color: 'var(--warning)' },
+                { icon: '📤', color: 'var(--primary)' }
+            ];
+            
+            iconPatterns.forEach(pattern => {
+                const regex = new RegExp(`(${pattern.icon}[^\\n]+)`, 'g');
+                formatted = formatted.replace(regex, `<div style="color: ${pattern.color}; font-weight: bold; margin: 1rem 0; font-size: 1.1rem;">$1</div>`);
+            });
+            
+            // Line breaks
+            formatted = formatted.replace(/\n/g, '<br>');
+            
+            return formatted;
         }
 
         function copyText() {
-            const text = document.getElementById('simplifiedText').textContent;
-            navigator.clipboard.writeText(text).then(() => {
-                showToast('Texto copiado!', 'success');
-            });
+            const element = document.getElementById('simplifiedText');
+            const text = element.innerText || element.textContent;
+            
+            if (!text) {
+                showToast('Nenhum texto para copiar', 'warning');
+                return;
+            }
+            
+            navigator.clipboard.writeText(text)
+                .then(() => showToast('Texto copiado com sucesso!', 'success'))
+                .catch(() => {
+                    const textarea = document.createElement('textarea');
+                    textarea.value = text;
+                    document.body.appendChild(textarea);
+                    textarea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textarea);
+                    showToast('Texto copiado!', 'success');
+                });
         }
 
         function clearAll() {
             document.getElementById('manualText').value = '';
             document.getElementById('resultSection').style.display = 'none';
             fileInput.value = '';
+            fileIcon.textContent = '📁';
+            showToast('Tudo limpo!', 'info');
+        }
+
+        function loadExample() {
+            const exampleText = `SENTENÇA
+
+Processo nº 1234567-89.2024.8.26.0100
+
+Vistos.
+
+JOÃO DA SILVA ajuizou AÇÃO DE COBRANÇA em face de EMPRESA XYZ LTDA, alegando que celebrou contrato de prestação de serviços no valor de R$ 15.000,00, tendo cumprido sua parte, porém não recebeu o pagamento.
+
+A ré foi citada, mas não contestou, tornando-se revel.
+
+É o relatório. DECIDO.
+
+FUNDAMENTAÇÃO
+
+O feito comporta julgamento antecipado. A revelia acarreta presunção de veracidade dos fatos alegados.
+
+O autor comprovou a relação contratual e o inadimplemento da ré.
+
+DISPOSITIVO
+
+Ante o exposto, JULGO PROCEDENTE o pedido para CONDENAR a ré a pagar ao autor R$ 15.000,00, corrigidos desde o vencimento e acrescidos de juros de 1% ao mês.
+
+Condeno a ré ao pagamento de custas e honorários de 10% sobre o valor da condenação.
+
+P.R.I.
+
+São Paulo, 15 de setembro de 2024.`;
+            
+            document.getElementById('manualText').value = exampleText;
+            showToast('Exemplo carregado! Clique em "Simplificar Texto"', 'info', 4000);
         }
 
         function showLoading(text) {
@@ -326,14 +615,16 @@
             document.getElementById('loadingOverlay').classList.remove('show');
         }
 
-        function showToast(message, type = 'info') {
+        function showToast(message, type = 'info', duration = 3000) {
             const toast = document.getElementById('toast');
-            toast.textContent = message;
+            const icons = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
+            toast.textContent = (icons[type] || '') + ' ' + message;
             toast.className = `toast ${type} show`;
-            setTimeout(() => toast.classList.remove('show'), 3000);
+            setTimeout(() => toast.classList.remove('show'), duration);
         }
 
-        console.log('✅ JavaScript carregado corretamente');
+        console.log('✅ JavaScript carregado e pronto!');
+        console.log('📋 Extensions permitidas:', ALLOWED_EXTENSIONS);
     </script>
 </body>
 </html>
