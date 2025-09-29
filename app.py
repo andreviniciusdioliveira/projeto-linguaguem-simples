@@ -180,10 +180,14 @@ def detectar_tipo_documento(texto):
         padroes_encontrados = []
         
         for padrao in info["padroes"]:
-            matches = re.findall(padrao, texto_normalizado, re.IGNORECASE)
-            if matches:
-                pontos += len(matches) * info["peso"]
-                padroes_encontrados.append(padrao)
+            try:
+                matches = re.findall(padrao, texto_normalizado, re.IGNORECASE)
+                if matches:
+                    pontos += len(matches) * info["peso"]
+                    padroes_encontrados.append(padrao)
+            except Exception as e:
+                logging.error(f"Erro no padrão {padrao}: {e}")
+                continue
         
         if pontos > 0:
             pontuacoes[tipo] = {
@@ -193,6 +197,7 @@ def detectar_tipo_documento(texto):
             }
     
     if not pontuacoes:
+        logging.info("Nenhum tipo específico detectado, usando genérico")
         return {
             "tipo": "documento_generico",
             "nome": "Documento Jurídico",
@@ -202,14 +207,16 @@ def detectar_tipo_documento(texto):
             "padroes_encontrados": []
         }
     
+    # Pegar o tipo com maior pontuação
     tipo_detectado = max(pontuacoes.items(), key=lambda x: x[1]["pontos"])
     tipo_id = tipo_detectado[0]
     dados = tipo_detectado[1]
     
+    # Calcular confiança
     max_pontos = len(TIPOS_DOCUMENTOS[tipo_id]["padroes"]) * TIPOS_DOCUMENTOS[tipo_id]["peso"] * 3
     confianca = min(100, int((dados["pontos"] / max_pontos) * 100))
     
-    return {
+    resultado = {
         "tipo": tipo_id,
         "nome": dados["info"]["nome"],
         "icone": dados["info"]["icone"],
@@ -217,53 +224,189 @@ def detectar_tipo_documento(texto):
         "descricao": dados["info"]["descricao"],
         "padroes_encontrados": dados["padroes"][:5]
     }
+    
+    logging.info(f"Tipo detectado: {resultado['nome']} com {confianca}% de confiança")
+    
+    return resultado
 
 # ============================================================================
-# PROMPTS
+# PROMPTS ESPECÍFICOS POR TIPO DE DOCUMENTO
 # ============================================================================
 
-PROMPT_BASE = """**INSTRUÇÕES CRÍTICAS:**
+PROMPT_SENTENCA = """**INSTRUÇÕES CRÍTICAS - SENTENÇA JUDICIAL:**
 
-Você está simplificando um documento jurídico. Tipo detectado: {tipo_documento}
+Você está analisando uma SENTENÇA JUDICIAL. Este é o documento que ENCERRA o processo de primeiro grau.
+
+**ESTRUTURA OBRIGATÓRIA DA ANÁLISE:**
+
+1. **IDENTIFICAÇÃO** ⚖️
+   - Tipo: Sentença Judicial
+   - Número do processo: [extrair exatamente como está]
+   - Juiz(a): [nome completo]
+   - Vara/Comarca: [identificar]
+   - Partes:
+     * Autor(es): [nome completo]
+     * Réu(s): [nome completo]
+
+2. **RESULTADO DA SENTENÇA** 🎯 (MAIS IMPORTANTE)
+   
+   **ATENÇÃO MÁXIMA:** Procure SEMPRE pela seção "DISPOSITIVO", "ANTE O EXPOSTO", "DIANTE DO EXPOSTO" ou "ISTO POSTO"
+   
+   Identificação PRECISA do resultado:
+   
+   ✅ **AUTOR GANHOU TOTALMENTE** se encontrar:
+   - "JULGO PROCEDENTE o pedido"
+   - "JULGO PROCEDENTE a ação"
+   - "CONDENO o réu a pagar"
+   - "DEFIRO o pedido"
+   
+   ❌ **AUTOR PERDEU** se encontrar:
+   - "JULGO IMPROCEDENTE"
+   - "JULGO IMPROCEDENTE o pedido"
+   - "CONDENO o autor ao pagamento de honorários"
+   - "INDEFIRO o pedido"
+   
+   ⚠️ **VITÓRIA PARCIAL** se encontrar:
+   - "JULGO PARCIALMENTE PROCEDENTE"
+   - Parte dos pedidos foi deferida
+   
+   🚫 **PROCESSO EXTINTO SEM JULGAMENTO DE MÉRITO** se encontrar:
+   - "EXTINGO o processo SEM RESOLUÇÃO DE MÉRITO"
+
+3. **FORMATAÇÃO DA RESPOSTA**
+
+📊 **RESUMO EXECUTIVO**
+[Ícone apropriado: ✅/❌/⚠️/🚫] **[VITÓRIA TOTAL/DERROTA/VITÓRIA PARCIAL/EXTINÇÃO]**
+
+**Em uma frase:** [Explicar o resultado em linguagem muito clara - exemplo: "O juiz decidiu que a empresa deve pagar R$ 15.000 ao autor"]
+
+📑 **O QUE ACONTECEU**
+[Explicar em 3-5 linhas o contexto: qual era a disputa]
+
+⚖️ **O QUE O JUIZ DECIDIU**
+[Detalhar a decisão em linguagem simples, parágrafo por parágrafo]
+- Fundamentos principais
+- Cada pedido e se foi aceito ou negado
+
+💰 **VALORES E OBRIGAÇÕES**
+• Valor da causa: R$ [se houver]
+• Valores que o AUTOR vai receber: R$ [detalhar]
+• Valores que o RÉU tem que pagar: R$ [detalhar]
+• Honorários advocatícios: [percentual] = R$ [valor]
+• Custas processuais: [quem paga]
+• Correção monetária: [desde quando]
+• Juros: [percentual e desde quando]
+
+⏰ **PRAZOS IMPORTANTES**
+• Prazo para recurso: [geralmente 15 dias]
+• Outras obrigações com prazo
+
+📚 **MINI DICIONÁRIO DOS TERMOS JURÍDICOS**
+[Apenas termos que APARECEM no texto original]
+• **Termo 1:** Explicação simples
+• **Termo 2:** Explicação simples
+• **Termo 3:** Explicação simples
+
+📤 **PODE RECORRER?**
+• Tipo de recurso: Apelação
+• Prazo: 15 dias úteis
+• Para quem: Tribunal [identificar]
+
+---
+
+**REGRAS ABSOLUTAS:**
+1. ❌ NUNCA invente informações que não estão no texto
+2. ❌ NUNCA adicione valores que não foram mencionados
+3. ❌ NUNCA especule sobre possíveis recursos ou consequências
+4. ✅ Se algo não estiver claro no texto, escreva "Não informado no documento"
+5. ✅ Transcreva nomes, números de processo e valores EXATAMENTE como aparecem
+6. ✅ Use frases com máximo 20 palavras
+7. ✅ Mantenha tom respeitoso e neutro
+
+**TEXTO DA SENTENÇA:**
+{texto}
+
+---
+*Documento processado em: {data}*
+*Este é um resumo simplificado. Consulte seu advogado para orientações específicas.*
+"""
+
+PROMPT_GENERICO = """**INSTRUÇÕES CRÍTICAS - DOCUMENTO JURÍDICO:**
+
+Você está analisando um DOCUMENTO JURÍDICO: {tipo_documento}
+
+**ESTRUTURA OBRIGATÓRIA:**
+
+1. **IDENTIFICAÇÃO** 📋
+   - Tipo: {tipo_documento}
+   - Processo: [se houver]
+   - Partes: [se identificáveis]
+
+2. **ANÁLISE DO RESULTADO**
+   [Identifique o objetivo e resultado do documento]
+
+3. **FORMATAÇÃO DA RESPOSTA**
+
+📊 **RESUMO EXECUTIVO**
+[Ícone apropriado] **[STATUS/RESULTADO]**
+
+**Em uma frase:** [Explicar o propósito/resultado do documento]
+
+📑 **O QUE ACONTECEU**
+[Explicar o contexto em 3-5 linhas]
+
+📋 **CONTEÚDO PRINCIPAL**
+[Explicar o conteúdo em linguagem simples]
+
+💰 **VALORES E OBRIGAÇÕES** (se houver)
+• Valores mencionados: R$ [listar]
+• Obrigações: [detalhar]
+
+⏰ **PRAZOS IMPORTANTES** (se houver)
+• Prazo: [X dias]
+• Para fazer: [ação específica]
+
+📚 **MINI DICIONÁRIO DOS TERMOS JURÍDICOS**
+[Apenas termos que APARECEM no texto]
+• **Termo 1:** Explicação simples e clara
+• **Termo 2:** Explicação simples e clara
+• **Termo 3:** Explicação simples e clara
+
+---
 
 **REGRAS ABSOLUTAS:**
 1. ❌ NUNCA invente informações
 2. ❌ NUNCA adicione valores não mencionados
 3. ✅ Use APENAS o que está no texto
-4. ✅ Se não souber, escreva "Não informado"
+4. ✅ Se não souber, escreva "Não informado no documento"
 5. ✅ Transcreva nomes e números EXATAMENTE
+6. ✅ Use frases com máximo 20 palavras
+7. ✅ Explique todos os termos jurídicos que aparecem no texto
 
-**ESTRUTURA:**
-
-📊 **RESUMO**
-[Explique em 1 frase o que é este documento]
-
-📑 **CONTEÚDO PRINCIPAL**
-[Explique o conteúdo em linguagem simples]
-
-💰 **VALORES** (se houver)
-[Liste valores mencionados]
-
-⏰ **PRAZOS** (se houver)
-[Liste prazos mencionados]
-
-📚 **TERMOS EXPLICADOS**
-[Apenas termos que aparecem no texto]
+**TEXTO DO DOCUMENTO:**
+{texto}
 
 ---
 *Documento processado em: {data}*
-*Consulte um advogado para orientações.*
-
-**TEXTO ORIGINAL:**
-{texto}
+*Este é um resumo simplificado. Consulte seu advogado para orientações específicas.*
 """
 
 def gerar_prompt_completo(texto, tipo_detectado):
-    """Gera prompt baseado no tipo"""
-    return PROMPT_BASE.format(
-        tipo_documento=tipo_detectado["nome"],
-        data=datetime.now().strftime('%d/%m/%Y %H:%M'),
-        texto=texto
+    """Gera prompt baseado no tipo detectado"""
+    
+    tipo = tipo_detectado.get("tipo", "documento_generico")
+    nome = tipo_detectado.get("nome", "Documento Jurídico")
+    data = datetime.now().strftime('%d/%m/%Y às %H:%M')
+    
+    # Usar prompt específico para sentença
+    if tipo == "sentenca":
+        return PROMPT_SENTENCA.format(texto=texto, data=data)
+    
+    # Prompt genérico para outros tipos
+    return PROMPT_GENERICO.format(
+        tipo_documento=nome,
+        texto=texto,
+        data=data
     )
 
 # ============================================================================
@@ -401,19 +544,31 @@ def extrair_texto_pdf(pdf_bytes):
 def simplificar_com_gemini(texto, max_retries=3):
     """Chama Gemini API"""
     
-    # Detectar tipo
+    # Detectar tipo SEMPRE
+    logging.info("=" * 50)
+    logging.info("INICIANDO DETECÇÃO DE TIPO DE DOCUMENTO")
+    logging.info(f"Tamanho do texto: {len(texto)} caracteres")
+    logging.info(f"Primeiros 200 caracteres: {texto[:200]}")
+    
     tipo_detectado = detectar_tipo_documento(texto)
-    logging.info(f"Tipo: {tipo_detectado['nome']} ({tipo_detectado['confianca']}%)")
+    
+    logging.info(f"TIPO DETECTADO: {tipo_detectado['nome']}")
+    logging.info(f"CONFIANÇA: {tipo_detectado['confianca']}%")
+    logging.info(f"ÍCONE: {tipo_detectado['icone']}")
+    logging.info(f"PADRÕES ENCONTRADOS: {len(tipo_detectado['padroes_encontrados'])}")
+    logging.info("=" * 50)
     
     # Cache
     texto_hash = hashlib.md5(texto.encode()).hexdigest()
     if texto_hash in results_cache:
         cache_entry = results_cache[texto_hash]
         if time.time() - cache_entry["timestamp"] < CACHE_EXPIRATION:
+            logging.info("Usando resultado do cache")
             return cache_entry["result"], None, tipo_detectado
     
     # Gerar prompt
     prompt = gerar_prompt_completo(texto, tipo_detectado)
+    logging.info(f"Prompt gerado com {len(prompt)} caracteres")
     
     headers = {
         "Content-Type": "application/json",
@@ -421,7 +576,7 @@ def simplificar_com_gemini(texto, max_retries=3):
     }
     
     for tentativa, modelo in enumerate(GEMINI_MODELS):
-        logging.info(f"Tentando {modelo['name']}")
+        logging.info(f"Tentativa {tentativa + 1}: Usando {modelo['name']}")
         
         payload = {
             "contents": [{
@@ -455,7 +610,9 @@ def simplificar_com_gemini(texto, max_retries=3):
                         "tipo_documento": tipo_detectado
                     }
                     
-                    logging.info(f"Sucesso com {modelo['name']}")
+                    logging.info(f"✅ Sucesso com {modelo['name']}")
+                    logging.info(f"Texto simplificado: {len(texto_simplificado)} caracteres")
+                    
                     return texto_simplificado, None, tipo_detectado
                     
         except Exception as e:
