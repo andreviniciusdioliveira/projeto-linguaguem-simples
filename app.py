@@ -38,56 +38,34 @@ app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", os.urandom(24))
 logging.basicConfig(level=logging.INFO)
 
+
 # --- Configurações ---
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-# Modelos Gemini disponíveis - URLs CORRETAS (v1 e v1beta como fallback)
+# Modelos Gemini disponíveis (do mais barato/rápido ao mais caro/potente)
 GEMINI_MODELS = [
     {
         "name": "gemini-1.5-flash-8b",
-        "urls": [
-            "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-8b:generateContent",
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-8b:generateContent"
-        ],
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-8b:generateContent",
         "max_tokens": 8192,
-        "max_input_tokens": 1000000,
         "priority": 1
     },
     {
         "name": "gemini-1.5-flash",
-        "urls": [
-            "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent",
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
-        ],
-        "max_tokens": 8192,
-        "max_input_tokens": 1000000,
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent",
+        "max_tokens": 32000,
         "priority": 2
     },
     {
-        "name": "gemini-1.5-pro",
-        "urls": [
-            "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-pro:generateContent",
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent"
-        ],
-        "max_tokens": 8192,
-        "max_input_tokens": 2000000,
+        "name": "gemini-2.0-flash-exp",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent",
+        "max_tokens": 40000,
         "priority": 3
-    },
-    {
-        "name": "gemini-pro",
-        "urls": [
-            "https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent",
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent"
-        ],
-        "max_tokens": 8192,
-        "max_input_tokens": 30000,
-        "priority": 4
     }
 ]
 
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
-ALLOWED_EXTENSIONS = {'pdf', 'png', 'jpg', 'jpeg', 'gif', 'bmp', 'tiff', 'webp'}
-ALLOWED_IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'tiff', 'webp'}
+ALLOWED_EXTENSIONS = {'pdf'}
 TEMP_DIR = tempfile.gettempdir()
 
 # Rate limiting
@@ -101,31 +79,6 @@ CACHE_EXPIRATION = 3600  # 1 hora
 
 # Estatísticas de uso dos modelos
 model_usage_stats = {model["name"]: {"attempts": 0, "successes": 0, "failures": 0} for model in GEMINI_MODELS}
-
-def verificar_tesseract():
-    """Verifica se o Tesseract está disponível e configurado"""
-    try:
-        result = subprocess.run(['tesseract', '--version'], 
-                              capture_output=True, text=True, check=True, timeout=10)
-        version = result.stdout.split('\n')[0]
-        logging.info(f"Tesseract detectado: {version}")
-        
-        # Verificar idiomas disponíveis
-        langs_result = subprocess.run(['tesseract', '--list-langs'], 
-                                    capture_output=True, text=True, check=True, timeout=10)
-        langs = langs_result.stdout.strip().split('\n')[1:]
-        logging.info(f"Idiomas disponíveis: {langs}")
-        
-        if 'por' not in langs:
-            logging.warning("Português não disponível no Tesseract")
-            
-        return True, version, langs
-    except Exception as e:
-        logging.error(f"Tesseract não está disponível: {e}")
-        return False, None, []
-
-# Verificar Tesseract na inicialização
-TESSERACT_AVAILABLE, TESSERACT_VERSION, TESSERACT_LANGS = verificar_tesseract()
 
 def cleanup_old_requests():
     with cleanup_lock:
@@ -1357,3 +1310,4 @@ cleanup_thread.start()
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8080))
     app.run(host="0.0.0.0", port=port, debug=False)
+
