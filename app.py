@@ -162,7 +162,7 @@ PROMPT_SIMPLIFICACAO = """**Papel:** Você é um especialista em linguagem simpl
 **ESTRUTURA DE ANÁLISE OBRIGATÓRIA:**
 
 1. IDENTIFICAÇÃO DO DOCUMENTO
-- Tipo: [Sentença/Despacho/Decisão/Acórdão]
+- Tipo: [Sentença/Despacho/Decisão/Acórdão/Mandado/Intimação]
 - Número do processo: [identificar]
 - Partes envolvidas: [Autor x Réu]
 - Assunto principal: [identificar]
@@ -1353,3 +1353,5 @@ cleanup_thread.start()
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8080))
     app.run(host="0.0.0.0", port=port, debug=False)
+
+
