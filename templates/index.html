@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Entenda aqui - PDF e Imagens | Desenvolvido por INOVASSOL - Centro de Inovação AI</title>
     <meta name="description" content="Transforme documentos jurídicos complexos (PDF e imagens) em linguagem simples e acessível usando inteligência artificial">
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='50%' x='50%' text-anchor='middle' font-size='80'></text></svg>">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='50%' x='50%' text-anchor='middle' font-size='80'>⚖️</text></svg>">
     
     <style>
         :root {
@@ -1079,8 +1079,34 @@
         // Preload audio files
         avatarAudio.start.preload = 'auto';
         avatarAudio.finish.preload = 'auto';
+        
+        // Flag to track if audio context is unlocked (for mobile)
+        let audioUnlocked = false;
 
-        // Function to play avatar audio
+        // Unlock audio on first user interaction (mobile requirement)
+        function unlockAudio() {
+            if (audioUnlocked) return;
+            
+            // Try to play and immediately pause to unlock audio context
+            Object.values(avatarAudio).forEach(audio => {
+                audio.play().then(() => {
+                    audio.pause();
+                    audio.currentTime = 0;
+                }).catch(() => {
+                    // Ignore errors during unlock
+                });
+            });
+            
+            audioUnlocked = true;
+            console.log('Audio unlocked for mobile');
+        }
+
+        // Add unlock listeners for mobile
+        ['click', 'touchstart', 'touchend'].forEach(event => {
+            document.addEventListener(event, unlockAudio, { once: true });
+        });
+
+        // Function to play avatar audio with mobile support
         function playAvatarAudio(type) {
             try {
                 // Stop any currently playing audio
@@ -1091,13 +1117,52 @@
 
                 // Play the requested audio
                 if (avatarAudio[type]) {
-                    avatarAudio[type].play().catch(err => {
-                        console.log('Audio playback prevented:', err);
-                    });
+                    const playPromise = avatarAudio[type].play();
+                    
+                    if (playPromise !== undefined) {
+                        playPromise
+                            .then(() => {
+                                console.log(`Audio ${type} playing successfully`);
+                            })
+                            .catch(err => {
+                                console.log('Audio playback prevented (user interaction may be needed):', err);
+                                // Show visual feedback if audio can't play
+                                showAudioFeedback(type);
+                            });
+                    }
                 }
             } catch (error) {
                 console.log('Error playing audio:', error);
+                showAudioFeedback(type);
             }
+        }
+
+        // Visual feedback when audio can't play (fallback for mobile)
+        function showAudioFeedback(type) {
+            const avatar = document.getElementById('avatar');
+            if (!avatar) return;
+            
+            // Add a visual "speaking" effect
+            avatar.style.transition = 'all 0.1s ease';
+            
+            let pulseCount = 0;
+            const maxPulses = type === 'start' ? 8 : 10;
+            
+            const pulseInterval = setInterval(() => {
+                if (pulseCount >= maxPulses) {
+                    clearInterval(pulseInterval);
+                    avatar.style.transform = '';
+                    return;
+                }
+                
+                if (pulseCount % 2 === 0) {
+                    avatar.style.transform = 'scale(1.05)';
+                } else {
+                    avatar.style.transform = 'scale(1)';
+                }
+                
+                pulseCount++;
+            }, 150);
         }
 
         const avatarMessages = {
@@ -1200,6 +1265,9 @@
             const bubble = document.getElementById('speechBubble');
             if (!bubble) return;
             
+            // Unlock audio on interaction
+            unlockAudio();
+            
             if (bubble.classList.contains('show')) {
                 bubble.classList.remove('show');
             } else {
@@ -1289,9 +1357,12 @@
         }
 
         // ============================================
-        // INTEGRATION FUNCTIONS - Com áudio
+        // INTEGRATION FUNCTIONS - Com áudio e suporte mobile
         // ============================================
         function onFileUploadStart() {
+            // Unlock audio context first (for mobile)
+            unlockAudio();
+            
             avatarSpeak('processing');
             // Tocar áudio "vou começar"
             playAvatarAudio('start');
@@ -1312,6 +1383,8 @@
         }
 
         function onFileSelected() {
+            // Unlock audio on file selection (user interaction)
+            unlockAudio();
             avatarSpeak('fileSelected');
         }
 
