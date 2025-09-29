@@ -1732,85 +1732,178 @@ def index():
 def processar():
     """Processa upload de PDF ou imagem com detecção de tipo"""
     try:
+        # Verificação inicial
         if 'file' not in request.files:
+            logging.error("Nenhum arquivo no request")
             return jsonify({"erro": "Nenhum arquivo enviado"}), 400
             
         file = request.files['file']
         if file.filename == '':
+            logging.error("Nome de arquivo vazio")
             return jsonify({"erro": "Nenhum arquivo selecionado"}), 400
-            
+        
+        logging.info(f"Arquivo recebido: {file.filename}")
+        
+        # Validar extensão
         if not allowed_file(file.filename):
+            logging.error(f"Extensão inválida: {file.filename}")
             return jsonify({"erro": "Formato inválido. Aceitos: PDF, PNG, JPG, JPEG, GIF, BMP, TIFF, WEBP"}), 400
         
+        # Verificar tamanho
         file.seek(0, os.SEEK_END)
         size = file.tell()
         file.seek(0)
         
+        logging.info(f"Tamanho do arquivo: {size} bytes ({size/1024:.2f} KB)")
+        
         if size > MAX_FILE_SIZE:
+            logging.error(f"Arquivo muito grande: {size} bytes")
             return jsonify({"erro": f"Arquivo muito grande. Máximo: {MAX_FILE_SIZE//1024//1024}MB"}), 400
         
-        file_bytes = file.read()
+        if size == 0:
+            logging.error("Arquivo vazio")
+            return jsonify({"erro": "Arquivo está vazio"}), 400
+        
+        # Ler arquivo
+        try:
+            file_bytes = file.read()
+            logging.info(f"Bytes lidos: {len(file_bytes)}")
+        except Exception as e:
+            logging.error(f"Erro ao ler arquivo: {e}")
+            return jsonify({"erro": f"Erro ao ler arquivo: {str(e)}"}), 400
+        
         file_extension = file.filename.rsplit('.', 1)[1].lower()
-        
         file_hash = hashlib.md5(file_bytes).hexdigest()
-        logging.info(f"Processando arquivo: {secure_filename(file.filename)} ({size/1024:.1f}KB) - Hash: {file_hash}")
+        logging.info(f"Processando: {secure_filename(file.filename)} - Extensão: {file_extension} - Hash: {file_hash}")
         
-        if file_extension == 'pdf':
-            texto_original, metadados = extrair_texto_pdf(file_bytes)
-        elif file_extension in ALLOWED_IMAGE_EXTENSIONS:
-            try:
-                texto_original, metadados = processar_imagem_para_texto(file_bytes, file_extension.upper())
-            except ValueError as e:
-                if "OCR não está disponível" in str(e):
+        # Processar baseado no tipo
+        texto_original = None
+        metadados = {}
+        
+        try:
+            if file_extension == 'pdf':
+                logging.info("Iniciando extração de PDF")
+                texto_original, metadados = extrair_texto_pdf(file_bytes)
+                logging.info(f"PDF processado - {metadados.get('total_paginas', 0)} páginas - {len(texto_original)} caracteres")
+                
+            elif file_extension in ALLOWED_IMAGE_EXTENSIONS:
+                logging.info(f"Iniciando OCR para imagem {file_extension}")
+                
+                if not TESSERACT_AVAILABLE:
+                    logging.error("Tesseract não disponível")
                     return jsonify({
-                        "erro": "OCR não está disponível neste servidor.",
-                        "detalhes": "Entre em contato com o administrador."
+                        "erro": "OCR não está disponível neste servidor",
+                        "detalhes": "O Tesseract OCR não foi encontrado. Entre em contato com o administrador.",
+                        "diagnostico": {
+                            "tesseract_available": False,
+                            "opencv_available": CV2_AVAILABLE
+                        }
                     }), 500
-                else:
-                    raise
+                
+                try:
+                    texto_original, metadados = processar_imagem_para_texto(file_bytes, file_extension.upper())
+                    logging.info(f"OCR concluído - Qualidade: {metadados.get('qualidade_ocr')} - {len(texto_original)} caracteres")
+                    
+                    if metadados.get("qualidade_ocr") == "baixa":
+                        texto_original = "[AVISO: Qualidade do OCR baixa. Alguns trechos podem estar incorretos.]\n\n" + texto_original
+                        
+                except ValueError as ve:
+                    logging.error(f"Erro no OCR: {ve}")
+                    return jsonify({
+                        "erro": str(ve),
+                        "detalhes": "Não foi possível extrair texto da imagem"
+                    }), 500
+                    
+            else:
+                logging.error(f"Tipo não suportado: {file_extension}")
+                return jsonify({"erro": "Tipo de arquivo não suportado"}), 400
             
-            if metadados.get("qualidade_ocr") == "baixa":
-                texto_original = "[AVISO: Qualidade do OCR baixa. Alguns trechos podem estar incorretos.]\n\n" + texto_original
-        else:
-            return jsonify({"erro": "Tipo de arquivo não suportado"}), 400
+        except Exception as e:
+            logging.error(f"Erro na extração de texto: {str(e)}", exc_info=True)
+            return jsonify({
+                "erro": f"Erro ao extrair texto: {str(e)}",
+                "tipo": file_extension,
+                "detalhes": "Verifique se o arquivo não está corrompido"
+            }), 500
         
-        if len(texto_original) < 10:
-            return jsonify({"erro": "Arquivo não contém texto suficiente"}), 400
+        # Validar texto extraído
+        if not texto_original:
+            logging.error("Nenhum texto extraído")
+            return jsonify({"erro": "Não foi possível extrair texto do arquivo"}), 400
+            
+        if len(texto_original.strip()) < 10:
+            logging.error(f"Texto muito curto: {len(texto_original)} caracteres")
+            return jsonify({"erro": "Arquivo não contém texto suficiente para processar"}), 400
         
-        # Simplificar com Gemini (inclui detecção de tipo)
-        texto_simplificado, erro, tipo_documento = simplificar_com_gemini(texto_original)
+        logging.info(f"Texto extraído com sucesso: {len(texto_original)} caracteres")
         
-        if erro:
-            return jsonify({"erro": erro}), 500
-        
-        # Metadados para geração do PDF
-        metadados_geracao = {
-            "modelo": results_cache.get(hashlib.md5(texto_original.encode()).hexdigest(), {}).get("modelo", "Gemini"),
-            "tipo": metadados.get("tipo", file_extension)
-        }
-        
-        if file_extension == 'pdf':
-            metadados_geracao["paginas"] = metadados.get("total_paginas")
-            metadados_geracao["usou_ocr"] = metadados.get("usou_ocr")
-        else:
-            metadados_geracao["dimensoes"] = metadados.get("dimensoes")
-            metadados_geracao["qualidade_ocr"] = metadados.get("qualidade_ocr")
+        # Simplificar com Gemini
+        try:
+            logging.info("Iniciando simplificação com Gemini")
+            texto_simplificado, erro, tipo_documento = simplificar_com_gemini(texto_original)
+            
+            if erro:
+                logging.error(f"Erro no Gemini: {erro}")
+                return jsonify({"erro": f"Erro na IA: {erro}"}), 500
+            
+            if not texto_simplificado:
+                logging.error("Gemini retornou texto vazio")
+                return jsonify({"erro": "A IA não conseguiu processar o texto"}), 500
+                
+            logging.info(f"Simplificação concluída - Tipo: {tipo_documento.get('nome', 'N/A')} - {len(texto_simplificado)} caracteres")
+            
+        except Exception as e:
+            logging.error(f"Erro na simplificação: {str(e)}", exc_info=True)
+            return jsonify({
+                "erro": f"Erro ao simplificar: {str(e)}",
+                "detalhes": "Problema na comunicação com a IA"
+            }), 500
         
         # Gerar PDF
-        pdf_filename = f"simplificado_{file_hash[:8]}.pdf"
-        pdf_path = gerar_pdf_simplificado(texto_simplificado, metadados_geracao, tipo_documento, pdf_filename)
-        
-        session['pdf_path'] = pdf_path
-        session['pdf_filename'] = pdf_filename
+        try:
+            metadados_geracao = {
+                "modelo": results_cache.get(hashlib.md5(texto_original.encode()).hexdigest(), {}).get("modelo", "Gemini"),
+                "tipo": metadados.get("tipo", file_extension)
+            }
+            
+            if file_extension == 'pdf':
+                metadados_geracao["paginas"] = metadados.get("total_paginas")
+                metadados_geracao["usou_ocr"] = metadados.get("usou_ocr")
+            else:
+                metadados_geracao["dimensoes"] = metadados.get("dimensoes")
+                metadados_geracao["qualidade_ocr"] = metadados.get("qualidade_ocr")
+            
+            pdf_filename = f"simplificado_{file_hash[:8]}.pdf"
+            pdf_path = gerar_pdf_simplificado(texto_simplificado, metadados_geracao, tipo_documento, pdf_filename)
+            
+            session['pdf_path'] = pdf_path
+            session['pdf_filename'] = pdf_filename
+            
+            logging.info(f"PDF gerado: {pdf_filename}")
+            
+        except Exception as e:
+            logging.error(f"Erro ao gerar PDF: {str(e)}", exc_info=True)
+            # Continua mesmo se PDF falhar
+            pass
         
         # Análise do resultado
-        analise = analisar_resultado_judicial(texto_simplificado, tipo_documento)
+        try:
+            analise = analisar_resultado_judicial(texto_simplificado, tipo_documento)
+        except Exception as e:
+            logging.error(f"Erro na análise: {str(e)}")
+            analise = {
+                "tipo_resultado": "indefinido",
+                "tem_valores": False,
+                "tem_prazos": False,
+                "tipo_documento": tipo_documento.get("nome") if tipo_documento else "Não identificado"
+            }
         
+        # Resposta de sucesso
         return jsonify({
             "texto": texto_simplificado,
             "caracteres_original": len(texto_original),
             "caracteres_simplificado": len(texto_simplificado),
-            "reducao_percentual": round((1 - len(texto_simplificado)/len(texto_original)) * 100, 1),
+            "reducao_percentual": round((1 - len(texto_simplificado)/len(texto_original)) * 100, 1) if len(texto_original) > 0 else 0,
             "metadados": metadados,
             "analise": analise,
             "tipo_documento": tipo_documento,
@@ -1819,8 +1912,18 @@ def processar():
         })
         
     except Exception as e:
-        logging.error(f"Erro ao processar arquivo: {e}")
-        return jsonify({"erro": "Erro ao processar o arquivo. Verifique se não está corrompido"}), 500
+        # Log detalhado do erro
+        logging.error(f"ERRO GERAL no processamento: {str(e)}", exc_info=True)
+        import traceback
+        traceback_str = traceback.format_exc()
+        logging.error(f"Traceback completo:\n{traceback_str}")
+        
+        return jsonify({
+            "erro": "Erro inesperado ao processar arquivo",
+            "detalhes": str(e),
+            "tipo_erro": type(e).__name__,
+            "sugestao": "Tente novamente ou use um arquivo diferente"
+        }), 500
 
 @app.route("/processar_texto", methods=["POST"])
 @rate_limit
@@ -1861,21 +1964,63 @@ def processar_texto():
         logging.error(f"Erro ao processar texto: {e}")
         return jsonify({"erro": "Erro ao processar o texto"}), 500
 
+@app.route("/test_upload", methods=["POST"])
+def test_upload():
+    """Endpoint de teste para diagnóstico de upload"""
+    try:
+        info = {
+            "request_method": request.method,
+            "content_type": request.content_type,
+            "files_in_request": 'file' in request.files,
+            "form_data": dict(request.form),
+            "headers": dict(request.headers),
+            "tesseract_available": TESSERACT_AVAILABLE,
+            "opencv_available": CV2_AVAILABLE,
+            "gemini_configured": bool(GEMINI_API_KEY)
+        }
+        
+        if 'file' in request.files:
+            file = request.files['file']
+            info["filename"] = file.filename
+            info["content_type_file"] = file.content_type
+            
+            # Tentar ler primeiros bytes
+            file.seek(0)
+            first_bytes = file.read(100)
+            file.seek(0)
+            info["first_bytes"] = first_bytes.hex()[:50]
+            info["file_size"] = len(file.read())
+            
+        return jsonify(info)
+        
+    except Exception as e:
+        return jsonify({"erro": str(e), "tipo": type(e).__name__}), 500
+
 @app.route("/diagnostico")
 def diagnostico():
-    """Endpoint de diagnóstico"""
+    """Endpoint para diagnosticar problemas de OCR e configuração"""
     diagnostico_info = {
-        "tesseract_disponivel": TESSERACT_AVAILABLE,
-        "tesseract_version": TESSERACT_VERSION,
-        "tesseract_langs": TESSERACT_LANGS,
-        "opencv_disponivel": CV2_AVAILABLE,
-        "tipos_documentos_suportados": len(TIPOS_DOCUMENTOS),
-        "lista_tipos": list(TIPOS_DOCUMENTOS.keys()),
+        "status": "online",
+        "timestamp": datetime.now().isoformat(),
+        "tesseract": {
+            "disponivel": TESSERACT_AVAILABLE,
+            "version": TESSERACT_VERSION,
+            "linguas": TESSERACT_LANGS,
+            "portugues_disponivel": 'por' in TESSERACT_LANGS if TESSERACT_LANGS else False
+        },
+        "opencv": {
+            "disponivel": CV2_AVAILABLE
+        },
         "python_libs": {},
         "sistema": {},
-        "configuracao": {}
+        "configuracao": {},
+        "tipos_documentos": {
+            "total": len(TIPOS_DOCUMENTOS),
+            "lista": list(TIPOS_DOCUMENTOS.keys())
+        }
     }
     
+    # Bibliotecas Python
     try:
         import pytesseract
         diagnostico_info["python_libs"]["pytesseract"] = pytesseract.__version__
@@ -1888,12 +2033,45 @@ def diagnostico():
     except Exception as e:
         diagnostico_info["python_libs"]["opencv"] = f"Erro: {str(e)}"
     
+    try:
+        from PIL import Image
+        diagnostico_info["python_libs"]["pillow"] = Image.__version__
+    except Exception as e:
+        diagnostico_info["python_libs"]["pillow"] = f"Erro: {str(e)}"
+    
+    try:
+        import fitz
+        diagnostico_info["python_libs"]["pymupdf"] = fitz.version[0]
+    except Exception as e:
+        diagnostico_info["python_libs"]["pymupdf"] = f"Erro: {str(e)}"
+    
+    # Sistema
     import platform
     diagnostico_info["sistema"]["os"] = platform.system()
+    diagnostico_info["sistema"]["arquitetura"] = platform.machine()
     diagnostico_info["sistema"]["python_version"] = platform.python_version()
     
+    # Configurações
     diagnostico_info["configuracao"]["gemini_api_configurada"] = bool(GEMINI_API_KEY)
+    diagnostico_info["configuracao"]["gemini_models"] = len(GEMINI_MODELS)
+    diagnostico_info["configuracao"]["temp_dir"] = TEMP_DIR
     diagnostico_info["configuracao"]["max_file_size_mb"] = MAX_FILE_SIZE // 1024 // 1024
+    diagnostico_info["configuracao"]["allowed_extensions"] = list(ALLOWED_EXTENSIONS)
+    diagnostico_info["configuracao"]["tessdata_prefix"] = os.getenv("TESSDATA_PREFIX", "Não configurado")
+    
+    # Testar Tesseract
+    if TESSERACT_AVAILABLE:
+        try:
+            test_result = subprocess.run(
+                ['tesseract', '--version'], 
+                capture_output=True, 
+                text=True, 
+                timeout=5
+            )
+            diagnostico_info["tesseract"]["teste"] = "OK"
+            diagnostico_info["tesseract"]["output"] = test_result.stdout[:200]
+        except Exception as e:
+            diagnostico_info["tesseract"]["teste"] = f"Erro: {str(e)}"
     
     return jsonify(diagnostico_info)
 
