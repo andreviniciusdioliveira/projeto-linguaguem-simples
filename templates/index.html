@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Entenda aqui - PDF e Imagens | Desenvolvido por INOVASSOL - Centro de Inovação AI</title>
     <meta name="description" content="Transforme documentos jurídicos complexos (PDF e imagens) em linguagem simples e acessível usando inteligência artificial">
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='50%' x='50%' text-anchor='middle' font-size='80'>⚖️</text></svg>">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='50%' x='50%' text-anchor='middle' font-size='80'></text></svg>">
     
     <style>
         :root {
@@ -1069,6 +1069,37 @@
         // ============================================
         // AVATAR SYSTEM - Funções do Avatar Animado
         // ============================================
+        
+        // Audio system for avatar
+        const avatarAudio = {
+            start: new Audio('/static/vou-começar.mp3'),
+            finish: new Audio('/static/prontinho-simplifiquei.mp3')
+        };
+
+        // Preload audio files
+        avatarAudio.start.preload = 'auto';
+        avatarAudio.finish.preload = 'auto';
+
+        // Function to play avatar audio
+        function playAvatarAudio(type) {
+            try {
+                // Stop any currently playing audio
+                Object.values(avatarAudio).forEach(audio => {
+                    audio.pause();
+                    audio.currentTime = 0;
+                });
+
+                // Play the requested audio
+                if (avatarAudio[type]) {
+                    avatarAudio[type].play().catch(err => {
+                        console.log('Audio playback prevented:', err);
+                    });
+                }
+            } catch (error) {
+                console.log('Error playing audio:', error);
+            }
+        }
+
         const avatarMessages = {
             welcome: [
                 "Olá! Bem-vindo ao Entenda Aqui! 👋",
@@ -1258,14 +1289,18 @@
         }
 
         // ============================================
-        // INTEGRATION FUNCTIONS
+        // INTEGRATION FUNCTIONS - Com áudio
         // ============================================
         function onFileUploadStart() {
             avatarSpeak('processing');
+            // Tocar áudio "vou começar"
+            playAvatarAudio('start');
         }
 
         function onFileUploadSuccess() {
             avatarCelebrate();
+            // Tocar áudio "prontinho simplifiquei"
+            playAvatarAudio('finish');
         }
 
         function onFileUploadError() {
