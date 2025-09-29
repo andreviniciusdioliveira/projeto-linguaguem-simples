@@ -41,24 +41,27 @@ logging.basicConfig(level=logging.INFO)
 # --- Configurações ---
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-# Modelos Gemini disponíveis (do mais barato/rápido ao mais caro/potente)
+# Modelos Gemini disponíveis CORRIGIDOS
 GEMINI_MODELS = [
     {
         "name": "gemini-1.5-flash-8b",
         "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-8b:generateContent",
         "max_tokens": 8192,
+        "max_input_tokens": 1000000,
         "priority": 1
     },
     {
         "name": "gemini-1.5-flash",
         "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent",
-        "max_tokens": 32000,
+        "max_tokens": 8192,
+        "max_input_tokens": 1000000,
         "priority": 2
     },
     {
-        "name": "gemini-2.0-flash-exp",
-        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent",
-        "max_tokens": 40000,
+        "name": "gemini-1.5-pro",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent",
+        "max_tokens": 8192,
+        "max_input_tokens": 2000000,
         "priority": 3
     }
 ]
@@ -138,7 +141,7 @@ def rate_limit(f):
         return f(*args, **kwargs)
     return decorated_function
 
-# Prompt otimizado e estruturado
+# Prompt otimizado e estruturado (NÃO ALTERADO)
 PROMPT_SIMPLIFICACAO = """**Papel:** Você é um especialista em linguagem simples aplicada ao Poder Judiciário, com experiência em transformar textos jurídicos complexos em comunicações claras e acessíveis.
 
 **ESTRUTURA DE ANÁLISE OBRIGATÓRIA:**
@@ -467,11 +470,66 @@ def extrair_texto_pdf(pdf_bytes):
     
     return texto, metadados
 
+def estimar_tokens(texto):
+    """Estima número de tokens (aproximadamente 1 token = 4 caracteres para português)"""
+    return len(texto) // 4
+
+def truncar_texto_inteligente(texto, max_tokens=25000):
+    """Trunca o texto preservando as partes mais importantes"""
+    tokens_estimados = estimar_tokens(texto)
+    
+    if tokens_estimados <= max_tokens:
+        return texto
+    
+    logging.warning(f"Texto muito grande ({tokens_estimados} tokens). Truncando para {max_tokens} tokens...")
+    
+    # Procurar seções importantes
+    secoes_importantes = []
+    
+    # 1. DISPOSITIVO (mais importante)
+    dispositivo_match = re.search(r'(DISPOSITIVO|DECIDE|ANTE O EXPOSTO|DIANTE DO EXPOSTO).*?(?=(CONCLUSÃO|P\.R\.I\.|$))', 
+                                   texto, re.IGNORECASE | re.DOTALL)
+    if dispositivo_match:
+        secoes_importantes.append(("DISPOSITIVO", dispositivo_match.group(0), 10000))
+    
+    # 2. Identificação do processo
+    inicio = texto[:3000]
+    secoes_importantes.append(("IDENTIFICAÇÃO", inicio, 1000))
+    
+    # 3. Fundamentação (resumida)
+    fundamentacao_match = re.search(r'(FUNDAMENTAÇÃO|FUNDAMENTO).*?(?=(DISPOSITIVO|DECIDE|$))', 
+                                     texto, re.IGNORECASE | re.DOTALL)
+    if fundamentacao_match:
+        fund_texto = fundamentacao_match.group(0)
+        # Pegar só as primeiras linhas da fundamentação
+        fund_linhas = fund_texto.split('\n')[:30]
+        secoes_importantes.append(("FUNDAMENTAÇÃO", '\n'.join(fund_linhas), 3000))
+    
+    # Montar texto truncado
+    texto_final = "=== DOCUMENTO TRUNCADO PARA PROCESSAMENTO ===\n\n"
+    
+    tokens_usados = 0
+    # Ordenar por prioridade (maior prioridade = mais tokens)
+    for nome, conteudo, tokens_max in secoes_importantes:
+        if tokens_usados >= max_tokens:
+            break
+            
+        caracteres_max = min(tokens_max * 4, (max_tokens - tokens_usados) * 4)
+        if len(conteudo) > caracteres_max:
+            conteudo = conteudo[:caracteres_max] + "...[truncado]"
+        
+        texto_final += f"\n\n=== {nome} ===\n{conteudo}\n"
+        tokens_usados += len(conteudo) // 4
+    
+    logging.info(f"Texto truncado de {tokens_estimados} para ~{tokens_usados} tokens")
+    return texto_final
+
 def analisar_complexidade_texto(texto):
     """Analisa a complexidade do texto para escolher o modelo apropriado"""
     complexidade = {
         "caracteres": len(texto),
         "palavras": len(texto.split()),
+        "tokens_estimados": estimar_tokens(texto),
         "termos_tecnicos": 0,
         "citacoes": 0,
         "nivel": "baixo"  # baixo, médio, alto
@@ -491,57 +549,36 @@ def analisar_complexidade_texto(texto):
     # Contar citações de leis/artigos
     complexidade["citacoes"] = len(re.findall(r'art\.\s*\d+|artigo\s*\d+|§\s*\d+|lei\s*n[º°]\s*[\d\.]+', texto_lower))
     
-    # Determinar nível de complexidade
-    if complexidade["caracteres"] > 10000 or complexidade["termos_tecnicos"] > 20 or complexidade["citacoes"] > 15:
+    # Determinar nível de complexidade baseado em tokens
+    if complexidade["tokens_estimados"] > 15000 or complexidade["termos_tecnicos"] > 20 or complexidade["citacoes"] > 15:
         complexidade["nivel"] = "alto"
-    elif complexidade["caracteres"] > 5000 or complexidade["termos_tecnicos"] > 10 or complexidade["citacoes"] > 8:
+    elif complexidade["tokens_estimados"] > 7000 or complexidade["termos_tecnicos"] > 10 or complexidade["citacoes"] > 8:
         complexidade["nivel"] = "médio"
     
     return complexidade
 
 def escolher_modelo_gemini(complexidade, tentativa=0):
     """Escolhe o modelo Gemini mais apropriado baseado na complexidade"""
-    if complexidade["nivel"] == "baixo" and tentativa == 0:
-        return GEMINI_MODELS[0]  # Modelo mais leve
-    elif complexidade["nivel"] == "médio" or tentativa == 1:
-        return GEMINI_MODELS[1]  # Modelo intermediário
+    # Sempre começar com o modelo mais leve
+    if tentativa == 0:
+        return GEMINI_MODELS[0]  # flash-8b
+    elif tentativa == 1:
+        return GEMINI_MODELS[1]  # flash
     else:
-        return GEMINI_MODELS[2] if tentativa < len(GEMINI_MODELS) else GEMINI_MODELS[-1]  # Modelo mais potente
+        return GEMINI_MODELS[2]  # pro
 
-def simplificar_com_gemini(texto, max_retries=3):
+def simplificar_com_gemini(texto, max_retries=2):
     """Chama a API do Gemini com fallback automático entre modelos"""
     
-    # Para textos muito grandes, dividir em chunks se necessário
-    MAX_CHUNK_SIZE = 30000  # Aumentado para processar textos maiores
+    # Truncar texto se necessário ANTES de enviar
+    MAX_INPUT_TOKENS = 20000  # Limite conservador
+    tokens_estimados = estimar_tokens(texto)
     
-    # Se o texto for muito grande, processar em partes
-    if len(texto) > MAX_CHUNK_SIZE:
-        # Dividir o texto preservando a estrutura
-        chunks = []
-        current_chunk = ""
-        paragrafos = texto.split('\n\n')
-        
-        for paragrafo in paragrafos:
-            if len(current_chunk) + len(paragrafo) < MAX_CHUNK_SIZE:
-                current_chunk += paragrafo + "\n\n"
-            else:
-                if current_chunk:
-                    chunks.append(current_chunk)
-                current_chunk = paragrafo + "\n\n"
-        
-        if current_chunk:
-            chunks.append(current_chunk)
-        
-        # Processar o chunk mais importante (geralmente o que contém o dispositivo)
-        texto_principal = chunks[-1] if "DISPOSITIVO" in chunks[-1] or "JULGO" in chunks[-1] else chunks[0]
-        
-        # Adicionar contexto dos outros chunks
-        if len(chunks) > 1:
-            texto_contexto = "\n\n[CONTEXTO ADICIONAL DO PROCESSO]\n"
-            for i, chunk in enumerate(chunks):
-                if chunk != texto_principal:
-                    texto_contexto += f"\nParte {i+1}: " + chunk[:500] + "...\n"
-            texto = texto_principal + texto_contexto
+    if tokens_estimados > MAX_INPUT_TOKENS:
+        logging.warning(f"Texto com {tokens_estimados} tokens. Truncando...")
+        texto = truncar_texto_inteligente(texto, MAX_INPUT_TOKENS)
+        tokens_estimados = estimar_tokens(texto)
+        logging.info(f"Texto truncado para ~{tokens_estimados} tokens")
     
     # Verificar cache
     texto_hash = hashlib.md5(texto.encode()).hexdigest()
@@ -553,13 +590,12 @@ def simplificar_com_gemini(texto, max_retries=3):
     
     # Analisar complexidade
     complexidade = analisar_complexidade_texto(texto)
-    logging.info(f"Complexidade do texto: {complexidade}")
+    logging.info(f"Complexidade: {complexidade['nivel']}, Tokens estimados: {tokens_estimados}")
     
     prompt_completo = PROMPT_SIMPLIFICACAO + texto
     
     headers = {
-        "Content-Type": "application/json",
-        "X-goog-api-key": GEMINI_API_KEY
+        "Content-Type": "application/json"
     }
     
     errors = []
@@ -567,12 +603,15 @@ def simplificar_com_gemini(texto, max_retries=3):
     # Tentar com diferentes modelos
     for tentativa in range(len(GEMINI_MODELS)):
         modelo = escolher_modelo_gemini(complexidade, tentativa)
-        logging.info(f"Tentativa {tentativa + 1}: Usando modelo {modelo['name']}")
+        logging.info(f"Tentativa {tentativa + 1}/{len(GEMINI_MODELS)}: Usando modelo {modelo['name']}")
         
         model_usage_stats[modelo["name"]]["attempts"] += 1
         
-        # Ajustar tokens baseado no modelo
-        max_tokens = min(4000, modelo["max_tokens"] // 2)
+        # Ajustar tokens de saída - mais conservador
+        max_output_tokens = 2048
+        
+        # URL com API key como parâmetro (formato correto)
+        url_with_key = f"{modelo['url']}?key={GEMINI_API_KEY}"
         
         payload = {
             "contents": [
@@ -585,10 +624,10 @@ def simplificar_com_gemini(texto, max_retries=3):
                 }
             ],
             "generationConfig": {
-                "temperature": 0.3,
-                "maxOutputTokens": max_tokens,
-                "topP": 0.8,
-                "topK": 10
+                "temperature": 0.4,
+                "maxOutputTokens": max_output_tokens,
+                "topP": 0.85,
+                "topK": 20
             },
             "safetySettings": [
                 {
@@ -614,15 +653,16 @@ def simplificar_com_gemini(texto, max_retries=3):
             try:
                 start_time = time.time()
                 response = requests.post(
-                    modelo["url"],
+                    url_with_key,
                     headers=headers,
                     json=payload,
-                    timeout=120
+                    timeout=90
                 )
+                
+                elapsed = round(time.time() - start_time, 2)
                 
                 if response.status_code == 200:
                     data = response.json()
-                    elapsed = round(time.time() - start_time, 2)
                     
                     if "candidates" in data and len(data["candidates"]) > 0:
                         texto_simplificado = data["candidates"][0]["content"]["parts"][0]["text"]
@@ -635,44 +675,93 @@ def simplificar_com_gemini(texto, max_retries=3):
                         }
                         
                         model_usage_stats[modelo["name"]]["successes"] += 1
-                        logging.info(f"Sucesso com {modelo['name']} em {elapsed}s")
+                        logging.info(f"✅ Sucesso com {modelo['name']} em {elapsed}s")
                         
                         return texto_simplificado, None
                     else:
-                        errors.append(f"{modelo['name']}: Resposta vazia")
+                        error_msg = f"{modelo['name']}: Resposta vazia"
+                        errors.append(error_msg)
+                        logging.warning(error_msg)
+                        break  # Tentar próximo modelo
                         
                 elif response.status_code == 429:
-                    # Rate limit - tentar próximo modelo
-                    errors.append(f"{modelo['name']}: Limite de requisições excedido")
+                    error_msg = f"{modelo['name']}: Rate limit (429)"
+                    errors.append(error_msg)
+                    logging.warning(error_msg)
                     model_usage_stats[modelo["name"]]["failures"] += 1
-                    break  # Sair do loop de retry, tentar próximo modelo
+                    time.sleep(3)  # Pausa maior
+                    break  # Tentar próximo modelo
                     
                 elif response.status_code == 400:
-                    # Bad request - pode ser tokens demais
-                    errors.append(f"{modelo['name']}: Requisição inválida (possível excesso de tokens)")
+                    try:
+                        error_data = response.json()
+                        error_detail = error_data.get('error', {}).get('message', 'Erro desconhecido')
+                        error_msg = f"{modelo['name']}: {error_detail}"
+                    except:
+                        error_msg = f"{modelo['name']}: Requisição inválida (400)"
+                    
+                    errors.append(error_msg)
+                    logging.error(error_msg)
                     model_usage_stats[modelo["name"]]["failures"] += 1
+                    
+                    # Se for erro de tokens, não tentar retry
+                    if 'token' in error_detail.lower() or 'quota' in error_detail.lower():
+                        logging.error("Erro de tokens/quota detectado. Pulando para próximo modelo.")
+                        break
                     break
                     
+                elif response.status_code == 500:
+                    error_msg = f"{modelo['name']}: Erro interno (500)"
+                    errors.append(error_msg)
+                    logging.error(error_msg)
+                    model_usage_stats[modelo["name"]]["failures"] += 1
+                    break  # Tentar próximo modelo imediatamente
+                    
+                elif response.status_code == 404:
+                    error_msg = f"{modelo['name']}: Modelo não encontrado (404)"
+                    errors.append(error_msg)
+                    logging.error(error_msg)
+                    model_usage_stats[modelo["name"]]["failures"] += 1
+                    break  # Tentar próximo modelo
+                    
                 else:
-                    errors.append(f"{modelo['name']}: Erro HTTP {response.status_code}")
+                    error_msg = f"{modelo['name']}: HTTP {response.status_code}"
+                    errors.append(error_msg)
+                    logging.error(f"{error_msg} - Resposta: {response.text[:300]}")
+                    model_usage_stats[modelo["name"]]["failures"] += 1
                     
             except requests.exceptions.Timeout:
-                errors.append(f"{modelo['name']}: Timeout")
+                error_msg = f"{modelo['name']}: Timeout"
+                errors.append(error_msg)
+                logging.warning(error_msg)
                 if retry < max_retries - 1:
-                    time.sleep(2 ** retry)
+                    time.sleep(2)
                     
             except Exception as e:
-                errors.append(f"{modelo['name']}: {str(e)}")
-                logging.error(f"Erro com {modelo['name']}: {e}")
+                error_msg = f"{modelo['name']}: {str(e)}"
+                errors.append(error_msg)
+                logging.error(f"Erro inesperado: {e}")
         
-        # Pequena pausa antes de tentar próximo modelo
+        # Pausa antes de tentar próximo modelo
         if tentativa < len(GEMINI_MODELS) - 1:
-            time.sleep(1)
+            logging.info("Aguardando antes de tentar próximo modelo...")
+            time.sleep(3)
     
     # Se todos os modelos falharam
-    error_summary = " | ".join(errors)
-    logging.error(f"Todos os modelos falharam: {error_summary}")
-    return None, f"Erro ao processar. Tentativas: {error_summary}"
+    error_summary = " | ".join(errors[-6:])  # Últimos 6 erros
+    logging.error(f"❌ Todos os modelos falharam: {error_summary}")
+    
+    # Mensagem mais clara para o usuário
+    if "rate limit" in error_summary.lower() or "429" in error_summary:
+        return None, "Limite de requisições da API excedido. Por favor, aguarde alguns minutos e tente novamente."
+    elif "quota" in error_summary.lower():
+        return None, "Cota da API Gemini excedida. Verifique sua conta ou tente novamente mais tarde."
+    elif "token" in error_summary.lower() or "500" in error_summary:
+        return None, "Documento muito grande para processar. Tente com um documento menor ou com menos páginas."
+    elif "404" in error_summary:
+        return None, "Erro de configuração da API. Entre em contato com o suporte."
+    else:
+        return None, "Erro ao processar com a IA. Tente novamente em alguns instantes."
 
 def gerar_pdf_simplificado(texto, metadados=None, filename="documento_simplificado.pdf"):
     """Gera PDF com melhor formatação e metadados"""
@@ -874,7 +963,7 @@ def processar():
         
         # Preparar metadados para o PDF
         metadados_geracao = {
-            "modelo": results_cache.get(file_hash, {}).get("modelo", "Gemini"),
+            "modelo": results_cache.get(hashlib.md5(texto_original.encode()).hexdigest(), {}).get("modelo", "Gemini"),
             "tipo": metadados.get("tipo", file_extension)
         }
         
@@ -926,8 +1015,8 @@ def processar_texto():
         if len(texto) < 20:
             return jsonify({"erro": "Texto muito curto. Mínimo: 20 caracteres"}), 400
             
-        if len(texto) > 10000:
-            return jsonify({"erro": "Texto muito longo. Máximo: 10.000 caracteres"}), 400
+        if len(texto) > 50000:
+            return jsonify({"erro": "Texto muito longo. Máximo: 50.000 caracteres"}), 400
         
         texto_simplificado, erro = simplificar_com_gemini(texto)
         
@@ -1043,6 +1132,57 @@ def diagnostico():
     
     return jsonify(diagnostico_info)
 
+@app.route("/diagnostico_api")
+def diagnostico_api():
+    """Testa conectividade com a API Gemini"""
+    if not GEMINI_API_KEY:
+        return jsonify({"erro": "API Key não configurada"}), 500
+    
+    resultados = []
+    
+    for modelo in GEMINI_MODELS:
+        try:
+            url_with_key = f"{modelo['url']}?key={GEMINI_API_KEY}"
+            
+            payload = {
+                "contents": [{
+                    "parts": [{"text": "Teste de conectividade"}]
+                }],
+                "generationConfig": {
+                    "maxOutputTokens": 10
+                }
+            }
+            
+            response = requests.post(
+                url_with_key,
+                headers={"Content-Type": "application/json"},
+                json=payload,
+                timeout=15
+            )
+            
+            resultados.append({
+                "modelo": modelo["name"],
+                "status": response.status_code,
+                "ok": response.status_code == 200,
+                "mensagem": "OK" if response.status_code == 200 else response.text[:300]
+            })
+            
+        except Exception as e:
+            resultados.append({
+                "modelo": modelo["name"],
+                "status": "erro",
+                "ok": False,
+                "mensagem": str(e)
+            })
+    
+    return jsonify({
+        "api_key_configurada": bool(GEMINI_API_KEY),
+        "api_key_preview": GEMINI_API_KEY[:15] + "..." if GEMINI_API_KEY else None,
+        "modelos_testados": resultados,
+        "estatisticas": model_usage_stats,
+        "cache_entries": len(results_cache)
+    })
+
 @app.route("/estatisticas")
 def estatisticas():
     """Retorna estatísticas de uso dos modelos"""
@@ -1124,26 +1264,6 @@ def server_error(e):
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-def detectar_tipo_arquivo(file_bytes):
-    """Detecta o tipo de arquivo pelos bytes iniciais (magic numbers)"""
-    # Magic numbers para diferentes formatos
-    if file_bytes[:4] == b'%PDF':
-        return 'pdf'
-    elif file_bytes[:8] == b'\x89PNG\r\n\x1a\n':
-        return 'png'
-    elif file_bytes[:3] == b'\xff\xd8\xff':
-        return 'jpeg'
-    elif file_bytes[:6] in (b'GIF87a', b'GIF89a'):
-        return 'gif'
-    elif file_bytes[:2] == b'BM':
-        return 'bmp'
-    elif file_bytes[:4] in (b'II\x2a\x00', b'MM\x00\x2a'):
-        return 'tiff'
-    elif file_bytes[:4] == b'RIFF' and file_bytes[8:12] == b'WEBP':
-        return 'webp'
-    else:
-        return None
-
 # Limpa arquivos temporários antigos periodicamente
 def cleanup_temp_files():
     while True:
@@ -1155,9 +1275,12 @@ def cleanup_temp_files():
             for filename in os.listdir(TEMP_DIR):
                 if filename.startswith('simplificado_'):
                     filepath = os.path.join(TEMP_DIR, filename)
-                    if os.stat(filepath).st_mtime < now - 3600:  # Arquivos com mais de 1 hora
-                        os.remove(filepath)
-                        logging.info(f"Arquivo temporário removido: {filename}")
+                    try:
+                        if os.stat(filepath).st_mtime < now - 3600:  # Arquivos com mais de 1 hora
+                            os.remove(filepath)
+                            logging.info(f"Arquivo temporário removido: {filename}")
+                    except Exception as e:
+                        logging.warning(f"Erro ao remover {filename}: {e}")
             
             # Limpar cache antigo
             to_remove = []
