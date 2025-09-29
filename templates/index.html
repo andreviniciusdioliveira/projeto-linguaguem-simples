@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Entenda aqui - PDF e Imagens | Desenvolvido por INOVASSOL - Centro de Inovação AI</title>
-    <meta name="description" content="Transforme documentos jurídicos complexos (PDF e imagens) em linguagem simples e acessível usando inteligência artificial">
+    <title>Entenda aqui - PDF e Imagens | Desenvolvido por INOVASSOL</title>
+    <meta name="description" content="Transforme documentos jurídicos complexos em linguagem simples com detecção automática do tipo">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='50%' x='50%' text-anchor='middle' font-size='80'>⚖️</text></svg>">
     
     <style>
@@ -41,7 +41,6 @@
             transition: all 0.3s ease;
         }
 
-        /* Dark mode */
         body.dark-mode {
             --primary: #4da3ff;
             --primary-dark: #66b3ff;
@@ -63,7 +62,6 @@
             padding: 2rem;
         }
 
-        /* Header aprimorado */
         .header {
             text-align: center;
             margin-bottom: 3rem;
@@ -84,7 +82,49 @@
             font-size: 1.1rem;
         }
 
-        /* Badges for supported formats */
+        /* Document type badge */
+        .doc-type-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: var(--info-bg);
+            color: var(--primary);
+            padding: 0.75rem 1.5rem;
+            border-radius: 25px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin: 1rem 0;
+            animation: fadeIn 0.5s ease;
+            border: 2px solid var(--primary);
+        }
+
+        .doc-type-badge .icon {
+            font-size: 1.5rem;
+        }
+
+        .confidence-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+            font-size: 0.875rem;
+            color: var(--text-muted);
+        }
+
+        .confidence-bar {
+            width: 100px;
+            height: 6px;
+            background: var(--border);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .confidence-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--danger) 0%, var(--warning) 50%, var(--secondary) 100%);
+            transition: width 0.5s ease;
+        }
+
         .format-badges {
             display: flex;
             justify-content: center;
@@ -103,7 +143,6 @@
             animation: fadeIn 0.5s ease;
         }
 
-        /* Cards com glassmorphism */
         .card {
             background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(10px);
@@ -126,7 +165,6 @@
             box-shadow: 0 12px 48px var(--shadow);
         }
 
-        /* Progress Steps */
         .progress-steps {
             display: flex;
             justify-content: space-between;
@@ -187,7 +225,6 @@
             text-align: center;
         }
 
-        /* File upload area melhorada com preview de imagem */
         #drop-area {
             border: 2px dashed var(--primary);
             border-radius: 12px;
@@ -200,31 +237,46 @@
             overflow: hidden;
         }
 
-        #drop-area::before {
-            content: '';
-            position: absolute;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
-            background: radial-gradient(circle, var(--primary) 0%, transparent 70%);
-            opacity: 0;
-            transition: opacity 0.3s ease;
-            pointer-events: none;
-        }
-
-        #drop-area:hover::before,
-        #drop-area.hover::before {
-            opacity: 0.1;
-        }
-
         #drop-area:hover,
         #drop-area.hover {
             border-color: var(--primary-dark);
             transform: scale(1.02);
         }
 
-        /* Image preview */
+        .file-type-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            display: inline-block;
+            animation: bounce 2s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .button {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            border: none;
+            padding: 0.75rem 2rem;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            text-decoration: none;
+            box-shadow: 0 4px 12px rgba(26, 115, 232, 0.3);
+        }
+
+        .button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(26, 115, 232, 0.4);
+        }
+
         .preview-container {
             display: none;
             margin-top: 1rem;
@@ -266,120 +318,6 @@
             transform: scale(1.05);
         }
 
-        /* OCR quality indicator */
-        .ocr-quality {
-            display: inline-block;
-            padding: 0.25rem 0.75rem;
-            border-radius: 20px;
-            font-size: 0.875rem;
-            font-weight: 600;
-            margin-top: 0.5rem;
-        }
-
-        .ocr-quality.good {
-            background: var(--success-bg);
-            color: var(--secondary);
-        }
-
-        .ocr-quality.medium {
-            background: var(--warning-bg);
-            color: #ea8600;
-        }
-
-        .ocr-quality.low {
-            background: var(--error-bg);
-            color: var(--danger);
-        }
-
-        /* Botões melhorados */
-        .button {
-            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
-            color: white;
-            border: none;
-            padding: 0.75rem 2rem;
-            border-radius: 8px;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            text-decoration: none;
-            box-shadow: 0 4px 12px rgba(26, 115, 232, 0.3);
-            position: relative;
-            overflow: hidden;
-        }
-
-        .button::before {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 0;
-            height: 0;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.3);
-            transform: translate(-50%, -50%);
-            transition: width 0.6s, height 0.6s;
-        }
-
-        .button:hover::before {
-            width: 300px;
-            height: 300px;
-        }
-
-        .button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(26, 115, 232, 0.4);
-        }
-
-        /* File type icons */
-        .file-type-icon {
-            font-size: 3rem;
-            margin-bottom: 1rem;
-            display: inline-block;
-            animation: bounce 2s infinite;
-        }
-
-        @keyframes bounce {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-10px); }
-        }
-
-        /* Supported formats grid */
-        .formats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
-            gap: 1rem;
-            margin-top: 1rem;
-        }
-
-        .format-item {
-            text-align: center;
-            padding: 1rem;
-            background: var(--light);
-            border-radius: 8px;
-            transition: all 0.3s ease;
-        }
-
-        .format-item:hover {
-            transform: scale(1.1);
-            background: var(--info-bg);
-        }
-
-        .format-item .icon {
-            font-size: 2rem;
-            margin-bottom: 0.5rem;
-        }
-
-        .format-item .name {
-            font-size: 0.875rem;
-            font-weight: 600;
-            color: var(--text-muted);
-        }
-
-        /* Loading avançado */
         .loading-overlay {
             display: none;
             position: fixed;
@@ -450,7 +388,6 @@
             100% { opacity: 0.8; }
         }
 
-        /* Toast notifications melhoradas */
         .toast {
             position: fixed;
             bottom: -100px;
@@ -474,24 +411,11 @@
             bottom: 2rem;
         }
 
-        .toast.success {
-            background: var(--secondary);
-        }
+        .toast.success { background: var(--secondary); }
+        .toast.error { background: var(--danger); }
+        .toast.warning { background: var(--warning); color: var(--dark); }
+        .toast.info { background: var(--primary); }
 
-        .toast.error {
-            background: var(--danger);
-        }
-
-        .toast.warning {
-            background: var(--warning);
-            color: var(--dark);
-        }
-
-        .toast.info {
-            background: var(--primary);
-        }
-
-        /* Theme switch aprimorado */
         .theme-switch {
             position: fixed;
             top: 1rem;
@@ -549,7 +473,6 @@
             transform: translateX(30px);
         }
 
-        /* Animations */
         @keyframes fadeIn {
             from { opacity: 0; }
             to { opacity: 1; }
@@ -577,7 +500,6 @@
             }
         }
 
-        /* Responsive */
         @media (max-width: 768px) {
             .container {
                 padding: 1rem;
@@ -595,15 +517,10 @@
             .progress-steps::before {
                 display: none;
             }
-
-            .formats-grid {
-                grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
-            }
         }
     </style>
 </head>
 <body>
-    <!-- Theme Switch -->
     <div class="theme-switch">
         <label class="switch">
             <input type="checkbox" id="themeSwitch">
@@ -611,7 +528,6 @@
         </label>
     </div>
 
-    <!-- Loading Overlay -->
     <div class="loading-overlay" id="loadingOverlay">
         <div class="loading-content">
             <div class="loading-spinner"></div>
@@ -620,32 +536,29 @@
                 <div class="loading-progress-bar" id="loadingProgress"></div>
             </div>
             <small id="modelInfo" style="color: var(--text-muted); margin-top: 0.5rem;"></small>
-            <div id="ocrStatus" style="display: none; margin-top: 1rem; color: var(--text-muted); font-size: 0.875rem;">
-                <span>📸 Extraindo texto da imagem com OCR...</span>
+            <div id="docTypeDetection" style="display: none; margin-top: 1rem; color: var(--text-muted); font-size: 0.875rem;">
+                <span>🔍 Detectando tipo de documento...</span>
             </div>
         </div>
     </div>
 
     <div class="container">
-        <!-- Header -->
         <header class="header">
-            <h1> Entenda Aqui</h1>
-            <p>Transforme documentos complexos em linguagem clara com IA</p>
+            <h1>⚖️ Entenda Aqui</h1>
+            <p>Transforme documentos jurídicos em linguagem clara com IA</p>
             <div class="format-badges">
                 <span class="format-badge">📄 PDF</span>
                 <span class="format-badge">🖼️ Imagens</span>
-                <span class="format-badge">📸 Fotos</span>
-                <span class="format-badge">📱 Screenshots</span>
-                <span class="format-badge">🔍 OCR Automático</span>
+                <span class="format-badge">🔍 Detecção Automática</span>
+                <span class="format-badge">⚖️ 13 Tipos de Documentos</span>
             </div>
             <div style="text-align: center; margin-top: 1.5rem;">
                 <p style="color: var(--text-muted); font-size: 0.9rem; max-width: 600px; margin: 0 auto; line-height: 1.5;">
-                    ⚠️ Queremos facilitar sua vida com informações mais simples, mas só um advogado ou defensor público pode te dar uma orientação certa para o seu caso. Sempre que precisar, procure esse apoio!
+                    ⚠️ Queremos facilitar sua vida com informações mais simples, mas só um advogado pode te dar orientação correta para seu caso.
                 </p>
             </div>
         </header>
 
-        <!-- Progress Steps -->
         <div class="progress-steps">
             <div class="step active" id="step1">
                 <div class="step-circle">1</div>
@@ -653,17 +566,16 @@
             </div>
             <div class="step" id="step2">
                 <div class="step-circle">2</div>
-                <div class="step-label">Processar com IA</div>
+                <div class="step-label">Detectar Tipo</div>
             </div>
             <div class="step" id="step3">
                 <div class="step-circle">3</div>
-                <div class="step-label">Resultado Simplificado</div>
+                <div class="step-label">Simplificar</div>
             </div>
         </div>
 
-        <!-- Upload Card -->
         <div class="card">
-            <h2 style="color: var(--primary); margin-bottom: 1.5rem;">📤 Enviar Documento ou Imagem</h2>
+            <h2 style="color: var(--primary); margin-bottom: 1.5rem;">📤 Enviar Documento</h2>
             <div id="drop-area">
                 <div class="file-type-icon" id="fileTypeIcon">📁</div>
                 <p style="font-size: 1.1rem; color: var(--text); margin-bottom: 1rem;">
@@ -673,45 +585,11 @@
                 <button class="button" onclick="document.getElementById('fileInput').click()">
                     <span>📎</span> Escolher Arquivo
                 </button>
-                
-                <!-- Formatos suportados -->
-                <div class="formats-grid" style="margin-top: 2rem;">
-                    <div class="format-item">
-                        <div class="icon">📄</div>
-                        <div class="name">PDF</div>
-                    </div>
-                    <div class="format-item">
-                        <div class="icon">🖼️</div>
-                        <div class="name">PNG</div>
-                    </div>
-                    <div class="format-item">
-                        <div class="icon">📷</div>
-                        <div class="name">JPG</div>
-                    </div>
-                    <div class="format-item">
-                        <div class="icon">🎨</div>
-                        <div class="name">GIF</div>
-                    </div>
-                    <div class="format-item">
-                        <div class="icon">🖌️</div>
-                        <div class="name">BMP</div>
-                    </div>
-                    <div class="format-item">
-                        <div class="icon">📸</div>
-                        <div class="name">TIFF</div>
-                    </div>
-                    <div class="format-item">
-                        <div class="icon">🌐</div>
-                        <div class="name">WEBP</div>
-                    </div>
-                </div>
-                
                 <p style="font-size: 0.875rem; color: var(--text-muted); margin-top: 1rem;">
-                    Máximo: 10MB | OCR automático para imagens
+                    Máximo: 10MB | Detecção automática do tipo de documento
                 </p>
             </div>
             
-            <!-- Preview Container -->
             <div id="previewContainer" class="preview-container">
                 <img id="previewImage" class="preview-image" alt="Preview">
                 <div class="preview-info">
@@ -733,12 +611,11 @@
             </div>
         </div>
 
-        <!-- Manual Text Card -->
         <div class="card">
             <h2 style="color: var(--primary); margin-bottom: 1.5rem;">✍️ Ou Cole o Texto</h2>
             <textarea id="manualText" placeholder="Cole aqui o texto jurídico que deseja simplificar..." 
                 style="width: 100%; min-height: 150px; padding: 1rem; border: 2px solid var(--border); border-radius: 8px; font-family: inherit; font-size: 1rem; resize: vertical; transition: border-color 0.3s;"></textarea>
-            <div style="display: flex; gap: 1rem; margin-top: 1rem;">
+            <div style="display: flex; gap: 1rem; margin-top: 1rem; flex-wrap: wrap;">
                 <button class="button" onclick="processManualText()">
                     <span>🔄</span> Simplificar Texto
                 </button>
@@ -751,28 +628,29 @@
             </div>
         </div>
 
-        <!-- Result Card -->
         <div id="resultSection" style="display: none;">
             <div class="card">
                 <h2 style="color: var(--primary); margin-bottom: 1.5rem;">✅ Resultado Simplificado</h2>
                 
-                <!-- File type and OCR quality indicator -->
-                <div id="processInfo" style="margin-bottom: 1rem; display: none;">
-                    <span id="fileTypeIndicator" style="background: var(--info-bg); color: var(--primary); padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.875rem; font-weight: 600;"></span>
-                    <span id="ocrQualityIndicator" class="ocr-quality" style="display: none;"></span>
+                <!-- Document type detected -->
+                <div id="docTypeInfo" style="text-align: center; margin-bottom: 2rem; display: none;">
+                    <div class="doc-type-badge">
+                        <span class="icon" id="docTypeIcon">📄</span>
+                        <span id="docTypeName">Documento Jurídico</span>
+                    </div>
+                    <div class="confidence-indicator" style="justify-content: center;">
+                        <span>Confiança:</span>
+                        <div class="confidence-bar">
+                            <div class="confidence-fill" id="confidenceFill"></div>
+                        </div>
+                        <span id="confidencePercent">0%</span>
+                    </div>
                 </div>
                 
-                <!-- Result Analysis -->
-                <div id="resultAnalysis" style="margin-bottom: 1.5rem;">
-                    <!-- Filled dynamically -->
-                </div>
+                <div id="resultAnalysis" style="margin-bottom: 1.5rem;"></div>
                 
-                <!-- Simplified Text -->
-                <div id="simplifiedText" style="background: var(--light); padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem; max-height: 500px; overflow-y: auto;">
-                    <!-- Filled dynamically -->
-                </div>
+                <div id="simplifiedText" style="background: var(--light); padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem; max-height: 500px; overflow-y: auto;"></div>
                 
-                <!-- Action Buttons -->
                 <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
                     <a href="#" class="button" id="downloadBtn" style="display: none;">
                         <span>📥</span> Baixar PDF
@@ -788,23 +666,19 @@
         </div>
     </div>
 
-    <!-- Toast -->
     <div class="toast" id="toast"></div>
 
     <script>
-        // Configurações
-        const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+        const MAX_FILE_SIZE = 10 * 1024 * 1024;
         const ALLOWED_EXTENSIONS = ['pdf', 'png', 'jpg', 'jpeg', 'gif', 'bmp', 'tiff', 'webp'];
         const IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'tiff', 'webp'];
         let isProcessing = false;
         let currentFile = null;
-        let currentFileType = null;
 
         // Theme
         const themeSwitch = document.getElementById('themeSwitch');
         const body = document.body;
 
-        // Check saved theme
         const savedTheme = localStorage.getItem('theme');
         if (savedTheme === 'dark') {
             body.classList.add('dark-mode');
@@ -821,7 +695,6 @@
             }
         });
 
-        // Progress steps
         function updateProgressSteps(step) {
             document.querySelectorAll('.step').forEach(s => {
                 s.classList.remove('active', 'completed');
@@ -837,11 +710,9 @@
             }
         }
 
-        // Toast notifications
         function showToast(message, type = 'info', duration = 3000) {
             const toast = document.getElementById('toast');
             
-            // Add icon based on type
             let icon = '';
             switch(type) {
                 case 'success': icon = '✅ '; break;
@@ -860,12 +731,10 @@
             }, duration);
         }
 
-        // File upload
         const dropArea = document.getElementById('drop-area');
         const fileInput = document.getElementById('fileInput');
         const fileTypeIcon = document.getElementById('fileTypeIcon');
 
-        // Prevent default drag behaviors
         ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
             dropArea.addEventListener(eventName, preventDefaults, false);
             document.body.addEventListener(eventName, preventDefaults, false);
@@ -876,7 +745,6 @@
             e.stopPropagation();
         }
 
-        // Highlight drop area
         ['dragenter', 'dragover'].forEach(eventName => {
             dropArea.addEventListener(eventName, () => {
                 dropArea.classList.add('hover');
@@ -891,7 +759,6 @@
             }, false);
         });
 
-        // Handle dropped files
         dropArea.addEventListener('drop', handleDrop, false);
         fileInput.addEventListener('change', handleFileSelect, false);
 
@@ -916,9 +783,8 @@
             const file = files[0];
             const extension = getFileExtension(file.name);
             
-            // Validations
             if (!ALLOWED_EXTENSIONS.includes(extension)) {
-                showToast('Formato não suportado. Use: PDF, PNG, JPG, GIF, BMP, TIFF, WEBP', 'error');
+                showToast('Formato não suportado. Use: PDF, PNG, JPG, JPEG, GIF, BMP, TIFF, WEBP', 'error');
                 return;
             }
             
@@ -928,18 +794,13 @@
             }
             
             currentFile = file;
-            currentFileType = extension;
             
-            // Show file info
             if (IMAGE_EXTENSIONS.includes(extension)) {
-                // Show image preview
                 showImagePreview(file);
             } else {
-                // Show PDF info
                 showPDFInfo(file);
             }
             
-            // Process file
             uploadFile(file);
         }
 
@@ -951,8 +812,6 @@
                 document.getElementById('fileSize').textContent = formatFileSize(file.size);
                 document.getElementById('previewContainer').style.display = 'block';
                 document.getElementById('fileInfo').style.display = 'none';
-                
-                // Update icon
                 fileTypeIcon.textContent = '🖼️';
             };
             reader.readAsDataURL(file);
@@ -963,14 +822,11 @@
             document.getElementById('fileSizeInfo').textContent = formatFileSize(file.size);
             document.getElementById('fileInfo').style.display = 'block';
             document.getElementById('previewContainer').style.display = 'none';
-            
-            // Update icon
             fileTypeIcon.textContent = '📄';
         }
 
         function removeFile() {
             currentFile = null;
-            currentFileType = null;
             document.getElementById('previewContainer').style.display = 'none';
             document.getElementById('fileInfo').style.display = 'none';
             fileInput.value = '';
@@ -993,27 +849,17 @@
             }
             
             isProcessing = true;
-            
-            const extension = getFileExtension(file.name);
-            const isImage = IMAGE_EXTENSIONS.includes(extension);
-            
-            if (isImage) {
-                showLoading('Processando imagem...', true);
-            } else {
-                showLoading('Processando PDF...');
-            }
-            
+            showLoading('Processando documento...');
             updateProgressSteps(2);
             
             const formData = new FormData();
             formData.append('file', file);
             
-            // Simulate progress
             let progress = 0;
             const progressInterval = setInterval(() => {
                 progress += Math.random() * 20;
                 if (progress > 90) progress = 90;
-                updateLoadingProgress(progress, isImage);
+                updateLoadingProgress(progress);
             }, 500);
             
             fetch('/processar', {
@@ -1035,13 +881,8 @@
                 showResult(data);
                 updateProgressSteps(3);
                 
-                // Show specific toast based on file type
-                if (data.tipo_arquivo && IMAGE_EXTENSIONS.includes(data.tipo_arquivo)) {
-                    if (data.metadados?.qualidade_ocr === 'baixa') {
-                        showToast('Imagem processada! Qualidade do OCR baixa - verifique o resultado', 'warning', 5000);
-                    } else {
-                        showToast('Imagem processada com sucesso!', 'success');
-                    }
+                if (data.tipo_documento) {
+                    showToast(`Documento identificado: ${data.tipo_documento.nome}`, 'success', 4000);
                 } else {
                     showToast('Documento processado com sucesso!', 'success');
                 }
@@ -1057,7 +898,6 @@
             });
         }
 
-        // Process manual text
         function processManualText() {
             const text = document.getElementById('manualText').value.trim();
             
@@ -1082,7 +922,7 @@
             }
             
             isProcessing = true;
-            showLoading('Processando texto...');
+            showLoading('Detectando tipo de documento...');
             updateProgressSteps(2);
             
             fetch('/processar_texto', {
@@ -1103,7 +943,12 @@
             .then(data => {
                 showResult(data);
                 updateProgressSteps(3);
-                showToast('Texto processado com sucesso!', 'success');
+                
+                if (data.tipo_documento) {
+                    showToast(`Tipo detectado: ${data.tipo_documento.nome} (${data.tipo_documento.confianca}% confiança)`, 'success', 5000);
+                } else {
+                    showToast('Texto processado com sucesso!', 'success');
+                }
             })
             .catch(error => {
                 showToast(error.message || 'Erro ao processar texto', 'error');
@@ -1115,119 +960,66 @@
             });
         }
 
-        // Loading functions
-        function showLoading(text = 'Processando...', showOCR = false) {
+        function showLoading(text = 'Processando...') {
             const overlay = document.getElementById('loadingOverlay');
             document.getElementById('loadingText').textContent = text;
             document.getElementById('modelInfo').textContent = 'Selecionando melhor modelo...';
-            
-            if (showOCR) {
-                document.getElementById('ocrStatus').style.display = 'block';
-            } else {
-                document.getElementById('ocrStatus').style.display = 'none';
-            }
-            
+            document.getElementById('docTypeDetection').style.display = 'block';
             overlay.classList.add('show');
             updateLoadingProgress(0);
         }
 
         function hideLoading() {
             document.getElementById('loadingOverlay').classList.remove('show');
+            document.getElementById('docTypeDetection').style.display = 'none';
         }
 
-        function updateLoadingProgress(percent, isImage = false) {
+        function updateLoadingProgress(percent) {
             document.getElementById('loadingProgress').style.width = percent + '%';
             
-            // Update loading text based on progress
-            if (isImage) {
-                if (percent < 30) {
-                    document.getElementById('loadingText').textContent = 'Analisando imagem...';
-                } else if (percent < 60) {
-                    document.getElementById('loadingText').textContent = 'Extraindo texto com OCR...';
-                    document.getElementById('ocrStatus').style.display = 'block';
-                } else if (percent < 90) {
-                    document.getElementById('loadingText').textContent = 'Simplificando com IA...';
-                    document.getElementById('modelInfo').textContent = 'Usando Gemini AI';
-                } else {
-                    document.getElementById('loadingText').textContent = 'Finalizando...';
-                }
+            if (percent < 30) {
+                document.getElementById('loadingText').textContent = 'Analisando documento...';
+            } else if (percent < 50) {
+                document.getElementById('loadingText').textContent = 'Detectando tipo de documento...';
+                document.getElementById('docTypeDetection').style.display = 'block';
+            } else if (percent < 80) {
+                document.getElementById('loadingText').textContent = 'Simplificando com IA...';
+                document.getElementById('modelInfo').textContent = 'Usando Gemini AI';
             } else {
-                if (percent > 30 && percent < 60) {
-                    document.getElementById('loadingText').textContent = 'Analisando documento...';
-                } else if (percent >= 60 && percent < 90) {
-                    document.getElementById('loadingText').textContent = 'Simplificando com IA...';
-                    document.getElementById('modelInfo').textContent = 'Usando Gemini AI';
-                } else if (percent >= 90) {
-                    document.getElementById('loadingText').textContent = 'Finalizando...';
-                }
+                document.getElementById('loadingText').textContent = 'Finalizando...';
             }
         }
 
-        // Show result
         function showResult(data) {
-            // Show file type and OCR quality if available
-            if (data.tipo_arquivo) {
-                const processInfo = document.getElementById('processInfo');
-                processInfo.style.display = 'block';
+            // Show document type if detected
+            if (data.tipo_documento) {
+                const docTypeInfo = document.getElementById('docTypeInfo');
+                docTypeInfo.style.display = 'block';
                 
-                const typeIndicator = document.getElementById('fileTypeIndicator');
-                if (IMAGE_EXTENSIONS.includes(data.tipo_arquivo)) {
-                    typeIndicator.textContent = `🖼️ Imagem ${data.tipo_arquivo.toUpperCase()}`;
-                } else {
-                    typeIndicator.textContent = `📄 PDF`;
-                }
+                document.getElementById('docTypeIcon').textContent = data.tipo_documento.icone || '📄';
+                document.getElementById('docTypeName').textContent = data.tipo_documento.nome || 'Documento Jurídico';
                 
-                // Show OCR quality if it's an image
-                if (data.metadados?.qualidade_ocr) {
-                    const ocrIndicator = document.getElementById('ocrQualityIndicator');
-                    ocrIndicator.style.display = 'inline-block';
-                    
-                    const quality = data.metadados.qualidade_ocr;
-                    let qualityText = '';
-                    let qualityClass = '';
-                    
-                    switch(quality) {
-                        case 'boa':
-                            qualityText = '✅ OCR: Qualidade Boa';
-                            qualityClass = 'good';
-                            break;
-                        case 'média':
-                            qualityText = '⚠️ OCR: Qualidade Média';
-                            qualityClass = 'medium';
-                            break;
-                        case 'baixa':
-                            qualityText = '❌ OCR: Qualidade Baixa';
-                            qualityClass = 'low';
-                            break;
-                        default:
-                            qualityText = 'OCR Processado';
-                            qualityClass = 'medium';
-                    }
-                    
-                    ocrIndicator.textContent = qualityText;
-                    ocrIndicator.className = `ocr-quality ${qualityClass}`;
-                }
+                const confidence = data.tipo_documento.confianca || 0;
+                document.getElementById('confidencePercent').textContent = confidence + '%';
+                document.getElementById('confidenceFill').style.width = confidence + '%';
             }
             
-            // Format and display simplified text
+            // Format and display text
             const formattedText = formatResultText(data.texto);
             document.getElementById('simplifiedText').innerHTML = formattedText;
             
-            // Show analysis if available
+            // Show analysis
             if (data.analise) {
                 showResultAnalysis(data.analise);
             }
             
-            // Show download button if PDF was processed
+            // Show download button
             if (data.caracteres_original) {
                 document.getElementById('downloadBtn').style.display = 'inline-flex';
                 document.getElementById('downloadBtn').href = '/download_pdf';
             }
             
-            // Show result section
             document.getElementById('resultSection').style.display = 'block';
-            
-            // Scroll to result
             document.getElementById('resultSection').scrollIntoView({ 
                 behavior: 'smooth', 
                 block: 'start' 
@@ -1237,30 +1029,64 @@
         function showResultAnalysis(analise) {
             let html = '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 1rem;">';
             
+            // Document type card
+            if (analise.tipo_documento) {
+                html += `
+                    <div style="background: var(--info-bg); padding: 1rem; border-radius: 8px; text-align: center; border: 2px solid var(--primary);">
+                        <div style="font-size: 2rem;">📋</div>
+                        <div style="font-weight: bold; margin-top: 0.5rem; color: var(--primary);">${analise.tipo_documento}</div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">Confiança: ${analise.confianca_tipo}%</div>
+                    </div>
+                `;
+            }
+            
             // Result type card
-            let resultClass = 'result-card';
             let resultIcon = '📄';
-            let resultText = 'Documento Processado';
+            let resultText = 'Processado';
+            let resultBg = 'var(--light)';
             
             if (analise.tipo_resultado === 'vitoria') {
                 resultIcon = '✅';
                 resultText = 'Resultado Favorável';
+                resultBg = 'var(--success-bg)';
             } else if (analise.tipo_resultado === 'derrota') {
                 resultIcon = '❌';
                 resultText = 'Resultado Desfavorável';
+                resultBg = 'var(--error-bg)';
             } else if (analise.tipo_resultado === 'parcial') {
                 resultIcon = '⚠️';
                 resultText = 'Resultado Parcial';
+                resultBg = 'var(--warning-bg)';
+            } else if (analise.tipo_resultado === 'recurso_provido') {
+                resultIcon = '✅';
+                resultText = 'Recurso Provido';
+                resultBg = 'var(--success-bg)';
+            } else if (analise.tipo_resultado === 'recurso_negado') {
+                resultIcon = '❌';
+                resultText = 'Recurso Negado';
+                resultBg = 'var(--error-bg)';
+            } else if (analise.tipo_resultado === 'deferido') {
+                resultIcon = '✅';
+                resultText = 'Pedido Deferido';
+                resultBg = 'var(--success-bg)';
+            } else if (analise.tipo_resultado === 'indeferido') {
+                resultIcon = '❌';
+                resultText = 'Pedido Indeferido';
+                resultBg = 'var(--error-bg)';
+            } else if (analise.tipo_resultado === 'aguardando_decisao') {
+                resultIcon = '⏳';
+                resultText = 'Aguardando Decisão';
+                resultBg = 'var(--info-bg)';
             }
             
             html += `
-                <div style="background: var(--light); padding: 1rem; border-radius: 8px; text-align: center;">
+                <div style="background: ${resultBg}; padding: 1rem; border-radius: 8px; text-align: center;">
                     <div style="font-size: 2rem;">${resultIcon}</div>
                     <div style="font-weight: bold; margin-top: 0.5rem;">${resultText}</div>
                 </div>
             `;
             
-            // Info cards
+            // Additional info cards
             if (analise.tem_valores) {
                 html += `
                     <div style="background: var(--light); padding: 1rem; border-radius: 8px; text-align: center;">
@@ -1279,16 +1105,24 @@
                 `;
             }
             
+            if (analise.tem_recursos) {
+                html += `
+                    <div style="background: var(--light); padding: 1rem; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 2rem;">📤</div>
+                        <div style="font-weight: bold; margin-top: 0.5rem;">Menciona Recursos</div>
+                    </div>
+                `;
+            }
+            
             html += '</div>';
             
             document.getElementById('resultAnalysis').innerHTML = html;
         }
 
         function formatResultText(text) {
-            // Format text with proper HTML
             let formatted = text;
             
-            // Format bold text
+            // Format bold
             formatted = formatted.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
             
             // Format sections with icons
@@ -1300,7 +1134,16 @@
                 { icon: '📅', color: 'var(--primary)' },
                 { icon: '✅', color: 'var(--secondary)' },
                 { icon: '❌', color: 'var(--danger)' },
-                { icon: '⚠️', color: 'var(--warning)' }
+                { icon: '⚠️', color: 'var(--warning)' },
+                { icon: '🏛️', color: 'var(--primary)' },
+                { icon: '📝', color: 'var(--primary)' },
+                { icon: '🛡️', color: 'var(--secondary)' },
+                { icon: '📋', color: 'var(--primary)' },
+                { icon: '⚡', color: 'var(--warning)' },
+                { icon: '📤', color: 'var(--primary)' },
+                { icon: '📨', color: 'var(--primary)' },
+                { icon: '⏰', color: 'var(--danger)' },
+                { icon: '📚', color: 'var(--secondary)' }
             ];
             
             iconPatterns.forEach(pattern => {
@@ -1308,13 +1151,12 @@
                 formatted = formatted.replace(regex, `<div style="color: ${pattern.color}; font-weight: bold; margin: 1rem 0;">$1</div>`);
             });
             
-            // Convert line breaks to HTML
+            // Convert line breaks
             formatted = formatted.replace(/\n/g, '<br>');
             
             return formatted;
         }
 
-        // Copy text
         function copyText() {
             const element = document.getElementById('simplifiedText');
             const text = element.innerText || element.textContent;
@@ -1329,7 +1171,6 @@
                     showToast('Texto copiado com sucesso!', 'success');
                 })
                 .catch(() => {
-                    // Fallback
                     const textarea = document.createElement('textarea');
                     textarea.value = text;
                     document.body.appendChild(textarea);
@@ -1340,7 +1181,6 @@
                 });
         }
 
-        // Text to speech
         let isSpeaking = false;
         function speakText() {
             const text = document.getElementById('simplifiedText').textContent;
@@ -1378,46 +1218,61 @@
             isSpeaking = true;
         }
 
-        // Clear all
         function clearAll() {
             document.getElementById('manualText').value = '';
             document.getElementById('resultSection').style.display = 'none';
             document.getElementById('fileInfo').style.display = 'none';
             document.getElementById('previewContainer').style.display = 'none';
+            document.getElementById('docTypeInfo').style.display = 'none';
             fileInput.value = '';
             currentFile = null;
-            currentFileType = null;
             fileTypeIcon.textContent = '📁';
             updateProgressSteps(1);
             showToast('Tudo limpo!', 'info');
         }
 
-        // Load example
         function loadExample() {
             const exampleText = `SENTENÇA
 
 Processo nº 1234567-89.2024.8.26.0100
 
-RELATÓRIO
-Trata-se de ação de cobrança movida por JOÃO DA SILVA em face de EMPRESA XYZ LTDA, alegando inadimplemento contratual no valor de R$ 15.000,00.
+Vistos.
+
+JOÃO DA SILVA, qualificado nos autos, ajuizou a presente AÇÃO DE COBRANÇA em face de EMPRESA XYZ LTDA, também qualificada, alegando, em síntese, que celebrou contrato de prestação de serviços com a ré no valor de R$ 15.000,00 (quinze mil reais), tendo cumprido integralmente sua parte, porém não recebeu o pagamento acordado.
+
+A ré foi devidamente citada, mas não apresentou contestação no prazo legal, tornando-se revel.
+
+É o relatório. DECIDO.
 
 FUNDAMENTAÇÃO
-Analisando os autos, verifico que o autor comprovou a existência da dívida através de contrato assinado e notas fiscais. O réu, devidamente citado, não apresentou contestação.
+
+O feito comporta julgamento antecipado, nos termos do art. 355, II, do CPC, ante a revelia da parte ré.
+
+A revelia acarreta presunção de veracidade dos fatos alegados pelo autor, especialmente quando não há elementos nos autos que os contradigam.
+
+O autor comprovou a existência da relação contratual através do contrato de fls. 15/18 e das notas fiscais de fls. 20/25, demonstrando ter prestado os serviços contratados.
+
+Restou comprovado o inadimplemento da ré, que não efetuou o pagamento devido.
 
 DISPOSITIVO
-Ante o exposto, JULGO PROCEDENTE o pedido para CONDENAR o réu a pagar ao autor a quantia de R$ 15.000,00, corrigida monetariamente desde o vencimento e acrescida de juros de 1% ao mês.
 
-Condeno o réu ao pagamento das custas processuais e honorários advocatícios que fixo em 10% do valor da condenação.
+Ante o exposto, JULGO PROCEDENTE o pedido inicial para CONDENAR a ré EMPRESA XYZ LTDA a pagar ao autor JOÃO DA SILVA a quantia de R$ 15.000,00 (quinze mil reais), corrigida monetariamente desde o vencimento (15/03/2024) e acrescida de juros de mora de 1% ao mês a partir da citação.
 
-P.R.I.`;
+Condeno a ré ao pagamento das custas processuais e honorários advocatícios que fixo em 10% (dez por cento) sobre o valor da condenação, nos termos do art. 85, §2º, do CPC.
+
+Publique-se. Registre-se. Intimem-se.
+
+São Paulo, 15 de setembro de 2024.
+
+MARIA SILVA SANTOS
+Juíza de Direito`;
             
             document.getElementById('manualText').value = exampleText;
-            showToast('Exemplo carregado! Clique em "Simplificar Texto" para processar', 'info', 4000);
+            showToast('Exemplo de sentença carregado! Clique em "Simplificar Texto"', 'info', 4000);
         }
 
         // Keyboard shortcuts
         document.addEventListener('keydown', (e) => {
-            // Ctrl/Cmd + Enter to process
             if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
                 const manualText = document.getElementById('manualText').value;
                 if (manualText) {
@@ -1428,4 +1283,3 @@ P.R.I.`;
     </script>
 </body>
 </html>
-
