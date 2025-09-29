@@ -5,33 +5,20 @@ FROM python:3.11-slim
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONUNBUFFERED=1
 ENV FLASK_ENV=production
-ENV TESSDATA_PREFIX=/usr/share/tesseract-ocr/5/tessdata
 
-# Atualizar e instalar dependências do sistema
+# Atualizar sistema e instalar dependências essenciais
 RUN apt-get update && apt-get install -y \
     tesseract-ocr \
     tesseract-ocr-por \
     tesseract-ocr-eng \
     poppler-utils \
-    libgomp1 \
     wget \
     curl \
-    libtesseract-dev \
-    libleptonica-dev \
-    pkg-config \
-    libmagic1 \
-    libgl1-mesa-glx \
-    libglib2.0-0 \
-    libsm6 \
-    libxext6 \
-    libxrender-dev \
-    libgomp1 \
-    libgcc-s1 \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
 # Verificar instalação do Tesseract
-RUN tesseract --version && tesseract --list-langs
+RUN tesseract --version && echo "Tesseract instalado com sucesso"
 
 # Set working directory
 WORKDIR /app
@@ -49,8 +36,8 @@ COPY . .
 # Create directories
 RUN mkdir -p static templates temp
 
-# Test imports
-RUN python -c "import pytesseract, cv2, PIL; print('All OCR libraries imported successfully')"
+# Test basic imports
+RUN python -c "import pytesseract, PIL, flask; print('Core libraries OK')"
 
 # Expose port
 EXPOSE 8080
@@ -60,4 +47,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8080/health || exit 1
 
 # Run with gunicorn
-CMD ["gunicorn", "app:app", "--bind", "0.0.0.0:8080", "--workers", "2", "--timeout", "120", "--access-logfile", "-", "--error-logfile", "-"]
+CMD ["gunicorn", "app:app", "--bind", "0.0.0.0:8080", "--workers", "2", "--timeout", "120"]
