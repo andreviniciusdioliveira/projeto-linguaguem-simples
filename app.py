@@ -41,28 +41,47 @@ logging.basicConfig(level=logging.INFO)
 # --- Configurações ---
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-# Modelos Gemini disponíveis CORRIGIDOS
+# Modelos Gemini disponíveis - URLs CORRETAS (v1 e v1beta como fallback)
 GEMINI_MODELS = [
     {
         "name": "gemini-1.5-flash-8b",
-        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-8b:generateContent",
+        "urls": [
+            "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-8b:generateContent",
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-8b:generateContent"
+        ],
         "max_tokens": 8192,
         "max_input_tokens": 1000000,
         "priority": 1
     },
     {
         "name": "gemini-1.5-flash",
-        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent",
+        "urls": [
+            "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent",
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
+        ],
         "max_tokens": 8192,
         "max_input_tokens": 1000000,
         "priority": 2
     },
     {
         "name": "gemini-1.5-pro",
-        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent",
+        "urls": [
+            "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-pro:generateContent",
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent"
+        ],
         "max_tokens": 8192,
         "max_input_tokens": 2000000,
         "priority": 3
+    },
+    {
+        "name": "gemini-pro",
+        "urls": [
+            "https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent",
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent"
+        ],
+        "max_tokens": 8192,
+        "max_input_tokens": 30000,
+        "priority": 4
     }
 ]
 
@@ -603,15 +622,23 @@ def simplificar_com_gemini(texto, max_retries=2):
     # Tentar com diferentes modelos
     for tentativa in range(len(GEMINI_MODELS)):
         modelo = escolher_modelo_gemini(complexidade, tentativa)
-        logging.info(f"Tentativa {tentativa + 1}/{len(GEMINI_MODELS)}: Usando modelo {modelo['name']}")
         
-        model_usage_stats[modelo["name"]]["attempts"] += 1
+        # Cada modelo pode ter múltiplas URLs (v1 e v1beta)
+        urls = modelo.get("urls", [modelo.get("url")]) if isinstance(modelo.get("urls"), list) else [modelo.get("url")]
         
-        # Ajustar tokens de saída - mais conservador
-        max_output_tokens = 2048
-        
-        # URL com API key como parâmetro (formato correto)
-        url_with_key = f"{modelo['url']}?key={GEMINI_API_KEY}"
+        for url_base in urls:
+            if not url_base:
+                continue
+                
+            logging.info(f"Tentativa {tentativa + 1}/{len(GEMINI_MODELS)}: Modelo {modelo['name']} - URL: {url_base.split('/')[4]}")
+            
+            model_usage_stats[modelo["name"]]["attempts"] += 1
+            
+            # Ajustar tokens de saída - mais conservador
+            max_output_tokens = 2048
+            
+            # URL com API key como parâmetro (formato correto)
+            url_with_key = f"{url_base}?key={GEMINI_API_KEY}"
         
         payload = {
             "contents": [
@@ -682,7 +709,7 @@ def simplificar_com_gemini(texto, max_retries=2):
                         error_msg = f"{modelo['name']}: Resposta vazia"
                         errors.append(error_msg)
                         logging.warning(error_msg)
-                        break  # Tentar próximo modelo
+                        break  # Tentar próxima URL ou próximo modelo
                         
                 elif response.status_code == 429:
                     error_msg = f"{modelo['name']}: Rate limit (429)"
@@ -715,14 +742,15 @@ def simplificar_com_gemini(texto, max_retries=2):
                     errors.append(error_msg)
                     logging.error(error_msg)
                     model_usage_stats[modelo["name"]]["failures"] += 1
-                    break  # Tentar próximo modelo imediatamente
+                    break  # Tentar próxima URL ou próximo modelo
                     
                 elif response.status_code == 404:
-                    error_msg = f"{modelo['name']}: Modelo não encontrado (404)"
+                    error_msg = f"{modelo['name']}: Modelo não encontrado (404) - URL: {url_base.split('/')[4]}"
                     errors.append(error_msg)
                     logging.error(error_msg)
                     model_usage_stats[modelo["name"]]["failures"] += 1
-                    break  # Tentar próximo modelo
+                    # NÃO fazer break - tentar próxima URL do mesmo modelo
+                    continue  # Tentar próxima URL
                     
                 else:
                     error_msg = f"{modelo['name']}: HTTP {response.status_code}"
@@ -741,11 +769,14 @@ def simplificar_com_gemini(texto, max_retries=2):
                 error_msg = f"{modelo['name']}: {str(e)}"
                 errors.append(error_msg)
                 logging.error(f"Erro inesperado: {e}")
+            
+            # Se chegou aqui e teve sucesso, sai do loop de URLs
+            break
         
         # Pausa antes de tentar próximo modelo
         if tentativa < len(GEMINI_MODELS) - 1:
             logging.info("Aguardando antes de tentar próximo modelo...")
-            time.sleep(3)
+            time.sleep(2)
     
     # Se todos os modelos falharam
     error_summary = " | ".join(errors[-6:])  # Últimos 6 erros
@@ -1141,46 +1172,68 @@ def diagnostico_api():
     resultados = []
     
     for modelo in GEMINI_MODELS:
-        try:
-            url_with_key = f"{modelo['url']}?key={GEMINI_API_KEY}"
-            
-            payload = {
-                "contents": [{
-                    "parts": [{"text": "Teste de conectividade"}]
-                }],
-                "generationConfig": {
-                    "maxOutputTokens": 10
+        # Cada modelo pode ter múltiplas URLs
+        urls = modelo.get("urls", [modelo.get("url")]) if isinstance(modelo.get("urls"), list) else [modelo.get("url")]
+        
+        for url_base in urls:
+            if not url_base:
+                continue
+                
+            try:
+                url_with_key = f"{url_base}?key={GEMINI_API_KEY}"
+                
+                payload = {
+                    "contents": [{
+                        "parts": [{"text": "Teste"}]
+                    }],
+                    "generationConfig": {
+                        "maxOutputTokens": 10
+                    }
                 }
-            }
-            
-            response = requests.post(
-                url_with_key,
-                headers={"Content-Type": "application/json"},
-                json=payload,
-                timeout=15
-            )
-            
-            resultados.append({
-                "modelo": modelo["name"],
-                "status": response.status_code,
-                "ok": response.status_code == 200,
-                "mensagem": "OK" if response.status_code == 200 else response.text[:300]
-            })
-            
-        except Exception as e:
-            resultados.append({
-                "modelo": modelo["name"],
-                "status": "erro",
-                "ok": False,
-                "mensagem": str(e)
-            })
+                
+                response = requests.post(
+                    url_with_key,
+                    headers={"Content-Type": "application/json"},
+                    json=payload,
+                    timeout=15
+                )
+                
+                url_version = url_base.split('/')[4]  # 'v1' ou 'v1beta'
+                
+                resultados.append({
+                    "modelo": modelo["name"],
+                    "url_version": url_version,
+                    "status": response.status_code,
+                    "ok": response.status_code == 200,
+                    "mensagem": "✅ OK" if response.status_code == 200 else f"❌ {response.text[:200]}"
+                })
+                
+                # Se encontrou uma URL que funciona, não testa as outras do mesmo modelo
+                if response.status_code == 200:
+                    break
+                
+            except Exception as e:
+                resultados.append({
+                    "modelo": modelo["name"],
+                    "url_version": url_base.split('/')[4] if url_base else "N/A",
+                    "status": "erro",
+                    "ok": False,
+                    "mensagem": f"❌ {str(e)}"
+                })
+    
+    # Contar quantos modelos funcionam
+    working_models = sum(1 for r in resultados if r["ok"])
     
     return jsonify({
+        "status": "ok" if working_models > 0 else "erro",
+        "modelos_funcionando": working_models,
+        "total_modelos": len(GEMINI_MODELS),
         "api_key_configurada": bool(GEMINI_API_KEY),
         "api_key_preview": GEMINI_API_KEY[:15] + "..." if GEMINI_API_KEY else None,
         "modelos_testados": resultados,
         "estatisticas": model_usage_stats,
-        "cache_entries": len(results_cache)
+        "cache_entries": len(results_cache),
+        "recomendacao": "✅ Sistema operacional" if working_models > 0 else "❌ Nenhum modelo disponível - verifique a API key"
     })
 
 @app.route("/estatisticas")
