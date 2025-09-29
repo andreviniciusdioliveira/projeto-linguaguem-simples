@@ -7,11 +7,11 @@ pymupdf==1.24.2
 pytesseract==0.3.10
 reportlab==4.2.2
 
-# Processamento de imagens
+# Processamento de imagens e OCR
 Pillow==10.4.0
-
-# OCR aprimorado
-opencv-python-headless==4.9.0.80
+# OpenCV será opcional - se falhar não quebra a aplicação
+opencv-python-headless==4.8.1.78
+numpy==1.24.3
 
 # Requisições HTTP
 requests==2.31.0
@@ -24,34 +24,5 @@ gunicorn==21.2.0
 # Variáveis de ambiente
 python-dotenv==1.0.1
 
-# Utilitários para arquivos
-python-magic==0.4.27
-
-# Framework Web
-Flask==3.0.3
-Werkzeug==3.0.3
-
-# Processamento de PDF
-pymupdf==1.24.2
-pytesseract==0.3.10
-reportlab==4.2.2
-
-# Processamento de imagens
-Pillow==10.4.0
-
-# OCR aprimorado
-opencv-python-headless==4.9.0.80
-
-# Requisições HTTP
-requests==2.31.0
-certifi==2024.2.2
-urllib3==2.2.1
-
-# Servidor WSGI para produção
-gunicorn==21.2.0
-
-# Variáveis de ambiente
-python-dotenv==1.0.1
-
-# Utilitários para arquivos
-python-magic==0.4.27
+# Processamento de texto
+regex==2023.12.25
