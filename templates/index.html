@@ -856,8 +856,6 @@
             const i = Math.floor(Math.log(bytes) / Math.log(k));
             return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
         }
-
-        function uploadFile(file) {
             console.log('uploadFile chamado com:', file);
             
             if (isProcessing) {
@@ -1026,6 +1024,39 @@
             });
         }
 
+        function loadExample() {
+            const exampleText = `SENTENÇA
+
+Processo nº 1234567-89.2024.8.26.0100
+
+Vistos.
+
+JOÃO DA SILVA ajuizou AÇÃO DE COBRANÇA em face de EMPRESA XYZ LTDA, alegando que celebrou contrato de prestação de serviços no valor de R$ 15.000,00, tendo cumprido sua parte, porém não recebeu o pagamento.
+
+A ré foi citada, mas não contestou, tornando-se revel.
+
+É o relatório. DECIDO.
+
+FUNDAMENTAÇÃO
+
+O feito comporta julgamento antecipado. A revelia acarreta presunção de veracidade dos fatos alegados.
+
+O autor comprovou a relação contratual e o inadimplemento da ré.
+
+DISPOSITIVO
+
+Ante o exposto, JULGO PROCEDENTE o pedido para CONDENAR a ré a pagar ao autor R$ 15.000,00, corrigidos desde o vencimento e acrescidos de juros de 1% ao mês.
+
+Condeno a ré ao pagamento de custas e honorários de 10% sobre o valor da condenação.
+
+P.R.I.
+
+São Paulo, 15 de setembro de 2024.`;
+            
+            document.getElementById('manualText').value = exampleText;
+            showToast('Exemplo carregado! Clique em "Simplificar Texto"', 'info', 4000);
+        }
+
         // Adicionar botão de diagnóstico
         function checkDiagnostic() {
             showLoading('Verificando sistema...');
@@ -1033,41 +1064,35 @@
             fetch('/diagnostico')
                 .then(response => response.json())
                 .then(data => {
-                    console.log('Diagnóstico do sistema:', data);
+                    console.log('Diagnóstico:', data);
                     
                     let message = '🔍 DIAGNÓSTICO DO SISTEMA\n\n';
                     
-                    // Tesseract
                     message += '📸 OCR (Tesseract):\n';
                     if (data.tesseract?.disponivel) {
                         message += `✅ Disponível (${data.tesseract.version})\n`;
                         message += `   Idiomas: ${data.tesseract.linguas?.length || 0}\n`;
-                        message += `   Português: ${data.tesseract.portugues_disponivel ? '✅' : '❌'}\n`;
                     } else {
                         message += '❌ NÃO disponível\n';
                     }
                     
                     message += '\n🤖 IA (Gemini):\n';
-                    message += data.configuracao?.gemini_api_configurada ? '✅ Configurado\n' : '❌ NÃO configurado\n';
+                    message += data.gemini ? '✅ Configurado\n' : '❌ NÃO configurado\n';
                     
-                    message += '\n📚 Bibliotecas:\n';
-                    message += `   PyMuPDF: ${data.python_libs?.pymupdf || 'N/A'}\n`;
-                    message += `   Pillow: ${data.python_libs?.pillow || 'N/A'}\n`;
-                    message += `   OpenCV: ${data.opencv?.disponivel ? '✅' : '❌'}\n`;
-                    
-                    message += '\n📋 Tipos de documentos: ' + (data.tipos_documentos?.total || 0);
+                    message += '\n📚 OpenCV: ' + (data.opencv ? '✅' : '❌');
+                    message += '\n📋 Tipos de documentos: ' + (data.tipos_documentos || 0);
                     
                     alert(message);
                     hideLoading();
                 })
                 .catch(error => {
-                    console.error('Erro no diagnóstico:', error);
+                    console.error('Erro diagnóstico:', error);
                     alert('❌ Erro ao verificar sistema: ' + error.message);
                     hideLoading();
                 });
         }
 
-        // Adicionar link de diagnóstico no rodapé
+        // Adicionar link de diagnóstico
         document.addEventListener('DOMContentLoaded', function() {
             const container = document.querySelector('.container');
             const footer = document.createElement('div');
