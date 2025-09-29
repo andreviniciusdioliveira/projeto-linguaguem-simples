@@ -872,6 +872,212 @@
                 
                 if (!response.ok) {
                     return response.json().then(data => {
+                        console.error('Erro do servidor:', data);
+                        
+                        let errorMessage = data.erro || 'Erro ao processar arquivo';
+                        
+                        // Mensagens mais específicas
+                        if (data.detalhes) {
+                            errorMessage += '\n' + data.detalhes;
+                        }
+                        
+                        if (data.tipo_erro) {
+                            console.error('Tipo de erro:', data.tipo_erro);
+                        }
+                        
+                        if (data.sugestao) {
+                            errorMessage += '\n\n💡 ' + data.sugestao;
+                        }
+                        
+                        // Erros específicos
+                        if (errorMessage.includes('OCR não está disponível')) {
+                            errorMessage = '❌ OCR Indisponível\n\nO servidor não tem o Tesseract OCR instalado. Entre em contato com o administrador ou use um PDF com texto selecionável.';
+                        } else if (errorMessage.includes('GEMINI_API_KEY')) {
+                            errorMessage = '❌ API não configurada\n\nA chave da API do Gemini não está configurada no servidor.';
+                        } else if (errorMessage.includes('Nenhum texto')) {
+                            errorMessage = '❌ Sem texto detectado\n\nNão foi possível extrair texto do arquivo. Verifique se:\n• O PDF contém texto selecionável\n• A imagem tem texto legível\n• O arquivo não está corrompido';
+                        }
+                        
+                        throw new Error(errorMessage);
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('Resposta do servidor:', data);
+                showResult(data);
+                updateProgressSteps(3);
+                
+                if (data.tipo_documento) {
+                    showToast(`✅ ${data.tipo_documento.nome} identificado (${data.tipo_documento.confianca}% confiança)`, 'success', 4000);
+                } else {
+                    showToast('✅ Documento processado com sucesso!', 'success');
+                }
+            })
+            .catch(error => {
+                console.error('Erro capturado:', error);
+                showToast(error.message || '❌ Erro ao processar arquivo', 'error', 6000);
+                updateProgressSteps(1);
+            })
+            .finally(() => {
+                isProcessing = false;
+                hideLoading();
+                clearInterval(progressInterval);
+            });
+        }
+
+        function processManualText() {
+            const text = document.getElementById('manualText').value.trim();
+            
+            if (!text) {
+                showToast('Por favor, insira algum texto', 'warning');
+                return;
+            }
+            
+            if (text.length < 20) {
+                showToast('Texto muito curto. Mínimo: 20 caracteres', 'warning');
+                return;
+            }
+            
+            if (text.length > 10000) {
+                showToast('Texto muito longo. Máximo: 10.000 caracteres', 'warning');
+                return;
+            }
+            
+            if (isProcessing) {
+                showToast('Aguarde o processamento atual terminar', 'warning');
+                return;
+            }
+            
+            isProcessing = true;
+            showLoading('Detectando tipo de documento...');
+            updateProgressSteps(2);
+            
+            fetch('/processar_texto', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ texto: text })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(data => {
+                        console.error('Erro do servidor:', data);
+                        
+                        let errorMessage = data.erro || 'Erro ao processar texto';
+                        
+                        if (data.detalhes) {
+                            errorMessage += '\n' + data.detalhes;
+                        }
+                        
+                        throw new Error(errorMessage);
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('Resposta do servidor:', data);
+                showResult(data);
+                updateProgressSteps(3);
+                
+                if (data.tipo_documento) {
+                    const conf = data.tipo_documento.confianca || 0;
+                    const nome = data.tipo_documento.nome || 'Documento';
+                    showToast(`✅ ${nome} detectado (${conf}% confiança)`, 'success', 5000);
+                } else {
+                    showToast('✅ Texto processado com sucesso!', 'success');
+                }
+            })
+            .catch(error => {
+                console.error('Erro capturado:', error);
+                showToast(error.message || '❌ Erro ao processar texto', 'error', 6000);
+                updateProgressSteps(1);
+            })
+            .finally(() => {
+                isProcessing = false;
+                hideLoading();
+            });
+        }
+
+        // Adicionar botão de diagnóstico
+        function checkDiagnostic() {
+            showLoading('Verificando sistema...');
+            
+            fetch('/diagnostico')
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Diagnóstico do sistema:', data);
+                    
+                    let message = '🔍 DIAGNÓSTICO DO SISTEMA\n\n';
+                    
+                    // Tesseract
+                    message += '📸 OCR (Tesseract):\n';
+                    if (data.tesseract?.disponivel) {
+                        message += `✅ Disponível (${data.tesseract.version})\n`;
+                        message += `   Idiomas: ${data.tesseract.linguas?.length || 0}\n`;
+                        message += `   Português: ${data.tesseract.portugues_disponivel ? '✅' : '❌'}\n`;
+                    } else {
+                        message += '❌ NÃO disponível\n';
+                    }
+                    
+                    message += '\n🤖 IA (Gemini):\n';
+                    message += data.configuracao?.gemini_api_configurada ? '✅ Configurado\n' : '❌ NÃO configurado\n';
+                    
+                    message += '\n📚 Bibliotecas:\n';
+                    message += `   PyMuPDF: ${data.python_libs?.pymupdf || 'N/A'}\n`;
+                    message += `   Pillow: ${data.python_libs?.pillow || 'N/A'}\n`;
+                    message += `   OpenCV: ${data.opencv?.disponivel ? '✅' : '❌'}\n`;
+                    
+                    message += '\n📋 Tipos de documentos: ' + (data.tipos_documentos?.total || 0);
+                    
+                    alert(message);
+                    hideLoading();
+                })
+                .catch(error => {
+                    console.error('Erro no diagnóstico:', error);
+                    alert('❌ Erro ao verificar sistema: ' + error.message);
+                    hideLoading();
+                });
+        }
+
+        // Adicionar link de diagnóstico no rodapé
+        document.addEventListener('DOMContentLoaded', function() {
+            const container = document.querySelector('.container');
+            const footer = document.createElement('div');
+            footer.style.cssText = 'text-align: center; margin-top: 3rem; padding: 2rem; color: var(--text-muted); font-size: 0.875rem;';
+            footer.innerHTML = `
+                <p>Desenvolvido pela INOVASSOL - Centro de Inovação AI</p>
+                <p style="margin-top: 0.5rem;">
+                    <button onclick="checkDiagnostic()" style="background: none; border: none; color: var(--primary); cursor: pointer; text-decoration: underline;">
+                        🔍 Verificar Sistema
+                    </button>
+                </p>
+            `;
+            container.appendChild(footer);
+        });Loading('Processando documento...');
+            updateProgressSteps(2);
+            
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            let progress = 0;
+            const progressInterval = setInterval(() => {
+                progress += Math.random() * 20;
+                if (progress > 90) progress = 90;
+                updateLoadingProgress(progress);
+            }, 500);
+            
+            fetch('/processar', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                clearInterval(progressInterval);
+                updateLoadingProgress(100);
+                
+                if (!response.ok) {
+                    return response.json().then(data => {
                         throw new Error(data.erro || 'Erro ao processar arquivo');
                     });
                 }
@@ -1278,6 +1484,12 @@ Juíza de Direito`;
                 if (manualText) {
                     processManualText();
                 }
+            }
+            
+            // Ctrl/Cmd + D para diagnóstico
+            if ((e.ctrlKey || e.metaKey) && e.key === 'd') {
+                e.preventDefault();
+                checkDiagnostic();
             }
         });
     </script>
