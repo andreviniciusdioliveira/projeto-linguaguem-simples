@@ -169,7 +169,7 @@ TIPOS_DOCUMENTOS = {
     "despacho": {
         "nome": "Despacho",
         "icone": "📋",
-        "padrões": [
+        "padroes": [
             r"^despacho",
             r"intime-se",
             r"cite-se",
@@ -2184,3 +2184,4 @@ cleanup_thread.start()
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8080))
     app.run(host="0.0.0.0", port=port, debug=False)
+
