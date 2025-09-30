@@ -184,6 +184,7 @@ Identificação do Vencedor:
 ⚠️ **VITÓRIA PARCIAL** - Você ganhou parte do que pediu
 ⏳ **AGUARDANDO** - Ainda não há decisão final
 📋 **ANDAMENTO** - Apenas um despacho processual
+⚠️ **MANDADO** - O que Você deve fazer
 
 **Em uma frase:** [Explicar o resultado em linguagem muito simples]
 
@@ -208,7 +209,7 @@ Identificação do Vencedor:
 
 ---
 *Documento processado em: [data/hora]*
-*Este é um resumo simplificado. Consulte seu advogado para orientações específicas.*
+*Este é um resumo simplificado. Consulte seu advogado ou defensor público para orientações específicas.*
 
 **REGRAS DE SIMPLIFICAÇÃO:**
 1. Use frases com máximo 20 palavras
@@ -1349,4 +1350,5 @@ cleanup_thread.start()
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8080))
     app.run(host="0.0.0.0", port=port, debug=False)
+
 
