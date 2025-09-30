@@ -187,17 +187,37 @@ IDENTIFICAÇÃO DO DOCUMENTO
 [Use "Juiz(a)" se for SENTENÇA, DECISÃO ou DESPACHO]
 
 💰 VALORES E OBRIGAÇÕES
-• Valor da causa: R$ [valor]
-• Valores a receber: R$ [detalhar]
-• Valores a pagar: R$ [detalhar]
-• Honorários: [percentual e valor]
-• Custas processuais: [quem paga]
+**⚠️ ATENÇÃO CRÍTICA: Esta é a seção MAIS IMPORTANTE para o usuário!**
+
+**INSTRUÇÕES PARA EXTRAÇÃO DE VALORES:**
+1. Procure atentamente por TODOS os valores monetários no DISPOSITIVO da sentença
+2. Procure especialmente por frases como "CONDENO ao pagamento de R$", "indenização de R$", "danos morais no valor de R$"
+3. Se houver valores já identificados (veja abaixo), USE-OS na resposta
+4. NUNCA escreva "A ser definido" se houver um valor específico no texto
+5. Se realmente não houver valor, explique o motivo (ex: "Será calculado em liquidação de sentença")
+
+- Valor da causa: R$ [extrair do início do documento ou especificar "não informado"]
+
+- **VALORES QUE VOCÊ VAI RECEBER** (se for o autor vencedor):
+  - **Danos morais**: R$ [VALOR ESPECÍFICO ou "não concedido"] 
+  - **Danos materiais**: R$ [VALOR ESPECÍFICO ou "não concedido"]
+  - **Lucros cessantes**: R$ [VALOR ESPECÍFICO ou "pedido negado"]
+  - **TOTAL APROXIMADO A RECEBER**: R$ [somar todos os valores concedidos]
+
+- **Valores a pagar** (se você perdeu ou perdeu parcialmente):
+  - **Custas processuais**: R$ [valor] ou [% sobre valor da causa]
+  - **Honorários advocatícios da parte contrária**: [percentual, ex: 10%] sobre R$ [base de cálculo] = R$ [valor aproximado]
+
+- **Correção monetária**: Desde [data especificada na sentença], pelo índice [IPCA-E/SELIC/IGP-M]
+- **Juros de mora**: [taxa especificada]% desde [data do evento danoso ou da citação]
+
+- **Forma de pagamento**: [Precatório/RPV/Pagamento direto]
 
 📚 MINI DICIONÁRIO DOS TERMOS JURÍDICOS
 [Listar apenas os termos jurídicos que aparecem no texto com explicação simples]
-• **Termo 1:** Explicação clara e simples
-• **Termo 2:** Explicação clara e simples
-• **Termo 3:** Explicação clara e simples
+- **Termo 1:** Explicação clara e simples
+- **Termo 2:** Explicação clara e simples
+- **Termo 3:** Explicação clara e simples
 
 ---
 *Documento processado em: [data/hora]*
@@ -213,6 +233,7 @@ IDENTIFICAÇÃO DO DOCUMENTO
 7. **CRÍTICO:** Identifique o tipo de documento e use a autoridade correta:
    - ACÓRDÃO ou VOTO → use "Desembargador(a)" ou "Tribunal"
    - SENTENÇA, DECISÃO ou DESPACHO → use "Juiz(a)"
+8. **VALORES SÃO PRIORIDADE MÁXIMA** - Nunca omita valores que estejam explícitos no texto
 
 **TEXTO ORIGINAL A SIMPLIFICAR:**
 """
@@ -1346,6 +1367,7 @@ cleanup_thread.start()
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8080))
     app.run(host="0.0.0.0", port=port, debug=False)
+
 
 
 
