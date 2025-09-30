@@ -14,8 +14,8 @@
             --jus-azul: #2c4f5e;
             --jus-dourado: #b8963c;
             
-            --primary: #1a73e8;
-            --primary-dark: #1557b0;
+            --primary: #2c4f5e; /* Usando azul JUS como primário */
+            --primary-dark: #1a3540;
             --secondary: #34a853;
             --danger: #ea4335;
             --warning: #fbbc04;
@@ -48,8 +48,8 @@
 
         /* Dark mode */
         body.dark-mode {
-            --primary: #4da3ff;
-            --primary-dark: #66b3ff;
+            --primary: #4a7589;
+            --primary-dark: #5a8599;
             --light: #1a1a1a;
             --text: #e8eaed;
             --text-muted: #9aa0a6;
@@ -138,7 +138,6 @@
             width: 100%;
             height: 100%;
             border-radius: 50%;
-            /* Sombra com as cores JUS */
             box-shadow: 
                 0 0 20px rgba(109, 41, 50, 0.4),
                 0 0 30px rgba(44, 79, 94, 0.3),
@@ -175,7 +174,6 @@
             left: -5px;
             right: -5px;
             bottom: -5px;
-            /* Gradiente rotativo com cores JUS */
             background: linear-gradient(45deg, 
                 var(--jus-vinho), 
                 var(--jus-azul), 
@@ -229,7 +227,7 @@
             font-size: 1.1rem;
         }
 
-        /* Badges com cores JUS */
+        /* Badges for supported formats - cores JUS */
         .format-badges {
             display: flex;
             justify-content: center;
@@ -262,18 +260,6 @@
                 rgba(44, 79, 94, 0.2) 50%,
                 rgba(184, 150, 60, 0.2) 100%
             );
-        }
-
-        /* Dark mode adjustments para cores JUS */
-        body.dark-mode .header h1 {
-            background: linear-gradient(135deg, 
-                #9d4350 0%, 
-                #4a7589 50%, 
-                #d4b35c 100%
-            );
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
         }
 
         body.dark-mode .format-badge {
@@ -309,7 +295,381 @@
             box-shadow: 0 12px 48px var(--shadow);
         }
 
-        /* Theme switch */
+        /* Progress Steps */
+        .progress-steps {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 3rem;
+            position: relative;
+        }
+
+        .progress-steps::before {
+            content: '';
+            position: absolute;
+            top: 20px;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: var(--border);
+            z-index: -1;
+        }
+
+        .step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex: 1;
+            position: relative;
+        }
+
+        .step-circle {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: white;
+            border: 2px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            z-index: 1;
+        }
+
+        .step.active .step-circle {
+            background: var(--jus-azul);
+            color: white;
+            border-color: var(--jus-azul);
+            transform: scale(1.1);
+        }
+
+        .step.completed .step-circle {
+            background: var(--jus-dourado);
+            color: white;
+            border-color: var(--jus-dourado);
+        }
+
+        .step-label {
+            margin-top: 0.5rem;
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            text-align: center;
+        }
+
+        /* File upload area melhorada */
+        #drop-area {
+            border: 2px dashed var(--jus-dourado);
+            border-radius: 12px;
+            padding: 3rem 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: linear-gradient(135deg, 
+                rgba(109, 41, 50, 0.05) 0%, 
+                rgba(44, 79, 94, 0.05) 50%,
+                rgba(184, 150, 60, 0.05) 100%
+            );
+            position: relative;
+            overflow: hidden;
+        }
+
+        #drop-area::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, var(--jus-dourado) 0%, transparent 70%);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+        }
+
+        #drop-area:hover::before,
+        #drop-area.hover::before {
+            opacity: 0.1;
+        }
+
+        #drop-area:hover,
+        #drop-area.hover {
+            border-color: var(--jus-azul);
+            transform: scale(1.02);
+        }
+
+        /* Image preview */
+        .preview-container {
+            display: none;
+            margin-top: 1rem;
+            padding: 1rem;
+            background: var(--light);
+            border-radius: 8px;
+            position: relative;
+        }
+
+        .preview-image {
+            max-width: 100%;
+            max-height: 300px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px var(--shadow);
+        }
+
+        .preview-info {
+            margin-top: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .remove-file {
+            background: var(--danger);
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: all 0.3s ease;
+        }
+
+        .remove-file:hover {
+            background: #c23321;
+            transform: scale(1.05);
+        }
+
+        /* OCR quality indicator */
+        .ocr-quality {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            margin-top: 0.5rem;
+        }
+
+        .ocr-quality.good {
+            background: var(--success-bg);
+            color: var(--secondary);
+        }
+
+        .ocr-quality.medium {
+            background: var(--warning-bg);
+            color: #ea8600;
+        }
+
+        .ocr-quality.low {
+            background: var(--error-bg);
+            color: var(--danger);
+        }
+
+        /* Botões melhorados com cores JUS */
+        .button {
+            background: linear-gradient(135deg, var(--jus-azul) 0%, var(--jus-vinho) 100%);
+            color: white;
+            border: none;
+            padding: 0.75rem 2rem;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            text-decoration: none;
+            box-shadow: 0 4px 12px rgba(44, 79, 94, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .button::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+
+        .button:hover::before {
+            width: 300px;
+            height: 300px;
+        }
+
+        .button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(44, 79, 94, 0.4);
+        }
+
+        /* File type icons */
+        .file-type-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            display: inline-block;
+            animation: bounce 2s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        /* Supported formats grid */
+        .formats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .format-item {
+            text-align: center;
+            padding: 1rem;
+            background: var(--light);
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+
+        .format-item:hover {
+            transform: scale(1.1);
+            background: linear-gradient(135deg, 
+                rgba(109, 41, 50, 0.1) 0%, 
+                rgba(184, 150, 60, 0.1) 100%
+            );
+            border-color: var(--jus-dourado);
+        }
+
+        .format-item .icon {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .format-item .name {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text-muted);
+        }
+
+        /* Loading avançado */
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .loading-overlay.show {
+            display: flex;
+        }
+
+        .loading-content {
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            text-align: center;
+            max-width: 400px;
+        }
+
+        body.dark-mode .loading-content {
+            background: #2a2a2a;
+        }
+
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            margin: 0 auto 1rem;
+            border: 4px solid var(--border);
+            border-top: 4px solid var(--jus-dourado);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            color: var(--text);
+            margin-bottom: 1rem;
+        }
+
+        .loading-progress {
+            width: 100%;
+            height: 8px;
+            background: var(--border);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .loading-progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--jus-vinho) 0%, var(--jus-azul) 50%, var(--jus-dourado) 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+            animation: shimmer 1.5s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { opacity: 0.8; }
+            50% { opacity: 1; }
+            100% { opacity: 0.8; }
+        }
+
+        /* Toast notifications */
+        .toast {
+            position: fixed;
+            bottom: -100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--dark);
+            color: white;
+            padding: 1rem 2rem;
+            border-radius: 8px;
+            box-shadow: 0 8px 32px var(--shadow);
+            transition: bottom 0.3s ease;
+            z-index: 10000;
+            max-width: 90%;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .toast.show {
+            bottom: 2rem;
+        }
+
+        .toast.success {
+            background: var(--secondary);
+        }
+
+        .toast.error {
+            background: var(--danger);
+        }
+
+        .toast.warning {
+            background: var(--warning);
+            color: var(--dark);
+        }
+
+        .toast.info {
+            background: var(--jus-azul);
+        }
+
+        /* Theme switch com cores JUS */
         .theme-switch {
             position: fixed;
             top: 1rem;
@@ -367,7 +727,229 @@
             transform: translateX(30px);
         }
 
-        /* Animações */
+        /* AVATAR ANIMADO */
+        .avatar-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+            transition: all 0.3s ease;
+        }
+
+        .avatar-wrapper {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 10px;
+        }
+
+        .avatar {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            border: 4px solid var(--jus-dourado);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            animation: float 3s ease-in-out infinite;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        @keyframes float {
+            0%, 100% {
+                transform: translateY(0px) scale(1);
+            }
+            50% {
+                transform: translateY(-10px) scale(1.02);
+            }
+        }
+
+        .avatar::before {
+            content: '';
+            position: absolute;
+            top: -10px;
+            left: -10px;
+            right: -10px;
+            bottom: -10px;
+            border-radius: 50%;
+            border: 3px solid var(--jus-dourado);
+            opacity: 0;
+            animation: pulse-ring 2s ease-out infinite;
+        }
+
+        @keyframes pulse-ring {
+            0% {
+                transform: scale(0.95);
+                opacity: 1;
+            }
+            100% {
+                transform: scale(1.1);
+                opacity: 0;
+            }
+        }
+
+        .avatar:hover {
+            transform: scale(1.1) rotate(5deg);
+            box-shadow: 0 15px 50px rgba(184, 150, 60, 0.4);
+        }
+
+        .speech-bubble {
+            background: white;
+            border-radius: 20px;
+            padding: 15px 20px;
+            max-width: 280px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+            position: relative;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.4s ease;
+            pointer-events: none;
+        }
+
+        body.dark-mode .speech-bubble {
+            background: #2a2a2a;
+        }
+
+        .speech-bubble.show {
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: auto;
+        }
+
+        .speech-bubble::after {
+            content: '';
+            position: absolute;
+            bottom: -15px;
+            right: 30px;
+            width: 0;
+            height: 0;
+            border-left: 15px solid transparent;
+            border-right: 15px solid transparent;
+            border-top: 15px solid white;
+        }
+
+        body.dark-mode .speech-bubble::after {
+            border-top-color: #2a2a2a;
+        }
+
+        .speech-bubble p {
+            margin: 0;
+            color: var(--text);
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .speech-bubble .avatar-name {
+            font-weight: bold;
+            color: var(--jus-azul);
+            margin-bottom: 5px;
+            display: block;
+        }
+
+        .thinking-dots {
+            display: none;
+            gap: 5px;
+        }
+
+        .thinking-dots.show {
+            display: flex;
+        }
+
+        .thinking-dots span {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--jus-dourado);
+            animation: thinking 1.4s infinite;
+        }
+
+        .thinking-dots span:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .thinking-dots span:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes thinking {
+            0%, 60%, 100% {
+                transform: translateY(0);
+                opacity: 0.5;
+            }
+            30% {
+                transform: translateY(-10px);
+                opacity: 1;
+            }
+        }
+
+        .status-indicator {
+            position: absolute;
+            bottom: 5px;
+            right: 5px;
+            width: 20px;
+            height: 20px;
+            background: var(--jus-dourado);
+            border-radius: 50%;
+            border: 3px solid white;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                box-shadow: 0 0 0 0 rgba(184, 150, 60, 0.7);
+            }
+            50% {
+                box-shadow: 0 0 0 10px rgba(184, 150, 60, 0);
+            }
+        }
+
+        .close-bubble {
+            position: absolute;
+            top: 5px;
+            right: 10px;
+            background: none;
+            border: none;
+            font-size: 18px;
+            cursor: pointer;
+            color: var(--text-muted);
+            transition: all 0.2s;
+            padding: 0;
+            width: 25px;
+            height: 25px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+        }
+
+        .close-bubble:hover {
+            background: var(--light);
+            color: var(--danger);
+        }
+
+        .particle {
+            position: absolute;
+            pointer-events: none;
+        }
+
+        .avatar-container.minimized .avatar {
+            width: 70px;
+            height: 70px;
+        }
+
+        .avatar-container.minimized .speech-bubble {
+            display: none;
+        }
+
+        /* Animations */
         @keyframes fadeIn {
             from { opacity: 0; }
             to { opacity: 1; }
@@ -409,6 +991,34 @@
                 width: 60px;
                 height: 60px;
             }
+
+            .progress-steps {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .progress-steps::before {
+                display: none;
+            }
+
+            .formats-grid {
+                grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+            }
+
+            .avatar-container {
+                bottom: 15px;
+                right: 15px;
+            }
+
+            .avatar {
+                width: 80px;
+                height: 80px;
+            }
+
+            .speech-bubble {
+                max-width: 200px;
+                font-size: 13px;
+            }
         }
     </style>
 </head>
@@ -421,8 +1031,23 @@
         </label>
     </div>
 
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <div class="loading-text" id="loadingText">Processando com IA...</div>
+            <div class="loading-progress">
+                <div class="loading-progress-bar" id="loadingProgress"></div>
+            </div>
+            <small id="modelInfo" style="color: var(--text-muted); margin-top: 0.5rem;"></small>
+            <div id="ocrStatus" style="display: none; margin-top: 1rem; color: var(--text-muted); font-size: 0.875rem;">
+                <span>📸 Extraindo texto da imagem com OCR...</span>
+            </div>
+        </div>
+    </div>
+
     <div class="container">
-        <!-- Header com cores JUS -->
+        <!-- Header -->
         <header class="header">
             <h1>
                 <div class="header-avatar">
@@ -445,29 +1070,473 @@
             </div>
         </header>
 
-        <!-- Card de demonstração -->
+        <!-- Progress Steps -->
+        <div class="progress-steps">
+            <div class="step active" id="step1">
+                <div class="step-circle">1</div>
+                <div class="step-label">Enviar Arquivo</div>
+            </div>
+            <div class="step" id="step2">
+                <div class="step-circle">2</div>
+                <div class="step-label">Processar com IA</div>
+            </div>
+            <div class="step" id="step3">
+                <div class="step-circle">3</div>
+                <div class="step-label">Resultado Simplificado</div>
+            </div>
+        </div>
+
+        <!-- Upload Card -->
         <div class="card">
-            <h2 style="color: var(--jus-azul); margin-bottom: 1rem;">📤 Nova Interface com Cores JUS</h2>
-            <p style="color: var(--text-muted);">
-                O cabeçalho "Entenda Aqui" agora utiliza as três cores oficiais do JUS:
-            </p>
-            <ul style="margin-top: 1rem; color: var(--text);">
-                <li><strong style="color: var(--jus-vinho);">■</strong> Vinho/Marrom - Justiça</li>
-                <li><strong style="color: var(--jus-azul);">■</strong> Azul Escuro - União</li>
-                <li><strong style="color: var(--jus-dourado);">■</strong> Dourado - Sociedade</li>
-            </ul>
-            <p style="margin-top: 1rem; color: var(--text-muted); font-size: 0.9rem;">
-                O gradiente cria uma transição suave entre as três cores, mantendo a identidade visual do projeto JUS.
-            </p>
+            <h2 style="color: var(--jus-azul); margin-bottom: 1.5rem;">📤 Enviar Documento ou Imagem</h2>
+            <div id="drop-area">
+                <div class="file-type-icon" id="fileTypeIcon">📁</div>
+                <p style="font-size: 1.1rem; color: var(--text); margin-bottom: 1rem;">
+                    Arraste seu arquivo aqui ou clique para selecionar
+                </p>
+                <input type="file" id="fileInput" accept=".pdf,image/*" style="display: none;">
+                <button class="button" onclick="document.getElementById('fileInput').click()">
+                    <span>📎</span> Escolher Arquivo
+                </button>
+                
+                <!-- Formatos suportados -->
+                <div class="formats-grid" style="margin-top: 2rem;">
+                    <div class="format-item">
+                        <div class="icon">📄</div>
+                        <div class="name">PDF</div>
+                    </div>
+                    <div class="format-item">
+                        <div class="icon">🖼️</div>
+                        <div class="name">PNG</div>
+                    </div>
+                    <div class="format-item">
+                        <div class="icon">📷</div>
+                        <div class="name">JPG</div>
+                    </div>
+                    <div class="format-item">
+                        <div class="icon">🎨</div>
+                        <div class="name">GIF</div>
+                    </div>
+                    <div class="format-item">
+                        <div class="icon">🖌️</div>
+                        <div class="name">BMP</div>
+                    </div>
+                    <div class="format-item">
+                        <div class="icon">📸</div>
+                        <div class="name">TIFF</div>
+                    </div>
+                    <div class="format-item">
+                        <div class="icon">🌐</div>
+                        <div class="name">WEBP</div>
+                    </div>
+                </div>
+                
+                <p style="font-size: 0.875rem; color: var(--text-muted); margin-top: 1rem;">
+                    Máximo: 10MB | OCR automático para imagens
+                </p>
+            </div>
+            
+            <!-- Preview Container -->
+            <div id="previewContainer" class="preview-container">
+                <img id="previewImage" class="preview-image" alt="Preview">
+                <div class="preview-info">
+                    <div>
+                        <strong id="fileName"></strong>
+                        <span id="fileSize" style="margin-left: 1rem; color: var(--text-muted);"></span>
+                    </div>
+                    <button class="remove-file" onclick="removeFile()">
+                        🗑️ Remover
+                    </button>
+                </div>
+            </div>
+            
+            <div id="fileInfo" style="display: none; margin-top: 1rem; padding: 1rem; background: var(--success-bg); border-radius: 8px;">
+                <p style="margin: 0; display: flex; justify-content: space-between; align-items: center;">
+                    <span id="fileNameInfo" style="font-weight: 600;"></span>
+                    <span id="fileSizeInfo" style="font-size: 0.875rem; color: var(--text-muted);"></span>
+                </p>
+            </div>
+        </div>
+
+        <!-- Manual Text Card -->
+        <div class="card">
+            <h2 style="color: var(--jus-azul); margin-bottom: 1.5rem;">✍️ Ou Cole o Texto</h2>
+            <textarea id="manualText" placeholder="Cole aqui o texto jurídico que deseja simplificar..." 
+                style="width: 100%; min-height: 150px; padding: 1rem; border: 2px solid var(--border); border-radius: 8px; font-family: inherit; font-size: 1rem; resize: vertical; transition: border-color 0.3s;"></textarea>
+            <div style="display: flex; gap: 1rem; margin-top: 1rem; flex-wrap: wrap;">
+                <button class="button" onclick="processManualText()">
+                    <span>🔄</span> Simplificar Texto
+                </button>
+                <button class="button" style="background: var(--danger);" onclick="clearAll()">
+                    <span>🗑️</span> Limpar Tudo
+                </button>
+                <button class="button" style="background: var(--warning); color: var(--dark); margin-left: auto;" onclick="loadExample()">
+                    <span>📝</span> Exemplo
+                </button>
+            </div>
+        </div>
+
+        <!-- Result Card -->
+        <div id="resultSection" style="display: none;">
+            <div class="card">
+                <h2 style="color: var(--jus-azul); margin-bottom: 1.5rem;">✅ Resultado Simplificado</h2>
+                
+                <!-- File type and OCR quality indicator -->
+                <div id="processInfo" style="margin-bottom: 1rem; display: none;">
+                    <span id="fileTypeIndicator" style="background: var(--info-bg); color: var(--jus-azul); padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.875rem; font-weight: 600;"></span>
+                    <span id="ocrQualityIndicator" class="ocr-quality" style="display: none;"></span>
+                </div>
+                
+                <!-- Result Analysis -->
+                <div id="resultAnalysis" style="margin-bottom: 1.5rem;">
+                    <!-- Filled dynamically -->
+                </div>
+                
+                <!-- Simplified Text -->
+                <div id="simplifiedText" style="background: var(--light); padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem; max-height: 500px; overflow-y: auto;">
+                    <!-- Filled dynamically -->
+                </div>
+                
+                <!-- Action Buttons -->
+                <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                    <a href="#" class="button" id="downloadBtn" style="display: none;">
+                        <span>📥</span> Baixar PDF
+                    </a>
+                    <button class="button" onclick="copyText()">
+                        <span>📋</span> Copiar Texto
+                    </button>
+                    <button class="button" onclick="speakText()" id="speakBtn">
+                        <span>🔊</span> Ler em Voz Alta
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <!-- AVATAR ANIMADO -->
+    <div class="avatar-container" id="avatarContainer">
+        <div class="avatar-wrapper">
+            <div class="speech-bubble" id="speechBubble">
+                <button class="close-bubble" onclick="closeSpeech()">×</button>
+                <span class="avatar-name">JUS Bot</span>
+                <p id="speechText">Olá! Estou aqui para ajudar você! 👋</p>
+                <div class="thinking-dots" id="thinkingDots">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+            </div>
+            
+            <div class="avatar" id="avatar" onclick="toggleSpeech()">
+                <img src="/static/avatar.png" alt="JUS Avatar" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ccircle cx=%2250%22 cy=%2250%22 r=%2240%22 fill=%22%236d2932%22/%3E%3Ctext x=%2250%22 y=%2265%22 text-anchor=%22middle%22 font-size=%2250%22%3E⚖️%3C/text%3E%3C/svg%3E'">
+                <div class="status-indicator"></div>
+            </div>
         </div>
     </div>
 
     <script>
-        // Theme toggle
+        // AVATAR SYSTEM
+        const avatarAudio = {
+            start: new Audio('/static/vou-começar.mp3'),
+            finish: new Audio('/static/prontinho-simplifiquei.mp3')
+        };
+
+        avatarAudio.start.preload = 'auto';
+        avatarAudio.finish.preload = 'auto';
+        
+        let audioUnlocked = false;
+
+        function unlockAudio() {
+            if (audioUnlocked) return;
+            
+            Object.values(avatarAudio).forEach(audio => {
+                audio.play().then(() => {
+                    audio.pause();
+                    audio.currentTime = 0;
+                }).catch(() => {});
+            });
+            
+            audioUnlocked = true;
+            console.log('Audio unlocked for mobile');
+        }
+
+        ['click', 'touchstart', 'touchend'].forEach(event => {
+            document.addEventListener(event, unlockAudio, { once: true });
+        });
+
+        function playAvatarAudio(type) {
+            try {
+                Object.values(avatarAudio).forEach(audio => {
+                    audio.pause();
+                    audio.currentTime = 0;
+                });
+
+                if (avatarAudio[type]) {
+                    const playPromise = avatarAudio[type].play();
+                    
+                    if (playPromise !== undefined) {
+                        playPromise
+                            .then(() => {
+                                console.log(`Audio ${type} playing successfully`);
+                            })
+                            .catch(err => {
+                                console.log('Audio playback prevented:', err);
+                                showAudioFeedback(type);
+                            });
+                    }
+                }
+            } catch (error) {
+                console.log('Error playing audio:', error);
+                showAudioFeedback(type);
+            }
+        }
+
+        function showAudioFeedback(type) {
+            const avatar = document.getElementById('avatar');
+            if (!avatar) return;
+            
+            avatar.style.transition = 'all 0.1s ease';
+            
+            let pulseCount = 0;
+            const maxPulses = type === 'start' ? 8 : 10;
+            
+            const pulseInterval = setInterval(() => {
+                if (pulseCount >= maxPulses) {
+                    clearInterval(pulseInterval);
+                    avatar.style.transform = '';
+                    return;
+                }
+                
+                if (pulseCount % 2 === 0) {
+                    avatar.style.transform = 'scale(1.05)';
+                } else {
+                    avatar.style.transform = 'scale(1)';
+                }
+                
+                pulseCount++;
+            }, 150);
+        }
+
+        const avatarMessages = {
+            welcome: [
+                "Olá! Bem-vindo ao Entenda Aqui! 👋",
+                "Oi! Estou aqui para ajudar você a simplificar documentos! 😊",
+                "Seja bem-vindo! Pronto para transformar textos complexos? 🚀"
+            ],
+            processing: [
+                "Estou analisando o documento... ⏳",
+                "Processando com inteligência artificial... 🤖",
+                "Quase lá! Simplificando o texto... 📝"
+            ],
+            success: [
+                "Pronto! Documento simplificado com sucesso! ✅",
+                "Consegui! Confira o resultado! 🎉",
+                "Tudo certo! Texto simplificado! ⭐"
+            ],
+            error: [
+                "Ops! Algo deu errado. Tente novamente! 😕",
+                "Não consegui processar. Verifique o arquivo! ❌",
+                "Houve um erro. Precisa de ajuda? 🔧"
+            ],
+            help: [
+                "Precisa de ajuda? Envie um PDF ou imagem! 📄",
+                "Dica: Você pode arrastar arquivos aqui! 💡",
+                "Aceito PDF, PNG, JPG e outros formatos! 📸"
+            ],
+            idle: [
+                "Estou aqui se precisar! 😊",
+                "Pronto para ajudar! 💪",
+                "Clique em mim se precisar de algo! 👆"
+            ],
+            fileSelected: [
+                "Ótimo! Arquivo selecionado! Agora vamos processar! 📄",
+                "Arquivo recebido! Preparando análise... 🔍",
+                "Perfeito! Vou analisar este documento! ✨"
+            ]
+        };
+
+        let isMinimized = false;
+        let speechTimeout;
+
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                avatarSpeak('welcome');
+            }, 1000);
+
+            setInterval(() => {
+                const bubble = document.getElementById('speechBubble');
+                if (bubble && !bubble.classList.contains('show')) {
+                    if (Math.random() > 0.7) {
+                        avatarSpeak('idle');
+                    }
+                }
+            }, 30000);
+        });
+
+        function avatarSpeak(type) {
+            const bubble = document.getElementById('speechBubble');
+            const text = document.getElementById('speechText');
+            const thinking = document.getElementById('thinkingDots');
+            const avatar = document.getElementById('avatar');
+
+            if (!bubble || !text || !thinking || !avatar) return;
+
+            clearTimeout(speechTimeout);
+
+            text.style.display = 'none';
+            thinking.classList.add('show');
+            bubble.classList.add('show');
+
+            avatar.style.animation = 'none';
+            setTimeout(() => {
+                avatar.style.animation = 'float 3s ease-in-out infinite';
+            }, 10);
+
+            setTimeout(() => {
+                thinking.classList.remove('show');
+                text.style.display = 'block';
+                
+                const messageArray = avatarMessages[type] || avatarMessages.welcome;
+                const randomMessage = messageArray[Math.floor(Math.random() * messageArray.length)];
+                text.textContent = randomMessage;
+
+                speechTimeout = setTimeout(() => {
+                    bubble.classList.remove('show');
+                }, 5000);
+            }, 1000);
+        }
+
+        function toggleSpeech() {
+            const bubble = document.getElementById('speechBubble');
+            if (!bubble) return;
+            
+            unlockAudio();
+            
+            if (bubble.classList.contains('show')) {
+                bubble.classList.remove('show');
+            } else {
+                avatarSpeak('welcome');
+            }
+        }
+
+        function closeSpeech() {
+            const bubble = document.getElementById('speechBubble');
+            if (bubble) {
+                bubble.classList.remove('show');
+            }
+        }
+
+        function toggleMinimize() {
+            const container = document.getElementById('avatarContainer');
+            if (!container) return;
+            
+            isMinimized = !isMinimized;
+            
+            if (isMinimized) {
+                container.classList.add('minimized');
+            } else {
+                container.classList.remove('minimized');
+            }
+        }
+
+        function avatarCelebrate() {
+            const avatar = document.getElementById('avatar');
+            const container = document.getElementById('avatarContainer');
+
+            if (!avatar || !container) return;
+
+            for (let i = 0; i < 20; i++) {
+                createParticle(container);
+            }
+
+            avatar.style.animation = 'none';
+            avatar.style.transform = 'scale(1.2) rotate(360deg)';
+            
+            setTimeout(() => {
+                avatar.style.transform = '';
+                avatar.style.animation = 'float 3s ease-in-out infinite';
+            }, 600);
+
+            avatarSpeak('success');
+        }
+
+        function createParticle(container) {
+            const particle = document.createElement('div');
+            particle.className = 'particle';
+            particle.innerHTML = ['🎉', '⭐', '✨', '🌟', '💫'][Math.floor(Math.random() * 5)];
+            particle.style.position = 'absolute';
+            particle.style.fontSize = '20px';
+            particle.style.left = '60px';
+            particle.style.bottom = '60px';
+            
+            container.appendChild(particle);
+
+            const angle = Math.random() * Math.PI * 2;
+            const velocity = 50 + Math.random() * 50;
+            const vx = Math.cos(angle) * velocity;
+            const vy = Math.sin(angle) * velocity;
+
+            let x = 60, y = 60;
+            let opacity = 1;
+
+            function animate() {
+                x += vx * 0.05;
+                y -= vy * 0.05;
+                opacity -= 0.02;
+
+                particle.style.left = x + 'px';
+                particle.style.bottom = y + 'px';
+                particle.style.opacity = opacity;
+
+                if (opacity > 0) {
+                    requestAnimationFrame(animate);
+                } else {
+                    particle.remove();
+                }
+            }
+
+            animate();
+        }
+
+        function onFileUploadStart() {
+            unlockAudio();
+            avatarSpeak('processing');
+            playAvatarAudio('start');
+        }
+
+        function onFileUploadSuccess() {
+            avatarCelebrate();
+            playAvatarAudio('finish');
+        }
+
+        function onFileUploadError() {
+            avatarSpeak('error');
+        }
+
+        function onNeedHelp() {
+            avatarSpeak('help');
+        }
+
+        function onFileSelected() {
+            unlockAudio();
+            avatarSpeak('fileSelected');
+        }
+
+        // SISTEMA PRINCIPAL
+        const MAX_FILE_SIZE = 10 * 1024 * 1024;
+        const ALLOWED_EXTENSIONS = ['pdf', 'png', 'jpg', 'jpeg', 'gif', 'bmp', 'tiff', 'webp'];
+        const IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'tiff', 'webp'];
+        let isProcessing = false;
+        let currentFile = null;
+        let currentFileType = null;
+
+        // Theme
         const themeSwitch = document.getElementById('themeSwitch');
         const body = document.body;
 
-        // Check saved theme
         const savedTheme = localStorage.getItem('theme');
         if (savedTheme === 'dark') {
             body.classList.add('dark-mode');
@@ -481,6 +1550,588 @@
             } else {
                 body.classList.remove('dark-mode');
                 localStorage.setItem('theme', 'light');
+            }
+        });
+
+        function updateProgressSteps(step) {
+            document.querySelectorAll('.step').forEach(s => {
+                s.classList.remove('active', 'completed');
+            });
+            
+            for (let i = 1; i <= step; i++) {
+                const stepEl = document.getElementById(`step${i}`);
+                if (i < step) {
+                    stepEl.classList.add('completed');
+                } else {
+                    stepEl.classList.add('active');
+                }
+            }
+        }
+
+        function showToast(message, type = 'info', duration = 3000) {
+            const toast = document.getElementById('toast');
+            
+            let icon = '';
+            switch(type) {
+                case 'success': icon = '✅ '; break;
+                case 'error': icon = '❌ '; break;
+                case 'warning': icon = '⚠️ '; break;
+                case 'info': icon = 'ℹ️ '; break;
+                default: icon = '';
+            }
+            
+            toast.textContent = icon + message;
+            toast.className = `toast ${type}`;
+            setTimeout(() => toast.classList.add('show'), 100);
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, duration);
+        }
+
+        const dropArea = document.getElementById('drop-area');
+        const fileInput = document.getElementById('fileInput');
+        const fileTypeIcon = document.getElementById('fileTypeIcon');
+
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, preventDefaults, false);
+            document.body.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropArea.addEventListener(eventName, () => {
+                dropArea.classList.add('hover');
+                fileTypeIcon.textContent = '📥';
+            }, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, () => {
+                dropArea.classList.remove('hover');
+                fileTypeIcon.textContent = '📁';
+            }, false);
+        });
+
+        dropArea.addEventListener('drop', handleDrop, false);
+        fileInput.addEventListener('change', handleFileSelect, false);
+
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            handleFiles(files);
+        }
+
+        function handleFileSelect(e) {
+            const files = e.target.files;
+            handleFiles(files);
+        }
+
+        function getFileExtension(filename) {
+            return filename.split('.').pop().toLowerCase();
+        }
+
+        function handleFiles(files) {
+            if (files.length === 0) return;
+            
+            const file = files[0];
+            const extension = getFileExtension(file.name);
+            
+            if (!ALLOWED_EXTENSIONS.includes(extension)) {
+                showToast('Formato não suportado. Use: PDF, PNG, JPG, GIF, BMP, TIFF, WEBP', 'error');
+                onFileUploadError();
+                return;
+            }
+            
+            if (file.size > MAX_FILE_SIZE) {
+                showToast(`Arquivo muito grande. Máximo: ${MAX_FILE_SIZE / 1024 / 1024}MB`, 'error');
+                onFileUploadError();
+                return;
+            }
+            
+            currentFile = file;
+            currentFileType = extension;
+            
+            onFileSelected();
+            
+            if (IMAGE_EXTENSIONS.includes(extension)) {
+                showImagePreview(file);
+            } else {
+                showPDFInfo(file);
+            }
+            
+            uploadFile(file);
+        }
+
+        function showImagePreview(file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById('previewImage').src = e.target.result;
+                document.getElementById('fileName').textContent = file.name;
+                document.getElementById('fileSize').textContent = formatFileSize(file.size);
+                document.getElementById('previewContainer').style.display = 'block';
+                document.getElementById('fileInfo').style.display = 'none';
+                
+                fileTypeIcon.textContent = '🖼️';
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function showPDFInfo(file) {
+            document.getElementById('fileNameInfo').textContent = file.name;
+            document.getElementById('fileSizeInfo').textContent = formatFileSize(file.size);
+            document.getElementById('fileInfo').style.display = 'block';
+            document.getElementById('previewContainer').style.display = 'none';
+            
+            fileTypeIcon.textContent = '📄';
+        }
+
+        function removeFile() {
+            currentFile = null;
+            currentFileType = null;
+            document.getElementById('previewContainer').style.display = 'none';
+            document.getElementById('fileInfo').style.display = 'none';
+            fileInput.value = '';
+            fileTypeIcon.textContent = '📁';
+            showToast('Arquivo removido', 'info');
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        function uploadFile(file) {
+            if (isProcessing) {
+                showToast('Aguarde o processamento atual terminar', 'warning');
+                return;
+            }
+            
+            isProcessing = true;
+            
+            const extension = getFileExtension(file.name);
+            const isImage = IMAGE_EXTENSIONS.includes(extension);
+            
+            onFileUploadStart();
+            
+            if (isImage) {
+                showLoading('Processando imagem...', true);
+            } else {
+                showLoading('Processando PDF...');
+            }
+            
+            updateProgressSteps(2);
+            
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            let progress = 0;
+            const progressInterval = setInterval(() => {
+                progress += Math.random() * 20;
+                if (progress > 90) progress = 90;
+                updateLoadingProgress(progress, isImage);
+            }, 500);
+            
+            fetch('/processar', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                clearInterval(progressInterval);
+                updateLoadingProgress(100);
+                
+                if (!response.ok) {
+                    return response.json().then(data => {
+                        throw new Error(data.erro || 'Erro ao processar arquivo');
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                showResult(data);
+                updateProgressSteps(3);
+                
+                onFileUploadSuccess();
+                
+                if (data.tipo_arquivo && IMAGE_EXTENSIONS.includes(data.tipo_arquivo)) {
+                    if (data.metadados?.qualidade_ocr === 'baixa') {
+                        showToast('Imagem processada! Qualidade do OCR baixa - verifique o resultado', 'warning', 5000);
+                    } else {
+                        showToast('Imagem processada com sucesso!', 'success');
+                    }
+                } else {
+                    showToast('Documento processado com sucesso!', 'success');
+                }
+            })
+            .catch(error => {
+                showToast(error.message || 'Erro ao processar arquivo', 'error');
+                console.error('Erro:', error);
+                
+                onFileUploadError();
+            })
+            .finally(() => {
+                isProcessing = false;
+                hideLoading();
+                clearInterval(progressInterval);
+            });
+        }
+
+        function processManualText() {
+            const text = document.getElementById('manualText').value.trim();
+            
+            if (!text) {
+                showToast('Por favor, insira algum texto', 'warning');
+                return;
+            }
+            
+            if (text.length < 20) {
+                showToast('Texto muito curto. Mínimo: 20 caracteres', 'warning');
+                return;
+            }
+            
+            if (text.length > 10000) {
+                showToast('Texto muito longo. Máximo: 10.000 caracteres', 'warning');
+                return;
+            }
+            
+            if (isProcessing) {
+                showToast('Aguarde o processamento atual terminar', 'warning');
+                return;
+            }
+            
+            isProcessing = true;
+            
+            onFileUploadStart();
+            
+            showLoading('Processando texto...');
+            updateProgressSteps(2);
+            
+            fetch('/processar_texto', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ texto: text })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(data => {
+                        throw new Error(data.erro || 'Erro ao processar texto');
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                showResult(data);
+                updateProgressSteps(3);
+                
+                onFileUploadSuccess();
+                
+                showToast('Texto processado com sucesso!', 'success');
+            })
+            .catch(error => {
+                showToast(error.message || 'Erro ao processar texto', 'error');
+                console.error('Erro:', error);
+                
+                onFileUploadError();
+            })
+            .finally(() => {
+                isProcessing = false;
+                hideLoading();
+            });
+        }
+
+        function showLoading(text = 'Processando...', showOCR = false) {
+            const overlay = document.getElementById('loadingOverlay');
+            document.getElementById('loadingText').textContent = text;
+            document.getElementById('modelInfo').textContent = 'Selecionando melhor modelo...';
+            
+            if (showOCR) {
+                document.getElementById('ocrStatus').style.display = 'block';
+            } else {
+                document.getElementById('ocrStatus').style.display = 'none';
+            }
+            
+            overlay.classList.add('show');
+            updateLoadingProgress(0);
+        }
+
+        function hideLoading() {
+            document.getElementById('loadingOverlay').classList.remove('show');
+        }
+
+        function updateLoadingProgress(percent, isImage = false) {
+            document.getElementById('loadingProgress').style.width = percent + '%';
+            
+            if (isImage) {
+                if (percent < 30) {
+                    document.getElementById('loadingText').textContent = 'Analisando imagem...';
+                } else if (percent < 60) {
+                    document.getElementById('loadingText').textContent = 'Extraindo texto com OCR...';
+                    document.getElementById('ocrStatus').style.display = 'block';
+                } else if (percent < 90) {
+                    document.getElementById('loadingText').textContent = 'Simplificando com IA...';
+                    document.getElementById('modelInfo').textContent = 'Usando Gemini AI';
+                } else {
+                    document.getElementById('loadingText').textContent = 'Finalizando...';
+                }
+            } else {
+                if (percent > 30 && percent < 60) {
+                    document.getElementById('loadingText').textContent = 'Analisando documento...';
+                } else if (percent >= 60 && percent < 90) {
+                    document.getElementById('loadingText').textContent = 'Simplificando com IA...';
+                    document.getElementById('modelInfo').textContent = 'Usando Gemini AI';
+                } else if (percent >= 90) {
+                    document.getElementById('loadingText').textContent = 'Finalizando...';
+                }
+            }
+        }
+
+        function showResult(data) {
+            if (data.tipo_arquivo) {
+                const processInfo = document.getElementById('processInfo');
+                processInfo.style.display = 'block';
+                
+                const typeIndicator = document.getElementById('fileTypeIndicator');
+                if (IMAGE_EXTENSIONS.includes(data.tipo_arquivo)) {
+                    typeIndicator.textContent = `🖼️ Imagem ${data.tipo_arquivo.toUpperCase()}`;
+                } else {
+                    typeIndicator.textContent = `📄 PDF`;
+                }
+                
+                if (data.metadados?.qualidade_ocr) {
+                    const ocrIndicator = document.getElementById('ocrQualityIndicator');
+                    ocrIndicator.style.display = 'inline-block';
+                    
+                    const quality = data.metadados.qualidade_ocr;
+                    let qualityText = '';
+                    let qualityClass = '';
+                    
+                    switch(quality) {
+                        case 'boa':
+                            qualityText = '✅ OCR: Qualidade Boa';
+                            qualityClass = 'good';
+                            break;
+                        case 'média':
+                            qualityText = '⚠️ OCR: Qualidade Média';
+                            qualityClass = 'medium';
+                            break;
+                        case 'baixa':
+                            qualityText = '❌ OCR: Qualidade Baixa';
+                            qualityClass = 'low';
+                            break;
+                        default:
+                            qualityText = 'OCR Processado';
+                            qualityClass = 'medium';
+                    }
+                    
+                    ocrIndicator.textContent = qualityText;
+                    ocrIndicator.className = `ocr-quality ${qualityClass}`;
+                }
+            }
+            
+            const formattedText = formatResultText(data.texto);
+            document.getElementById('simplifiedText').innerHTML = formattedText;
+            
+            if (data.analise) {
+                showResultAnalysis(data.analise);
+            }
+            
+            if (data.caracteres_original) {
+                document.getElementById('downloadBtn').style.display = 'inline-flex';
+                document.getElementById('downloadBtn').href = '/download_pdf';
+            }
+            
+            document.getElementById('resultSection').style.display = 'block';
+            
+            document.getElementById('resultSection').scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'start' 
+            });
+        }
+
+        function showResultAnalysis(analise) {
+            let html = '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 1rem;">';
+            
+            let resultIcon = '📄';
+            let resultText = 'Documento Processado';
+            
+            if (analise.tipo_resultado === 'vitoria') {
+                resultIcon = '✅';
+                resultText = 'Resultado Favorável';
+            } else if (analise.tipo_resultado === 'derrota') {
+                resultIcon = '❌';
+                resultText = 'Resultado Desfavorável';
+            } else if (analise.tipo_resultado === 'parcial') {
+                resultIcon = '⚠️';
+                resultText = 'Resultado Parcial';
+            }
+            
+            html += `
+                <div style="background: var(--light); padding: 1rem; border-radius: 8px; text-align: center;">
+                    <div style="font-size: 2rem;">${resultIcon}</div>
+                    <div style="font-weight: bold; margin-top: 0.5rem;">${resultText}</div>
+                </div>
+            `;
+            
+            if (analise.tem_valores) {
+                html += `
+                    <div style="background: var(--light); padding: 1rem; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 2rem;">💰</div>
+                        <div style="font-weight: bold; margin-top: 0.5rem;">Contém Valores</div>
+                    </div>
+                `;
+            }
+            
+            if (analise.tem_prazos) {
+                html += `
+                    <div style="background: var(--light); padding: 1rem; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 2rem;">📅</div>
+                        <div style="font-weight: bold; margin-top: 0.5rem;">Contém Prazos</div>
+                    </div>
+                `;
+            }
+            
+            html += '</div>';
+            
+            document.getElementById('resultAnalysis').innerHTML = html;
+        }
+
+        function formatResultText(text) {
+            let formatted = text;
+            
+            formatted = formatted.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+            
+            const iconPatterns = [
+                { icon: '📊', color: 'var(--jus-azul)' },
+                { icon: '📑', color: 'var(--jus-dourado)' },
+                { icon: '⚖️', color: 'var(--jus-vinho)' },
+                { icon: '💰', color: 'var(--jus-dourado)' },
+                { icon: '📅', color: 'var(--jus-azul)' },
+                { icon: '✅', color: 'var(--jus-dourado)' },
+                { icon: '❌', color: 'var(--jus-vinho)' },
+                { icon: '⚠️', color: 'var(--warning)' }
+            ];
+            
+            iconPatterns.forEach(pattern => {
+                const regex = new RegExp(`(${pattern.icon}[^\\n]+)`, 'g');
+                formatted = formatted.replace(regex, `<div style="color: ${pattern.color}; font-weight: bold; margin: 1rem 0;">$1</div>`);
+            });
+            
+            formatted = formatted.replace(/\n/g, '<br>');
+            
+            return formatted;
+        }
+
+        function copyText() {
+            const element = document.getElementById('simplifiedText');
+            const text = element.innerText || element.textContent;
+            
+            if (!text) {
+                showToast('Nenhum texto para copiar', 'warning');
+                return;
+            }
+            
+            navigator.clipboard.writeText(text)
+                .then(() => {
+                    showToast('Texto copiado com sucesso!', 'success');
+                })
+                .catch(() => {
+                    const textarea = document.createElement('textarea');
+                    textarea.value = text;
+                    document.body.appendChild(textarea);
+                    textarea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textarea);
+                    showToast('Texto copiado!', 'success');
+                });
+        }
+
+        let isSpeaking = false;
+        function speakText() {
+            const text = document.getElementById('simplifiedText').textContent;
+            const btn = document.getElementById('speakBtn');
+            
+            if (!text) {
+                showToast('Nenhum texto para ler', 'warning');
+                return;
+            }
+            
+            if (isSpeaking) {
+                window.speechSynthesis.cancel();
+                btn.innerHTML = '<span>🔊</span> Ler em Voz Alta';
+                isSpeaking = false;
+                return;
+            }
+            
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'pt-BR';
+            utterance.rate = 0.9;
+            
+            utterance.onend = () => {
+                btn.innerHTML = '<span>🔊</span> Ler em Voz Alta';
+                isSpeaking = false;
+            };
+            
+            utterance.onerror = () => {
+                showToast('Erro ao ler o texto', 'error');
+                btn.innerHTML = '<span>🔊</span> Ler em Voz Alta';
+                isSpeaking = false;
+            };
+            
+            window.speechSynthesis.speak(utterance);
+            btn.innerHTML = '<span>⏹️</span> Parar Leitura';
+            isSpeaking = true;
+        }
+
+        function clearAll() {
+            document.getElementById('manualText').value = '';
+            document.getElementById('resultSection').style.display = 'none';
+            document.getElementById('fileInfo').style.display = 'none';
+            document.getElementById('previewContainer').style.display = 'none';
+            fileInput.value = '';
+            currentFile = null;
+            currentFileType = null;
+            fileTypeIcon.textContent = '📁';
+            updateProgressSteps(1);
+            showToast('Tudo limpo!', 'info');
+        }
+
+        function loadExample() {
+            const exampleText = `SENTENÇA
+
+Processo nº 1234567-89.2024.8.26.0100
+
+RELATÓRIO
+Trata-se de ação de cobrança movida por JOÃO DA SILVA em face de EMPRESA XYZ LTDA, alegando inadimplemento contratual no valor de R$ 15.000,00.
+
+FUNDAMENTAÇÃO
+Analisando os autos, verifico que o autor comprovou a existência da dívida através de contrato assinado e notas fiscais. O réu, devidamente citado, não apresentou contestação.
+
+DISPOSITIVO
+Ante o exposto, JULGO PROCEDENTE o pedido para CONDENAR o réu a pagar ao autor a quantia de R$ 15.000,00, corrigida monetariamente desde o vencimento e acrescida de juros de 1% ao mês.
+
+Condeno o réu ao pagamento das custas processuais e honorários advocatícios que fixo em 10% do valor da condenação.
+
+P.R.I.`;
+            
+            document.getElementById('manualText').value = exampleText;
+            showToast('Exemplo carregado! Clique em "Simplificar Texto" para processar', 'info', 4000);
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                const manualText = document.getElementById('manualText').value;
+                if (manualText) {
+                    processManualText();
+                }
             }
         });
     </script>
