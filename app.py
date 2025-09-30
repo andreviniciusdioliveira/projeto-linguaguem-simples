@@ -166,10 +166,6 @@ IDENTIFICAÇÃO DO DOCUMENTO
 - Número do processo: [identificar]
 - Assunto principal: [identificar]
 
-Identificação do Vencedor:
-- ✅ AUTOR GANHOU se encontrar: "JULGO PROCEDENTE", "CONDENO o réu/requerido", "DEFIRO"
-- ❌ AUTOR PERDEU se encontrar: "JULGO IMPROCEDENTE", "CONDENO o autor/requerente", "INDEFIRO"  
-- ⚠️ PARCIAL se encontrar: "JULGO PARCIALMENTE PROCEDENTE"
 
 📊 RESUMO EXECUTIVO
 [Use sempre um dos ícones abaixo]
@@ -1344,6 +1340,7 @@ cleanup_thread.start()
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8080))
     app.run(host="0.0.0.0", port=port, debug=False)
+
 
 
 
