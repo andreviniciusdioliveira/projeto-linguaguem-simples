@@ -161,21 +161,15 @@ PROMPT_SIMPLIFICACAO = """**Papel:** Você é um especialista em linguagem simpl
 
 **ESTRUTURA DE ANÁLISE OBRIGATÓRIA:**
 
-1. IDENTIFICAÇÃO DO DOCUMENTO
+IDENTIFICAÇÃO DO DOCUMENTO
 - Tipo: [Sentença/Despacho/Decisão/Acórdão/Intimação/Mandado]
 - Número do processo: [identificar]
-- Partes envolvidas: [Autor x Réu]
 - Assunto principal: [identificar]
-
-2. ANÁLISE DO RESULTADO (MAIS IMPORTANTE)
-**ATENÇÃO:** Procure SEMPRE pela seção "DISPOSITIVO", "DECIDE", "ANTE O EXPOSTO" ou "DIANTE DO EXPOSTO"
 
 Identificação do Vencedor:
 - ✅ AUTOR GANHOU se encontrar: "JULGO PROCEDENTE", "CONDENO o réu/requerido", "DEFIRO"
 - ❌ AUTOR PERDEU se encontrar: "JULGO IMPROCEDENTE", "CONDENO o autor/requerente", "INDEFIRO"  
 - ⚠️ PARCIAL se encontrar: "JULGO PARCIALMENTE PROCEDENTE"
-
-3. FORMATAÇÃO DA RESPOSTA
 
 📊 RESUMO EXECUTIVO
 [Use sempre um dos ícones abaixo]
@@ -1350,5 +1344,6 @@ cleanup_thread.start()
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8080))
     app.run(host="0.0.0.0", port=port, debug=False)
+
 
 
