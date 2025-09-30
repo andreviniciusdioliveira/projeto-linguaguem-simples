@@ -1264,7 +1264,7 @@ def diagnostico():
         diagnostico_info["python_libs"]["opencv"] = cv2.__version__
         diagnostico_info["configuracao"]["opencv_disponivel"] = CV2_AVAILABLE
     except Exception as e:
-        diagnostico_info["python_libs"]["opencv"] = f"Erro: {str(e)
+        diagnostico_info["python_libs"]["opencv"] = f"Erro: {str(e)}"
                                                              diagnostico_info["python_libs"]["opencv"] = f"Erro: {str(e)}"
         diagnostico_info["configuracao"]["opencv_disponivel"] = False
     
@@ -1479,3 +1479,4 @@ cleanup_thread.start()
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8080))
     app.run(host="0.0.0.0", port=port, debug=False)
+
