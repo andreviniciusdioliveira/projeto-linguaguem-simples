@@ -1038,8 +1038,8 @@ def processar_texto():
         if len(texto) < 20:
             return jsonify({"erro": "Texto muito curto. Mínimo: 20 caracteres"}), 400
             
-        if len(texto) > 50000:
-            return jsonify({"erro": "Texto muito longo. Máximo: 50.000 caracteres"}), 400
+        if len(texto) > 30000:  # REDUZIDO de 50k para 30k
+            return jsonify({"erro": "Texto muito longo. Máximo: 30.000 caracteres. Divida em partes menores."}), 400
         
         texto_simplificado, erro = simplificar_com_gemini(texto)
         
@@ -1053,7 +1053,7 @@ def processar_texto():
             "texto": texto_simplificado,
             "caracteres_original": len(texto),
             "caracteres_simplificado": len(texto_simplificado),
-            "reducao_percentual": round((1 - len(texto_simplificado)/len(texto)) * 100, 1),
+            "reducao_percentual": round((1 - len(texto_simplificado)/len(texto)) * 100, 1) if len(texto) > 0 else 0,
             "analise": analise
         })
         
