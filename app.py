@@ -168,7 +168,7 @@ IDENTIFICAÇÃO DO DOCUMENTO
 - **IMPORTANTE:** Se o documento for ACÓRDÃO ou VOTO, use "Desembargador(a)" ao invés de "Juiz(a)" em todo o texto
 
 
-📊 RESUMO EXECUTIVO
+📊 ENTENDA AQUI
 [Use sempre um dos ícones abaixo]
 ✅ **VITÓRIA TOTAL** - Você ganhou completamente a causa
 ❌ **DERROTA** - Você perdeu a causa
@@ -1347,6 +1347,7 @@ cleanup_thread.start()
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8080))
     app.run(host="0.0.0.0", port=port, debug=False)
+
 
 
 
