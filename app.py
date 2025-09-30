@@ -165,7 +165,6 @@ IDENTIFICAÇÃO DO DOCUMENTO
 - Tipo: [Sentença/Despacho/Decisão/Acórdão/Voto/Intimação/Mandado]
 - Número do processo: [identificar]
 - Assunto principal: [identificar]
-- **IMPORTANTE:** Se o documento for ACÓRDÃO ou VOTO, use "Desembargador(a)" ao invés de "Juiz(a)" em todo o texto
 
 
 📊 ENTENDA AQUI
@@ -1347,6 +1346,7 @@ cleanup_thread.start()
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8080))
     app.run(host="0.0.0.0", port=port, debug=False)
+
 
 
 
