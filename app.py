@@ -162,7 +162,7 @@ PROMPT_SIMPLIFICACAO = """**Papel:** Você é um especialista em linguagem simpl
 **ESTRUTURA DE ANÁLISE OBRIGATÓRIA:**
 
 1. IDENTIFICAÇÃO DO DOCUMENTO
-- Tipo: [Sentença/Despacho/Decisão/Acórdão/Mandado/Intimação]
+- Tipo: [Sentença/Despacho/Decisão/Acórdão]
 - Número do processo: [identificar]
 - Partes envolvidas: [Autor x Réu]
 - Assunto principal: [identificar]
@@ -582,11 +582,11 @@ def escolher_modelo_gemini(complexidade, tentativa=0):
     else:
         return GEMINI_MODELS[2]  # pro
 
-def simplificar_com_gemini(texto, max_retries=2):
+def simplificar_com_gemini(texto, max_retries=1):  # REDUZIDO para 1 retry
     """Chama a API do Gemini com fallback automático entre modelos"""
     
     # Truncar texto se necessário ANTES de enviar
-    MAX_INPUT_TOKENS = 20000  # Limite conservador
+    MAX_INPUT_TOKENS = 15000  # REDUZIDO para 15k (mais conservador)
     tokens_estimados = estimar_tokens(texto)
     
     if tokens_estimados > MAX_INPUT_TOKENS:
@@ -615,8 +615,10 @@ def simplificar_com_gemini(texto, max_retries=2):
     
     errors = []
     
-    # Tentar com diferentes modelos
-    for tentativa in range(len(GEMINI_MODELS)):
+    # Tentar com diferentes modelos (LIMITADO A 2 MODELOS para evitar timeout)
+    max_tentativas = min(2, len(GEMINI_MODELS))  # Máximo 2 modelos
+    
+    for tentativa in range(max_tentativas):
         modelo = escolher_modelo_gemini(complexidade, tentativa)
         
         # Cada modelo pode ter múltiplas URLs (v1 e v1beta)
@@ -626,60 +628,60 @@ def simplificar_com_gemini(texto, max_retries=2):
             if not url_base:
                 continue
                 
-            logging.info(f"Tentativa {tentativa + 1}/{len(GEMINI_MODELS)}: Modelo {modelo['name']} - URL: {url_base.split('/')[4]}")
+            logging.info(f"Tentativa {tentativa + 1}/{max_tentativas}: Modelo {modelo['name']}")
             
             model_usage_stats[modelo["name"]]["attempts"] += 1
             
-            # Ajustar tokens de saída - mais conservador
-            max_output_tokens = 2048
+            # Ajustar tokens de saída - REDUZIDO
+            max_output_tokens = 1500  # REDUZIDO de 2048 para 1500
             
             # URL com API key como parâmetro (formato correto)
             url_with_key = f"{url_base}?key={GEMINI_API_KEY}"
         
-        payload = {
-            "contents": [
-                {
-                    "parts": [
-                        {
-                            "text": prompt_completo
-                        }
-                    ]
-                }
-            ],
-            "generationConfig": {
-                "temperature": 0.4,
-                "maxOutputTokens": max_output_tokens,
-                "topP": 0.85,
-                "topK": 20
-            },
-            "safetySettings": [
-                {
-                    "category": "HARM_CATEGORY_HARASSMENT",
-                    "threshold": "BLOCK_NONE"
+            payload = {
+                "contents": [
+                    {
+                        "parts": [
+                            {
+                                "text": prompt_completo
+                            }
+                        ]
+                    }
+                ],
+                "generationConfig": {
+                    "temperature": 0.4,
+                    "maxOutputTokens": max_output_tokens,
+                    "topP": 0.85,
+                    "topK": 20
                 },
-                {
-                    "category": "HARM_CATEGORY_HATE_SPEECH",
-                    "threshold": "BLOCK_NONE"
-                },
-                {
-                    "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-                    "threshold": "BLOCK_NONE"
-                },
-                {
-                    "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
-                    "threshold": "BLOCK_NONE"
-                }
-            ]
-        }
-        
-        for retry in range(max_retries):
+                "safetySettings": [
+                    {
+                        "category": "HARM_CATEGORY_HARASSMENT",
+                        "threshold": "BLOCK_NONE"
+                    },
+                    {
+                        "category": "HARM_CATEGORY_HATE_SPEECH",
+                        "threshold": "BLOCK_NONE"
+                    },
+                    {
+                        "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+                        "threshold": "BLOCK_NONE"
+                    },
+                    {
+                        "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
+                        "threshold": "BLOCK_NONE"
+                    }
+                ]
+            }
+            
+            # APENAS 1 RETRY por modelo para evitar timeout
             try:
                 start_time = time.time()
                 response = requests.post(
                     url_with_key,
                     headers=headers,
                     json=payload,
-                    timeout=90
+                    timeout=25  # REDUZIDO de 90 para 25 segundos
                 )
                 
                 elapsed = round(time.time() - start_time, 2)
@@ -712,25 +714,20 @@ def simplificar_com_gemini(texto, max_retries=2):
                     errors.append(error_msg)
                     logging.warning(error_msg)
                     model_usage_stats[modelo["name"]]["failures"] += 1
-                    time.sleep(3)  # Pausa maior
+                    time.sleep(1)  # Pausa REDUZIDA
                     break  # Tentar próximo modelo
                     
                 elif response.status_code == 400:
                     try:
                         error_data = response.json()
                         error_detail = error_data.get('error', {}).get('message', 'Erro desconhecido')
-                        error_msg = f"{modelo['name']}: {error_detail}"
+                        error_msg = f"{modelo['name']}: {error_detail[:100]}"
                     except:
                         error_msg = f"{modelo['name']}: Requisição inválida (400)"
                     
                     errors.append(error_msg)
                     logging.error(error_msg)
                     model_usage_stats[modelo["name"]]["failures"] += 1
-                    
-                    # Se for erro de tokens, não tentar retry
-                    if 'token' in error_detail.lower() or 'quota' in error_detail.lower():
-                        logging.error("Erro de tokens/quota detectado. Pulando para próximo modelo.")
-                        break
                     break
                     
                 elif response.status_code == 500:
@@ -741,7 +738,7 @@ def simplificar_com_gemini(texto, max_retries=2):
                     break  # Tentar próxima URL ou próximo modelo
                     
                 elif response.status_code == 404:
-                    error_msg = f"{modelo['name']}: Modelo não encontrado (404) - URL: {url_base.split('/')[4]}"
+                    error_msg = f"{modelo['name']}: Não encontrado (404)"
                     errors.append(error_msg)
                     logging.error(error_msg)
                     model_usage_stats[modelo["name"]]["failures"] += 1
@@ -751,44 +748,43 @@ def simplificar_com_gemini(texto, max_retries=2):
                 else:
                     error_msg = f"{modelo['name']}: HTTP {response.status_code}"
                     errors.append(error_msg)
-                    logging.error(f"{error_msg} - Resposta: {response.text[:300]}")
+                    logging.error(f"{error_msg}")
                     model_usage_stats[modelo["name"]]["failures"] += 1
                     
             except requests.exceptions.Timeout:
                 error_msg = f"{modelo['name']}: Timeout"
                 errors.append(error_msg)
                 logging.warning(error_msg)
-                if retry < max_retries - 1:
-                    time.sleep(2)
+                break  # Não fazer retry, ir para próximo modelo
                     
             except Exception as e:
-                error_msg = f"{modelo['name']}: {str(e)}"
+                error_msg = f"{modelo['name']}: {str(e)[:100]}"
                 errors.append(error_msg)
                 logging.error(f"Erro inesperado: {e}")
+                break
             
             # Se chegou aqui e teve sucesso, sai do loop de URLs
             break
         
-        # Pausa antes de tentar próximo modelo
-        if tentativa < len(GEMINI_MODELS) - 1:
-            logging.info("Aguardando antes de tentar próximo modelo...")
-            time.sleep(2)
+        # Pausa mínima antes de tentar próximo modelo
+        if tentativa < max_tentativas - 1:
+            time.sleep(0.5)  # REDUZIDO de 2s para 0.5s
     
     # Se todos os modelos falharam
-    error_summary = " | ".join(errors[-6:])  # Últimos 6 erros
-    logging.error(f"❌ Todos os modelos falharam: {error_summary}")
+    error_summary = " | ".join(errors[-4:])  # Últimos 4 erros
+    logging.error(f"❌ Falhou: {error_summary}")
     
     # Mensagem mais clara para o usuário
     if "rate limit" in error_summary.lower() or "429" in error_summary:
-        return None, "Limite de requisições da API excedido. Por favor, aguarde alguns minutos e tente novamente."
+        return None, "Limite de requisições excedido. Aguarde 1 minuto e tente novamente."
     elif "quota" in error_summary.lower():
-        return None, "Cota da API Gemini excedida. Verifique sua conta ou tente novamente mais tarde."
+        return None, "Cota da API excedida. Tente novamente mais tarde."
     elif "token" in error_summary.lower() or "500" in error_summary:
-        return None, "Documento muito grande para processar. Tente com um documento menor ou com menos páginas."
+        return None, "Documento muito grande. Tente com um documento menor."
     elif "404" in error_summary:
-        return None, "Erro de configuração da API. Entre em contato com o suporte."
+        return None, "Erro de configuração. Entre em contato com o suporte."
     else:
-        return None, "Erro ao processar com a IA. Tente novamente em alguns instantes."
+        return None, "Erro ao processar. Tente novamente em alguns instantes."
 
 def gerar_pdf_simplificado(texto, metadados=None, filename="documento_simplificado.pdf"):
     """Gera PDF com melhor formatação e metadados"""
@@ -1353,5 +1349,3 @@ cleanup_thread.start()
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8080))
     app.run(host="0.0.0.0", port=port, debug=False)
-
-
