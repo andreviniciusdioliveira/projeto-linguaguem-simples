@@ -72,13 +72,15 @@
 
         .header h1 {
             font-size: 2.5rem;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
             margin-bottom: 0.5rem;
             font-weight: 700;
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 1rem;
-            flex-wrap: wrap;
         }
 
         /* Avatar 3D no Header */
@@ -136,105 +138,6 @@
             opacity: 0.5;
             filter: blur(10px);
             animation: rotate 3s linear infinite;
-        }
-
-        /* Logo Blocks Style - Inspirado no JUS */
-        .logo-blocks {
-            display: flex;
-            gap: 0.4rem;
-            align-items: center;
-            flex-wrap: wrap;
-            justify-content: center;
-        }
-
-        .logo-block {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 60px;
-            height: 60px;
-            border-radius: 8px;
-            color: white;
-            font-size: 2rem;
-            font-weight: 900;
-            text-transform: uppercase;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-            transition: all 0.3s ease;
-            animation: fadeInScale 0.6s ease backwards;
-        }
-
-        .logo-block:hover {
-            transform: translateY(-5px) scale(1.05);
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
-        }
-
-        /* Cores dos blocos - alternando as 3 cores */
-        .logo-block.color-1 {
-            background: linear-gradient(135deg, #8B2E3E 0%, #6D1F2C 100%);
-        }
-
-        .logo-block.color-2 {
-            background: linear-gradient(135deg, #2C5F6F 0%, #1A4556 100%);
-        }
-
-        .logo-block.color-3 {
-            background: linear-gradient(135deg, #C4A24C 0%, #A68533 100%);
-        }
-
-        /* Animação de entrada com delay diferente para cada letra */
-        .logo-block:nth-child(1) { animation-delay: 0.1s; }
-        .logo-block:nth-child(2) { animation-delay: 0.15s; }
-        .logo-block:nth-child(3) { animation-delay: 0.2s; }
-        .logo-block:nth-child(4) { animation-delay: 0.25s; }
-        .logo-block:nth-child(5) { animation-delay: 0.3s; }
-        .logo-block:nth-child(6) { animation-delay: 0.35s; }
-        .logo-block:nth-child(7) { animation-delay: 0.4s; }
-        .logo-block:nth-child(8) { animation-delay: 0.45s; }
-        .logo-block:nth-child(9) { animation-delay: 0.5s; }
-        .logo-block:nth-child(10) { animation-delay: 0.55s; }
-        .logo-block:nth-child(11) { animation-delay: 0.6s; }
-
-        .logo-subtitle {
-            display: flex;
-            gap: 0.8rem;
-            margin-top: 0.8rem;
-            font-size: 0.7rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            justify-content: center;
-        }
-
-        .logo-subtitle span {
-            transition: all 0.3s ease;
-        }
-
-        .logo-subtitle span:nth-child(1) {
-            color: #8B2E3E;
-        }
-
-        .logo-subtitle span:nth-child(2) {
-            color: #2C5F6F;
-        }
-
-        .logo-subtitle span:nth-child(3) {
-            color: #C4A24C;
-        }
-
-        .logo-subtitle span:hover {
-            transform: scale(1.1);
-            filter: brightness(1.2);
-        }
-
-        @keyframes fadeInScale {
-            from {
-                opacity: 0;
-                transform: scale(0.8);
-            }
-            to {
-                opacity: 1;
-                transform: scale(1);
-            }
         }
 
         @keyframes rotate3D {
@@ -1077,29 +980,8 @@
                 <div class="header-avatar">
                     <img src="/static/avatar.png" alt="JUS Bot Avatar" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ccircle cx=%2250%22 cy=%2250%22 r=%2240%22 fill=%22%231a73e8%22/%3E%3Ctext x=%2250%22 y=%2265%22 text-anchor=%22middle%22 font-size=%2250%22%3E🤖%3C/text%3E%3C/svg%3E'">
                 </div>
-                <div class="logo-blocks-container">
-                    <div class="logo-blocks">
-                        <div class="logo-block color-1">E</div>
-                        <div class="logo-block color-2">N</div>
-                        <div class="logo-block color-3">T</div>
-                        <div class="logo-block color-1">E</div>
-                        <div class="logo-block color-2">N</div>
-                        <div class="logo-block color-3">D</div>
-                        <div class="logo-block color-1">A</div>
-                    </div>
-                    <div class="logo-blocks">
-                        <div class="logo-block color-2">A</div>
-                        <div class="logo-block color-3">Q</div>
-                        <div class="logo-block color-1">U</div>
-                        <div class="logo-block color-2">I</div>
-                    </div>
-                </div>
+                Entenda Aqui
             </h1>
-            <div class="logo-subtitle">
-                <span>ENTENDA</span>
-                <span>AQUI</span>
-                <span>SIMPLES</span>
-            </div>
             <p>Transforme documentos complexos em linguagem clara com IA</p>
             <div class="format-badges">
                 <span class="format-badge">📄 PDF</span>
@@ -2269,3 +2151,4 @@ P.R.I.`;
     </script>
 </body>
 </html>
+
