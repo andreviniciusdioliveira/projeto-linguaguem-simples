@@ -167,7 +167,7 @@ IDENTIFICAÇÃO DO DOCUMENTO
 - Assunto principal: [identificar]
 
 
-📊 RESUMO EXECUTIVO
+📊 ENTENDA AQUI
 [Use sempre um dos ícones abaixo]
 ✅ **VITÓRIA TOTAL** - Você ganhou completamente a causa
 ❌ **DERROTA** - Você perdeu a causa
@@ -1340,6 +1340,7 @@ cleanup_thread.start()
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8080))
     app.run(host="0.0.0.0", port=port, debug=False)
+
 
 
 
