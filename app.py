@@ -162,12 +162,13 @@ PROMPT_SIMPLIFICACAO = """**Papel:** Você é um especialista em linguagem simpl
 **ESTRUTURA DE ANÁLISE OBRIGATÓRIA:**
 
 IDENTIFICAÇÃO DO DOCUMENTO
-- Tipo: [Sentença/Despacho/Decisão/Acórdão/Intimação/Mandado]
+- Tipo: [Sentença/Despacho/Decisão/Acórdão/Voto/Intimação/Mandado]
 - Número do processo: [identificar]
 - Assunto principal: [identificar]
+- **IMPORTANTE:** Se o documento for ACÓRDÃO ou VOTO, use "Desembargador(a)" ao invés de "Juiz(a)" em todo o texto
 
 
-📊 ENTENDA AQUI
+📊 RESUMO EXECUTIVO
 [Use sempre um dos ícones abaixo]
 ✅ **VITÓRIA TOTAL** - Você ganhou completamente a causa
 ❌ **DERROTA** - Você perdeu a causa
@@ -181,8 +182,10 @@ IDENTIFICAÇÃO DO DOCUMENTO
 📑 O QUE ACONTECEU
 [Explicar em 3-4 linhas o contexto do processo]
 
-⚖️ O QUE O JUIZ DECIDIU
+⚖️ O QUE O(A) [JUIZ(A)/DESEMBARGADOR(A)] DECIDIU
 [Detalhar a decisão em linguagem simples, usando parágrafos curtos]
+[Use "Desembargador(a)" se for ACÓRDÃO ou VOTO]
+[Use "Juiz(a)" se for SENTENÇA, DECISÃO ou DESPACHO]
 
 💰 VALORES E OBRIGAÇÕES
 • Valor da causa: R$ [valor]
@@ -208,9 +211,13 @@ IDENTIFICAÇÃO DO DOCUMENTO
 4. Use exemplos concretos quando possível
 5. Mantenha tom respeitoso mas acessível
 6. Destaque informações críticas com formatação
+7. **CRÍTICO:** Identifique o tipo de documento e use a autoridade correta:
+   - ACÓRDÃO ou VOTO → use "Desembargador(a)" ou "Tribunal"
+   - SENTENÇA, DECISÃO ou DESPACHO → use "Juiz(a)"
 
 **TEXTO ORIGINAL A SIMPLIFICAR:**
 """
+
 
 def processar_imagem_para_texto(image_bytes, formato='PNG'):
     """Extrai texto de uma imagem usando OCR com melhor pré-processamento"""
@@ -1340,6 +1347,7 @@ cleanup_thread.start()
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8080))
     app.run(host="0.0.0.0", port=port, debug=False)
+
 
 
 
