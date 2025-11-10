@@ -437,41 +437,47 @@ def identificar_tipo_documento(texto):
     return "documento", {"urgencia": "MÉDIA", "acao_necessaria": "Ler com atenção"}
 
 def analisar_recursos_cabiveis(tipo_doc, texto):
-    """Analisa recursos cabíveis com detalhes específicos"""
+    """Analisa se cabe recurso baseado APENAS no documento"""
     texto_lower = texto.lower()
 
     # Verifica se é Juizado Especial
     eh_juizado = "juizado especial" in texto_lower
 
+    # Busca prazo REAL mencionado no documento
+    prazo_encontrado = None
+    prazo_patterns = [
+        r'prazo\s+(?:de\s+)?(\d+)\s+dias?(?:\s+úteis)?(?:\s+para\s+(?:recorrer|interpor\s+recurso))?',
+        r'recurso.*?(?:no\s+)?prazo\s+de\s+(\d+)\s+dias?',
+        r'interpor\s+recurso.*?(\d+)\s+dias?'
+    ]
+
+    import re
+    for pattern in prazo_patterns:
+        match = re.search(pattern, texto_lower)
+        if match:
+            prazo_encontrado = f"{match.group(1)} dias"
+            break
+
     recursos_info = {
         "sentenca": {
-            "recurso": "Recurso Inominado" if eh_juizado else "Apelação",
-            "prazo": "10 dias" if eh_juizado else "15 dias úteis",
-            "instancia": "Turma Recursal" if eh_juizado else "Tribunal de Justiça",
-            "preparo": True,
-            "valor_preparo": "Aproximadamente 3% do valor da causa",
-            "dica": "Sem advogado? Procure o Juizado!" if eh_juizado else "Procure advogado ou Defensoria"
+            "cabe_recurso": "Sim",
+            "prazo": prazo_encontrado,  # Só mostra se encontrado no documento
+            "dica": "Sem advogado? Procure o Juizado!" if eh_juizado else "Procure advogado ou Defensoria Pública"
         },
         "acordao": {
-            "recurso": "Recurso Especial/Extraordinário ou Embargos de Declaração",
-            "prazo": "15 dias úteis (REsp/RE) ou 5 dias (Embargos)",
-            "instancia": "STJ/STF ou mesmo Tribunal",
-            "preparo": True,
-            "valor_preparo": "Porte de remessa e retorno",
-            "dica": "Recursos complexos - necessário advogado especializado"
+            "cabe_recurso": "Sim (recursos complexos)",
+            "prazo": prazo_encontrado,  # Só mostra se encontrado no documento
+            "dica": "Recursos em tribunais superiores - necessário advogado especializado"
         },
         "decisao_interlocutoria": {
-            "recurso": "Agravo de Instrumento",
-            "prazo": "15 dias úteis",
-            "instancia": "Tribunal de Justiça",
-            "preparo": True,
-            "valor_preparo": "Valor reduzido comparado à apelação",
-            "dica": "Recurso urgente - não espere a sentença final"
+            "cabe_recurso": "Sim (decisão interlocutória)",
+            "prazo": prazo_encontrado,  # Só mostra se encontrado no documento
+            "dica": "Recurso urgente - consulte advogado imediatamente"
         },
         "despacho": {
-            "recurso": None,
+            "cabe_recurso": "Não",
             "observacao": "Despacho não comporta recurso",
-            "dica": "Apenas cumpra o determinado ou aguarde"
+            "dica": "Apenas cumpra o determinado ou aguarde próxima movimentação"
         }
     }
 
@@ -609,13 +615,13 @@ def extrair_dados_estruturados(texto):
             if prazo not in dados["prazos"]:
                 dados["prazos"].append(prazo)
 
-    # Identificar decisão
+    # Identificar decisão (sem interpretar se ganhou/perdeu - isso depende da perspectiva)
     if re.search(r'julgo\s+procedentes?\s+os\s+pedidos', texto, re.IGNORECASE):
-        dados["decisao"] = "PROCEDENTE (Você ganhou)"
+        dados["decisao"] = "PROCEDENTE"
     elif re.search(r'julgo\s+improcedentes?\s+os\s+pedidos', texto, re.IGNORECASE):
-        dados["decisao"] = "IMPROCEDENTE (Você perdeu)"
+        dados["decisao"] = "IMPROCEDENTE"
     elif re.search(r'julgo\s+parcialmente\s+procedentes?', texto, re.IGNORECASE):
-        dados["decisao"] = "PARCIALMENTE PROCEDENTE (Vitória parcial)"
+        dados["decisao"] = "PARCIALMENTE PROCEDENTE"
     elif re.search(r'homologo.*?acordo', texto, re.IGNORECASE):
         dados["decisao"] = "ACORDO HOMOLOGADO"
 
@@ -675,26 +681,44 @@ def gerar_chat_contextual(texto_original, dados_extraidos):
     return contexto
 
 def adaptar_perspectiva_autor(texto, dados):
-    """Adapta o texto para a perspectiva do autor"""
+    """Adapta o texto e dados para a perspectiva do autor"""
     texto = texto.replace("a parte autora", "você")
     texto = texto.replace("o requerente", "você")
     texto = texto.replace("ao autor", "a você")
+    texto = texto.replace("o autor", "você")
 
-    if dados["decisao"] and "PROCEDENTE" in dados["decisao"]:
-        texto = texto.replace("Foi decidido", "✅ Boa notícia! Foi decidido")
+    # Adaptar decisão para perspectiva do autor
+    if dados.get("decisao"):
+        if dados["decisao"] == "PROCEDENTE":
+            dados["decisao"] = "PROCEDENTE (✅ Você ganhou)"
+            texto = texto.replace("PROCEDENTE", "PROCEDENTE (✅ Você ganhou)")
+        elif dados["decisao"] == "IMPROCEDENTE":
+            dados["decisao"] = "IMPROCEDENTE (❌ Você perdeu)"
+            texto = texto.replace("IMPROCEDENTE", "IMPROCEDENTE (❌ Você perdeu)")
+        elif dados["decisao"] == "PARCIALMENTE PROCEDENTE":
+            dados["decisao"] = "PARCIALMENTE PROCEDENTE (⚖️ Vitória parcial)"
+            texto = texto.replace("PARCIALMENTE PROCEDENTE", "PARCIALMENTE PROCEDENTE (⚖️ Vitória parcial)")
 
     return texto
 
 def adaptar_perspectiva_reu(texto, dados):
-    """Adapta o texto para a perspectiva do réu"""
+    """Adapta o texto e dados para a perspectiva do réu"""
     texto = texto.replace("a parte ré", "você")
     texto = texto.replace("o requerido", "você")
     texto = texto.replace("o réu", "você")
+    texto = texto.replace("ao réu", "a você")
 
-    if dados["decisao"] and "IMPROCEDENTE" in dados["decisao"]:
-        texto = texto.replace("Foi decidido", "✅ Boa notícia! Foi decidido")
-    elif dados["decisao"] and "PROCEDENTE" in dados["decisao"]:
-        texto = texto.replace("Foi decidido", "⚠️ Atenção! Foi decidido")
+    # Adaptar decisão para perspectiva do réu (INVERSO do autor!)
+    if dados.get("decisao"):
+        if dados["decisao"] == "PROCEDENTE":
+            dados["decisao"] = "PROCEDENTE (❌ Você perdeu - pedido do autor foi aceito)"
+            texto = texto.replace("PROCEDENTE", "PROCEDENTE (❌ Você perdeu - pedido do autor foi aceito)")
+        elif dados["decisao"] == "IMPROCEDENTE":
+            dados["decisao"] = "IMPROCEDENTE (✅ Você ganhou - pedido do autor foi negado)"
+            texto = texto.replace("IMPROCEDENTE", "IMPROCEDENTE (✅ Você ganhou - pedido do autor foi negado)")
+        elif dados["decisao"] == "PARCIALMENTE PROCEDENTE":
+            dados["decisao"] = "PARCIALMENTE PROCEDENTE (⚖️ Resultado misto)"
+            texto = texto.replace("PARCIALMENTE PROCEDENTE", "PARCIALMENTE PROCEDENTE (⚖️ Resultado misto)")
 
     return texto
 
@@ -903,20 +927,16 @@ def processar_pergunta_contextual(pergunta, contexto):
             }
 
     # DECISÃO
-    if validacao.get("tipo") == "decisao" or any(word in pergunta_lower for word in ["ganhou", "perdeu", "decidiu", "resultado"]):
+    if validacao.get("tipo") == "decisao" or any(word in pergunta_lower for word in ["ganhou", "perdeu", "decidiu", "resultado", "decisão"]):
         if dados.get("decisao"):
+            # A decisão já vem adaptada pela função de perspectiva (autor ou réu)
             texto = f"⚖️ **Decisão:** {dados['decisao']}\n\n"
-
-            if "PROCEDENTE" in dados["decisao"] and "IMPROCEDENTE" not in dados["decisao"]:
-                texto += "✅ Isso geralmente significa que você GANHOU a causa.\n\n"
-            elif "IMPROCEDENTE" in dados["decisao"]:
-                texto += "❌ Isso geralmente significa que você PERDEU a causa.\n\n"
-            elif "PARCIALMENTE" in dados["decisao"]:
-                texto += "⚠️ Isso significa que você ganhou PARTE do que pediu.\n\n"
 
             # Informações sobre recurso
             if any(word in pergunta_lower for word in ["recurso", "cabe recurso"]):
-                texto += "📋 Geralmente cabe recurso. Consulte um advogado URGENTEMENTE para avaliar."
+                texto += "\n📋 Consulte um advogado ou Defensoria Pública URGENTEMENTE para avaliar se vale a pena recorrer."
+            else:
+                texto += "💡 Dica: Se não concordar com a decisão, consulte um advogado sobre a possibilidade de recurso."
 
             return {
                 "texto": texto,
@@ -1814,9 +1834,6 @@ def processar():
         # NOVA: Analisar recursos cabíveis
         recursos_info = analisar_recursos_cabiveis(tipo_doc, texto_original)
 
-        # NOVA: Preparar contexto para chat
-        contexto_chat = gerar_chat_contextual(texto_original, dados_estruturados)
-
         # Adaptar prompt com informações do tipo de documento
         prompt_adaptado = PROMPT_SIMPLIFICACAO_MELHORADO
         prompt_adaptado += f"\n\nTIPO IDENTIFICADO: {tipo_doc}"
@@ -1829,11 +1846,14 @@ def processar():
         if erro:
             return jsonify({"erro": erro}), 500
 
-        # Adaptar texto baseado na perspectiva do usuário
+        # Adaptar texto E dados baseado na perspectiva do usuário
         if perspectiva == "autor":
             texto_simplificado = adaptar_perspectiva_autor(texto_simplificado, dados_estruturados)
         elif perspectiva == "reu":
             texto_simplificado = adaptar_perspectiva_reu(texto_simplificado, dados_estruturados)
+
+        # NOVA: Preparar contexto para chat (DEPOIS da adaptação de perspectiva)
+        contexto_chat = gerar_chat_contextual(texto_original, dados_estruturados)
 
         # Preparar metadados para o PDF
         metadados_geracao = {
