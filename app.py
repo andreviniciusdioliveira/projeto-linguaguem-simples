@@ -36,6 +36,9 @@ except ImportError:
 
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", os.urandom(24))
+app.config['SESSION_TYPE'] = 'filesystem'  # Usar filesystem para persistir sessões
+app.config['SESSION_PERMANENT'] = True  # Tornar sessões permanentes
+app.config['PERMANENT_SESSION_LIFETIME'] = 3600  # 1 hora (3600 segundos)
 logging.basicConfig(level=logging.INFO)
 
 # --- Configurações ---
@@ -101,7 +104,7 @@ model_usage_stats = {model["name"]: {"attempts": 0, "successes": 0, "failures": 
 # ===== LGPD - Sistema de Limpeza Automática =====
 # Controle de arquivos temporários
 temp_files_tracker = {}
-TEMP_FILE_EXPIRATION = 600  # 10 minutos em segundos
+TEMP_FILE_EXPIRATION = 1800  # 30 minutos em segundos (aumentado para evitar perda de PDF)
 
 def registrar_arquivo_temporario(file_path, session_id=None):
     """Registra arquivo temporário para limpeza automática (LGPD)"""
@@ -111,7 +114,7 @@ def registrar_arquivo_temporario(file_path, session_id=None):
             "session_id": session_id,
             "expira_em": time.time() + TEMP_FILE_EXPIRATION
         }
-    logging.info(f"📋 Arquivo temporário registrado: {file_path} (expira em 10 minutos)")
+    logging.info(f"📋 Arquivo temporário registrado: {file_path} (expira em 30 minutos)")
 
 def limpar_arquivos_expirados():
     """Remove arquivos temporários expirados (LGPD - 10 minutos)"""
@@ -505,7 +508,11 @@ def extrair_dados_estruturados(texto):
         "decisao": None,
         "autoridade": None,
         "audiencias": [],
-        "tipo_acao": None
+        "tipo_acao": None,
+        "links_audiencia": [],  # NOVO: Links de audiência online
+        "telefones": [],  # NOVO: Telefones de contato
+        "emails": [],  # NOVO: Emails
+        "qr_codes": []  # NOVO: QR codes encontrados
     }
 
     # Número do processo (formatos variados)
@@ -648,6 +655,43 @@ def extrair_dados_estruturados(texto):
                 "hora": match[1].replace("h", ":")
             })
 
+    # NOVO: Extrair links de audiência online (Zoom, Teams, Meet, etc.)
+    link_patterns = [
+        r'https?://(?:zoom\.us|teams\.microsoft\.com|meet\.google\.com|meet\.jit\.si)[^\s<>\)]+',
+        r'https?://[^\s<>\)]+(?:audiencia|reuniao|meeting|room)[^\s<>\)]+',
+        r'(?:zoom|teams|meet|jitsi).*?(?:https?://[^\s<>\)]+)'
+    ]
+
+    for pattern in link_patterns:
+        matches = re.findall(pattern, texto, re.IGNORECASE)
+        for match in matches:
+            if match not in dados["links_audiencia"]:
+                dados["links_audiencia"].append(match)
+
+    # NOVO: Extrair telefones
+    telefone_patterns = [
+        r'\(?\d{2}\)?\s*\d{4,5}-?\d{4}',  # (11) 98765-4321 ou 11 98765-4321
+        r'(?:tel(?:efone)?|fone|contato):\s*(\d{2,4}[-\s]?\d{4,5}[-\s]?\d{4})'
+    ]
+
+    for pattern in telefone_patterns:
+        matches = re.findall(pattern, texto, re.IGNORECASE)
+        for match in matches:
+            telefone = match if isinstance(match, str) else match[0] if match else None
+            if telefone and telefone not in dados["telefones"]:
+                dados["telefones"].append(telefone)
+
+    # NOVO: Extrair emails
+    email_pattern = r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
+    matches = re.findall(email_pattern, texto)
+    for email in matches:
+        if email not in dados["emails"]:
+            dados["emails"].append(email)
+
+    # NOVO: Detectar menções a QR Code
+    if re.search(r'(?:QR\s*Code|código\s+QR|qrcode)', texto, re.IGNORECASE):
+        dados["qr_codes"].append("QR Code mencionado no documento (visualize o PDF original)")
+
     return dados
 
 def gerar_chat_contextual(texto_original, dados_extraidos):
@@ -681,11 +725,21 @@ def gerar_chat_contextual(texto_original, dados_extraidos):
     return contexto
 
 def adaptar_perspectiva_autor(texto, dados):
-    """Adapta o texto e dados para a perspectiva do autor"""
+    """Adapta o texto e dados para a perspectiva do autor (mais pessoal)"""
+    # Substituições para deixar o texto mais pessoal
+    texto = texto.replace("A parte autora", "Você")
     texto = texto.replace("a parte autora", "você")
+    texto = texto.replace("O requerente", "Você")
     texto = texto.replace("o requerente", "você")
-    texto = texto.replace("ao autor", "a você")
+    texto = texto.replace("O autor", "Você")
     texto = texto.replace("o autor", "você")
+    texto = texto.replace("ao autor", "a você")
+    texto = texto.replace("do autor", "seu/sua")
+    texto = texto.replace("da parte autora", "sua")
+    texto = texto.replace("pela parte autora", "por você")
+    texto = texto.replace("foi determinado que a parte autora", "foi determinado que você")
+    texto = texto.replace("a parte autora deverá", "você deverá")
+    texto = texto.replace("a parte autora deve", "você deve")
 
     # Adaptar decisão para perspectiva do autor
     if dados.get("decisao"):
@@ -702,11 +756,21 @@ def adaptar_perspectiva_autor(texto, dados):
     return texto
 
 def adaptar_perspectiva_reu(texto, dados):
-    """Adapta o texto e dados para a perspectiva do réu"""
+    """Adapta o texto e dados para a perspectiva do réu (mais pessoal)"""
+    # Substituições para deixar o texto mais pessoal
+    texto = texto.replace("A parte ré", "Você")
     texto = texto.replace("a parte ré", "você")
+    texto = texto.replace("O requerido", "Você")
     texto = texto.replace("o requerido", "você")
+    texto = texto.replace("O réu", "Você")
     texto = texto.replace("o réu", "você")
     texto = texto.replace("ao réu", "a você")
+    texto = texto.replace("do réu", "seu/sua")
+    texto = texto.replace("da parte ré", "sua")
+    texto = texto.replace("pela parte ré", "por você")
+    texto = texto.replace("foi determinado que a parte ré", "foi determinado que você")
+    texto = texto.replace("a parte ré deverá", "você deverá")
+    texto = texto.replace("a parte ré deve", "você deve")
 
     # Adaptar decisão para perspectiva do réu (INVERSO do autor!)
     if dados.get("decisao"):
@@ -1678,7 +1742,80 @@ def gerar_pdf_simplificado(texto, metadados=None, filename="documento_simplifica
         c.setStrokeColorRGB(0.8, 0.8, 0.8)
         c.line(margem_esq, y, largura - margem_dir, y)
         y -= 20
-        
+
+        # NOVO: Adicionar informações de contato e links se disponíveis
+        if metadados and metadados.get('dados'):
+            dados = metadados['dados']
+
+            # Links de audiência online
+            if dados.get('links_audiencia') and len(dados['links_audiencia']) > 0:
+                c.setFont("Helvetica-Bold", 11)
+                c.setFillColorRGB(0.2, 0.6, 0.2)
+                c.drawString(margem_esq, y, "Links de Audiência Online:")
+                y -= 15
+                c.setFont("Helvetica", 9)
+                c.setFillColorRGB(0, 0, 1)
+                for link in dados['links_audiencia']:
+                    if y < margem_bottom + altura_linha * 2:
+                        c.showPage()
+                        y = altura - margem_top
+                    c.drawString(margem_esq + 10, y, f"• {link}")
+                    y -= 13
+                y -= 5
+                c.setFillColorRGB(0, 0, 0)
+
+            # Telefones
+            if dados.get('telefones') and len(dados['telefones']) > 0:
+                c.setFont("Helvetica-Bold", 11)
+                c.drawString(margem_esq, y, "Telefones de Contato:")
+                y -= 15
+                c.setFont("Helvetica", 10)
+                for tel in dados['telefones']:
+                    if y < margem_bottom + altura_linha * 2:
+                        c.showPage()
+                        y = altura - margem_top
+                    c.drawString(margem_esq + 10, y, f"• {tel}")
+                    y -= 13
+                y -= 5
+
+            # Emails
+            if dados.get('emails') and len(dados['emails']) > 0:
+                c.setFont("Helvetica-Bold", 11)
+                c.drawString(margem_esq, y, "Emails:")
+                y -= 15
+                c.setFont("Helvetica", 10)
+                c.setFillColorRGB(0, 0, 1)
+                for email in dados['emails']:
+                    if y < margem_bottom + altura_linha * 2:
+                        c.showPage()
+                        y = altura - margem_top
+                    c.drawString(margem_esq + 10, y, f"• {email}")
+                    y -= 13
+                y -= 5
+                c.setFillColorRGB(0, 0, 0)
+
+            # QR Codes
+            if dados.get('qr_codes') and len(dados['qr_codes']) > 0:
+                c.setFont("Helvetica-Bold", 11)
+                c.setFillColorRGB(1, 0.6, 0)
+                c.drawString(margem_esq, y, "QR Code:")
+                y -= 15
+                c.setFont("Helvetica", 10)
+                c.setFillColorRGB(0, 0, 0)
+                for qr in dados['qr_codes']:
+                    if y < margem_bottom + altura_linha * 2:
+                        c.showPage()
+                        y = altura - margem_top
+                    c.drawString(margem_esq + 10, y, f"• {qr}")
+                    y -= 13
+                y -= 10
+
+            # Separador se houver informações
+            if any([dados.get('links_audiencia'), dados.get('telefones'), dados.get('emails'), dados.get('qr_codes')]):
+                c.setStrokeColorRGB(0.8, 0.8, 0.8)
+                c.line(margem_esq, y, largura - margem_dir, y)
+                y -= 20
+
         # Processar texto com formatação especial para ícones
         c.setFont("Helvetica", 11)
         c.setFillColorRGB(0, 0, 0)
