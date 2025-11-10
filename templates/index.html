@@ -1191,27 +1191,7 @@
                 <div id="resultAnalysis" style="margin-bottom: 1.5rem;">
                     <!-- Filled dynamically -->
                 </div>
-
-                <!-- Document Type and Urgency -->
-                <div id="documentTypeSection" style="display: none; margin-bottom: 1.5rem;">
-                    <!-- Filled dynamically -->
-                </div>
-
-                <!-- Structured Data (Values, Deadlines, Parties) -->
-                <div id="structuredDataSection" style="display: none; margin-bottom: 1.5rem;">
-                    <!-- Filled dynamically -->
-                </div>
-
-                <!-- Available Appeals -->
-                <div id="appealsSection" style="display: none; margin-bottom: 1.5rem;">
-                    <!-- Filled dynamically -->
-                </div>
-
-                <!-- Suggested Questions -->
-                <div id="suggestedQuestionsSection" style="display: none; margin-bottom: 1.5rem;">
-                    <!-- Filled dynamically -->
-                </div>
-
+                
                 <!-- Simplified Text -->
                 <div id="simplifiedText" style="background: var(--light); padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem; max-height: 500px; overflow-y: auto;">
                     <!-- Filled dynamically -->
@@ -1959,41 +1939,21 @@
             
             const formattedText = formatResultText(data.texto);
             document.getElementById('simplifiedText').innerHTML = formattedText;
-
+            
             if (data.analise) {
                 showResultAnalysis(data.analise);
             }
-
-            // NEW: Show document type and urgency
-            if (data.tipo_documento) {
-                showDocumentType(data.tipo_documento, data.urgencia, data.acao_necessaria);
-            }
-
-            // NEW: Show structured data (values, deadlines, parties)
-            if (data.dados_extraidos) {
-                showStructuredData(data.dados_extraidos);
-            }
-
-            // NEW: Show available appeals
-            if (data.recursos_cabiveis) {
-                showAppeals(data.recursos_cabiveis);
-            }
-
-            // NEW: Show suggested questions
-            if (data.perguntas_sugeridas && data.perguntas_sugeridas.length > 0) {
-                showSuggestedQuestions(data.perguntas_sugeridas);
-            }
-
+            
             if (data.caracteres_original) {
                 document.getElementById('downloadBtn').style.display = 'inline-flex';
                 document.getElementById('downloadBtn').href = '/download_pdf';
             }
-
+            
             document.getElementById('resultSection').style.display = 'block';
-
-            document.getElementById('resultSection').scrollIntoView({
-                behavior: 'smooth',
-                block: 'start'
+            
+            document.getElementById('resultSection').scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'start' 
             });
         }
 
@@ -2046,9 +2006,9 @@
 
         function formatResultText(text) {
             let formatted = text;
-
+            
             formatted = formatted.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-
+            
             const iconPatterns = [
                 { icon: '📊', color: 'var(--jus-azul)' },
                 { icon: '📑', color: 'var(--jus-dourado)' },
@@ -2059,271 +2019,15 @@
                 { icon: '❌', color: 'var(--jus-vinho)' },
                 { icon: '⚠️', color: 'var(--warning)' }
             ];
-
+            
             iconPatterns.forEach(pattern => {
                 const regex = new RegExp(`(${pattern.icon}[^\\n]+)`, 'g');
                 formatted = formatted.replace(regex, `<div style="color: ${pattern.color}; font-weight: bold; margin: 1rem 0;">$1</div>`);
             });
-
+            
             formatted = formatted.replace(/\n/g, '<br>');
-
+            
             return formatted;
-        }
-
-        function showDocumentType(tipo, urgencia, acao) {
-            const section = document.getElementById('documentTypeSection');
-
-            const urgenciaColors = {
-                'MÁXIMA': { bg: '#fce8e6', border: '#ea4335', text: '#ea4335' },
-                'ALTA': { bg: '#fef7e0', border: '#fbbc04', text: '#ea4335' },
-                'MÉDIA': { bg: '#e8f0fe', border: '#4285f4', text: '#1967d2' },
-                'BAIXA': { bg: '#e6f4ea', border: '#34a853', text: '#137333' }
-            };
-
-            const colors = urgenciaColors[urgencia] || urgenciaColors['MÉDIA'];
-
-            const tipoTexto = {
-                'mandado_citacao': '📨 Mandado de Citação',
-                'mandado_intimacao': '📬 Mandado de Intimação',
-                'mandado_penhora': '🔨 Mandado de Penhora',
-                'mandado_despejo': '🏠 Mandado de Despejo',
-                'intimacao': '📢 Intimação',
-                'sentenca': '⚖️ Sentença',
-                'acordao': '📜 Acórdão',
-                'decisao_interlocutoria': '🔔 Decisão Interlocutória',
-                'despacho': '📋 Despacho',
-                'documento': '📄 Documento'
-            };
-
-            const html = `
-                <div style="background: ${colors.bg}; border-left: 4px solid ${colors.border}; padding: 1.5rem; border-radius: 8px;">
-                    <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
-                        <div style="font-size: 2rem;">${urgencia === 'MÁXIMA' ? '🚨' : '📋'}</div>
-                        <div>
-                            <div style="font-size: 1.25rem; font-weight: bold; color: ${colors.text};">
-                                ${tipoTexto[tipo] || 'Documento Jurídico'}
-                            </div>
-                            <div style="font-size: 0.875rem; color: var(--text-muted); margin-top: 0.25rem;">
-                                Urgência: <strong style="color: ${colors.text};">${urgencia}</strong>
-                            </div>
-                        </div>
-                    </div>
-                    ${acao ? `
-                        <div style="background: white; padding: 1rem; border-radius: 6px; margin-top: 1rem;">
-                            <strong>⚡ Ação necessária:</strong> ${acao}
-                        </div>
-                    ` : ''}
-                </div>
-            `;
-
-            section.innerHTML = html;
-            section.style.display = 'block';
-        }
-
-        function showStructuredData(dados) {
-            const section = document.getElementById('structuredDataSection');
-            let html = '<div style="background: var(--light); padding: 1.5rem; border-radius: 8px;">';
-            html += '<h3 style="color: var(--jus-azul); margin-bottom: 1rem;">📊 Dados do Documento</h3>';
-            html += '<div style="display: grid; gap: 1rem;">';
-
-            // Número do processo
-            if (dados.numero_processo) {
-                html += `
-                    <div style="background: white; padding: 1rem; border-radius: 6px;">
-                        <strong>📋 Processo:</strong> ${dados.numero_processo}
-                    </div>
-                `;
-            }
-
-            // Partes
-            if (dados.partes && (dados.partes.autor || dados.partes.reu)) {
-                html += '<div style="background: white; padding: 1rem; border-radius: 6px;">';
-                html += '<strong>👥 Partes:</strong><br>';
-                if (dados.partes.autor) html += `• Autor: ${dados.partes.autor}<br>`;
-                if (dados.partes.reu) html += `• Réu: ${dados.partes.reu}`;
-                html += '</div>';
-            }
-
-            // Decisão
-            if (dados.decisao) {
-                const decisaoColors = {
-                    'PROCEDENTE': { icon: '✅', color: '#34a853' },
-                    'IMPROCEDENTE': { icon: '❌', color: '#ea4335' },
-                    'PARCIALMENTE': { icon: '⚠️', color: '#fbbc04' }
-                };
-
-                let decisaoColor = '#4285f4';
-                let decisaoIcon = '⚖️';
-
-                for (const key in decisaoColors) {
-                    if (dados.decisao.includes(key)) {
-                        decisaoColor = decisaoColors[key].color;
-                        decisaoIcon = decisaoColors[key].icon;
-                        break;
-                    }
-                }
-
-                html += `
-                    <div style="background: white; padding: 1rem; border-radius: 6px; border-left: 4px solid ${decisaoColor};">
-                        <strong>${decisaoIcon} Decisão:</strong> ${dados.decisao}
-                    </div>
-                `;
-            }
-
-            // Valores
-            if (dados.valores && Object.values(dados.valores).some(v => v)) {
-                html += '<div style="background: white; padding: 1rem; border-radius: 6px;">';
-                html += '<strong>💰 Valores:</strong><br>';
-
-                if (dados.valores.danos_morais) {
-                    html += `• Danos morais: R$ ${dados.valores.danos_morais}<br>`;
-                }
-                if (dados.valores.danos_materiais) {
-                    html += `• Danos materiais: R$ ${dados.valores.danos_materiais}<br>`;
-                }
-                if (dados.valores.lucros_cessantes) {
-                    html += `• Lucros cessantes: R$ ${dados.valores.lucros_cessantes}<br>`;
-                }
-                if (dados.valores.total) {
-                    html += `<br><strong style="color: var(--jus-dourado);">Total: ${dados.valores.total}</strong><br>`;
-                }
-                if (dados.valores.honorarios) {
-                    html += `• Honorários: ${dados.valores.honorarios}<br>`;
-                }
-                if (dados.valores.valor_causa) {
-                    html += `• Valor da causa: R$ ${dados.valores.valor_causa}`;
-                }
-
-                html += '</div>';
-            }
-
-            // Prazos
-            if (dados.prazos && dados.prazos.length > 0) {
-                html += '<div style="background: white; padding: 1rem; border-radius: 6px;">';
-                html += '<strong>📅 Prazos:</strong><br>';
-                dados.prazos.forEach(prazo => {
-                    html += `• ${prazo}<br>`;
-                });
-                html += '</div>';
-            }
-
-            // Audiências
-            if (dados.audiencias && dados.audiencias.length > 0) {
-                html += '<div style="background: white; padding: 1rem; border-radius: 6px; border-left: 4px solid var(--warning);">';
-                html += '<strong>📅 Audiências Marcadas:</strong><br>';
-                dados.audiencias.forEach(aud => {
-                    html += `• ${aud.data} às ${aud.hora}<br>`;
-                });
-                html += '</div>';
-            }
-
-            // Autoridade
-            if (dados.autoridade) {
-                html += `
-                    <div style="background: white; padding: 1rem; border-radius: 6px;">
-                        <strong>👨‍⚖️ ${dados.autoridade}</strong>
-                    </div>
-                `;
-            }
-
-            html += '</div></div>';
-
-            section.innerHTML = html;
-            section.style.display = 'block';
-        }
-
-        function showAppeals(recursos) {
-            if (!recursos || !recursos.recurso) return;
-
-            const section = document.getElementById('appealsSection');
-
-            let html = '<div style="background: var(--info-bg); padding: 1.5rem; border-radius: 8px; border-left: 4px solid var(--jus-azul);">';
-            html += '<h3 style="color: var(--jus-azul); margin-bottom: 1rem;">⚖️ Recursos Cabíveis</h3>';
-
-            html += `
-                <div style="background: white; padding: 1rem; border-radius: 6px; margin-bottom: 0.5rem;">
-                    <strong>📜 Tipo de recurso:</strong> ${recursos.recurso}
-                </div>
-            `;
-
-            if (recursos.prazo) {
-                html += `
-                    <div style="background: white; padding: 1rem; border-radius: 6px; margin-bottom: 0.5rem;">
-                        <strong>⏰ Prazo:</strong> ${recursos.prazo}
-                    </div>
-                `;
-            }
-
-            if (recursos.instancia) {
-                html += `
-                    <div style="background: white; padding: 1rem; border-radius: 6px; margin-bottom: 0.5rem;">
-                        <strong>🏛️ Instância:</strong> ${recursos.instancia}
-                    </div>
-                `;
-            }
-
-            if (recursos.valor_preparo) {
-                html += `
-                    <div style="background: white; padding: 1rem; border-radius: 6px; margin-bottom: 0.5rem;">
-                        <strong>💵 Preparo:</strong> ${recursos.valor_preparo}
-                    </div>
-                `;
-            }
-
-            if (recursos.dica) {
-                html += `
-                    <div style="background: #fef7e0; padding: 1rem; border-radius: 6px; margin-top: 1rem;">
-                        <strong>💡 Dica:</strong> ${recursos.dica}
-                    </div>
-                `;
-            }
-
-            if (recursos.observacao) {
-                html += `
-                    <div style="background: white; padding: 1rem; border-radius: 6px; margin-top: 1rem;">
-                        <strong>ℹ️</strong> ${recursos.observacao}
-                    </div>
-                `;
-            }
-
-            html += '</div>';
-
-            section.innerHTML = html;
-            section.style.display = 'block';
-        }
-
-        function showSuggestedQuestions(perguntas) {
-            if (!perguntas || perguntas.length === 0) return;
-
-            const section = document.getElementById('suggestedQuestionsSection');
-
-            let html = '<div style="background: var(--success-bg); padding: 1.5rem; border-radius: 8px; border-left: 4px solid var(--secondary);">';
-            html += '<h3 style="color: var(--secondary); margin-bottom: 1rem;">💬 Perguntas Frequentes sobre este Documento</h3>';
-            html += '<div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">';
-
-            perguntas.forEach((pergunta, index) => {
-                html += `
-                    <button onclick="askQuestion('${pergunta.replace(/'/g, "\\'")}')"
-                            style="background: white; border: 2px solid var(--secondary); color: var(--secondary);
-                                   padding: 0.5rem 1rem; border-radius: 20px; cursor: pointer; font-size: 0.875rem;
-                                   transition: all 0.3s ease; font-weight: 500;">
-                        ${pergunta}
-                    </button>
-                `;
-            });
-
-            html += '</div>';
-            html += '<p style="margin-top: 1rem; font-size: 0.875rem; color: var(--text-muted);">Clique em uma pergunta para ver a resposta baseada neste documento</p>';
-            html += '</div>';
-
-            section.innerHTML = html;
-            section.style.display = 'block';
-        }
-
-        function askQuestion(pergunta) {
-            showToast('Função de chat em desenvolvimento. Por enquanto, veja as informações acima.', 'info', 3000);
-            console.log('Pergunta:', pergunta);
-            // TODO: Implementar integração com o endpoint /chat
         }
 
         function copyText() {
