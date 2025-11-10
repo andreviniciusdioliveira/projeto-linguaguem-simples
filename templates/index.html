@@ -2243,6 +2243,46 @@
                 html += '</div>';
             }
 
+            // NOVO: Links de Audiência Online
+            if (dados.links_audiencia && dados.links_audiencia.length > 0) {
+                html += '<div style="background: #e8f5e9; padding: 1rem; border-radius: 6px; border-left: 4px solid #4caf50;">';
+                html += '<strong>🔗 Links de Audiência Online:</strong><br>';
+                dados.links_audiencia.forEach(link => {
+                    html += `• <a href="${link}" target="_blank" style="color: var(--jus-azul); text-decoration: underline;">${link}</a><br>`;
+                });
+                html += '</div>';
+            }
+
+            // NOVO: Telefones de Contato
+            if (dados.telefones && dados.telefones.length > 0) {
+                html += '<div style="background: white; padding: 1rem; border-radius: 6px;">';
+                html += '<strong>📞 Telefones:</strong><br>';
+                dados.telefones.forEach(tel => {
+                    html += `• ${tel}<br>`;
+                });
+                html += '</div>';
+            }
+
+            // NOVO: Emails
+            if (dados.emails && dados.emails.length > 0) {
+                html += '<div style="background: white; padding: 1rem; border-radius: 6px;">';
+                html += '<strong>✉️ Emails:</strong><br>';
+                dados.emails.forEach(email => {
+                    html += `• <a href="mailto:${email}" style="color: var(--jus-azul);">${email}</a><br>`;
+                });
+                html += '</div>';
+            }
+
+            // NOVO: QR Codes
+            if (dados.qr_codes && dados.qr_codes.length > 0) {
+                html += '<div style="background: #fff3e0; padding: 1rem; border-radius: 6px; border-left: 4px solid #ff9800;">';
+                html += '<strong>📱 QR Code:</strong><br>';
+                dados.qr_codes.forEach(qr => {
+                    html += `• ${qr}<br>`;
+                });
+                html += '</div>';
+            }
+
             // Autoridade
             if (dados.autoridade) {
                 html += `
