@@ -98,6 +98,62 @@ CACHE_EXPIRATION = 3600  # 1 hora
 # Estatísticas de uso dos modelos
 model_usage_stats = {model["name"]: {"attempts": 0, "successes": 0, "failures": 0} for model in GEMINI_MODELS}
 
+# ===== LGPD - Sistema de Limpeza Automática =====
+# Controle de arquivos temporários
+temp_files_tracker = {}
+TEMP_FILE_EXPIRATION = 600  # 10 minutos em segundos
+
+def registrar_arquivo_temporario(file_path, session_id=None):
+    """Registra arquivo temporário para limpeza automática (LGPD)"""
+    with cleanup_lock:
+        temp_files_tracker[file_path] = {
+            "criado_em": time.time(),
+            "session_id": session_id,
+            "expira_em": time.time() + TEMP_FILE_EXPIRATION
+        }
+    logging.info(f"📋 Arquivo temporário registrado: {file_path} (expira em 10 minutos)")
+
+def limpar_arquivos_expirados():
+    """Remove arquivos temporários expirados (LGPD - 10 minutos)"""
+    agora = time.time()
+    arquivos_removidos = 0
+
+    with cleanup_lock:
+        arquivos_expirados = [
+            path for path, info in temp_files_tracker.items()
+            if agora > info["expira_em"]
+        ]
+
+        for file_path in arquivos_expirados:
+            try:
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+                    arquivos_removidos += 1
+                    logging.info(f"🗑️ LGPD: Arquivo removido após 10 min: {file_path}")
+
+                del temp_files_tracker[file_path]
+            except Exception as e:
+                logging.error(f"Erro ao remover arquivo {file_path}: {e}")
+
+    if arquivos_removidos > 0:
+        logging.info(f"✅ LGPD: {arquivos_removidos} arquivo(s) temporário(s) removido(s)")
+
+    return arquivos_removidos
+
+def iniciar_limpeza_automatica():
+    """Inicia thread de limpeza automática (LGPD)"""
+    def executar_limpeza():
+        while True:
+            time.sleep(60)  # Verificar a cada 1 minuto
+            limpar_arquivos_expirados()
+
+    thread = threading.Thread(target=executar_limpeza, daemon=True)
+    thread.start()
+    logging.info("🔄 Sistema de limpeza automática LGPD iniciado (10 min)")
+
+# Iniciar limpeza automática ao carregar o app
+iniciar_limpeza_automatica()
+
 def verificar_tesseract():
     """Verifica se o Tesseract está disponível e configurado"""
     try:
@@ -642,65 +698,250 @@ def adaptar_perspectiva_reu(texto, dados):
 
     return texto
 
-def processar_pergunta_contextual(pergunta, contexto):
-    """Processa pergunta garantindo resposta apenas do documento"""
+def validar_tipo_pergunta(pergunta):
+    """Valida e classifica o tipo de pergunta"""
     pergunta_lower = pergunta.lower()
-    dados = contexto["dados_extraidos"]
 
-    # Respostas preparadas
-    if "valor" in pergunta_lower and "total" in pergunta_lower:
-        if dados["valores"]["total"]:
-            return {
-                "texto": f"Segundo o documento, o valor total é {dados['valores']['total']}",
-                "tipo": "resposta",
-                "referencia": "dispositivo"
-            }
+    # Perguntas VÁLIDAS (sobre o documento)
+    perguntas_validas = {
+        "valores": ["quanto", "valor", "receber", "pagar", "multa", "indenização", "honorários", "custas", "danos morais", "danos materiais"],
+        "prazos": ["prazo", "dias", "quando", "vence", "tempo", "recurso", "contestar"],
+        "partes": ["quem", "autor", "réu", "juiz", "advogado", "desembargador"],
+        "decisao": ["ganhou", "perdeu", "decidiu", "resultado", "procedente", "improcedente", "sentença", "cabe recurso"]
+    }
 
-    if "prazo" in pergunta_lower:
-        if dados["prazos"]:
-            prazos = ", ".join(dados["prazos"])
-            return {
-                "texto": f"Os prazos mencionados no documento são: {prazos}",
-                "tipo": "resposta",
-                "referencia": "documento"
-            }
+    # Perguntas INVÁLIDAS (bloqueadas)
+    perguntas_invalidas = {
+        "juridicas_gerais": ["o que é", "como funciona", "explica", "define", "significado"],
+        "opiniao_legal": ["devo", "deveria", "melhor", "recomenda", "acha", "sugere", "vale a pena", "tenho chance"],
+        "fora_documento": ["custa", "onde fica", "horário", "telefone", "endereço"]
+    }
 
-    if "audiência" in pergunta_lower or "audiencia" in pergunta_lower:
-        if dados["audiencias"]:
+    # Verificar se é pergunta inválida primeiro
+    for tipo, palavras in perguntas_invalidas.items():
+        if any(palavra in pergunta_lower for palavra in palavras):
+            return {"valida": False, "tipo": tipo}
+
+    # Verificar se é pergunta válida
+    for tipo, palavras in perguntas_validas.items():
+        if any(palavra in pergunta_lower for palavra in palavras):
+            return {"valida": True, "tipo": tipo}
+
+    # Pergunta não classificada
+    return {"valida": None, "tipo": "desconhecida"}
+
+def calcular_prazo_restante(data_intimacao, prazo_dias):
+    """Calcula dias restantes considerando dias úteis"""
+    try:
+        from datetime import datetime, timedelta
+
+        # Parse da data de intimação
+        data_int = datetime.strptime(data_intimacao, "%d/%m/%Y")
+        hoje = datetime.now()
+
+        # Calcular data final (simplificado - não considera feriados)
+        data_final = data_int + timedelta(days=prazo_dias * 1.4)  # Fator para dias úteis
+
+        diferenca = (data_final - hoje).days
+
+        if diferenca < 0:
+            return {"vencido": True, "dias": abs(diferenca), "status": "VENCIDO"}
+        elif diferenca <= 5:
+            return {"vencido": False, "dias": diferenca, "status": "URGENTE"}
+        else:
+            return {"vencido": False, "dias": diferenca, "status": "OK"}
+    except:
+        return None
+
+def gerar_checklist_personalizado(dados, tipo_doc):
+    """Gera checklist baseado no tipo de documento"""
+    checklist = []
+
+    if tipo_doc in ["mandado_citacao", "mandado_intimacao"]:
+        checklist.append("⚠️ URGENTE - Procurar advogado ou Defensoria Pública IMEDIATAMENTE")
+        checklist.append("📋 Levar este documento impresso")
+        checklist.append("📝 Reunir documentos e provas relacionadas ao caso")
+        if dados.get("prazos"):
+            checklist.append(f"⏰ Não perder o prazo: {dados['prazos'][0]}")
+
+    elif tipo_doc == "sentenca":
+        if dados.get("decisao"):
+            if "PROCEDENTE" in dados["decisao"]:
+                checklist.append("✅ Você ganhou! Analisar se aceita o valor ou se quer recorrer")
+            elif "IMPROCEDENTE" in dados["decisao"]:
+                checklist.append("⚠️ Avaliar possibilidade de recurso com advogado")
+
+        checklist.append("📅 Verificar prazo para recurso (geralmente 15 dias)")
+        if dados.get("valores", {}).get("total"):
+            checklist.append(f"💰 Valor em jogo: {dados['valores']['total']}")
+
+    elif tipo_doc == "intimacao":
+        if dados.get("audiencias"):
             aud = dados["audiencias"][0]
+            checklist.append(f"📅 Comparecer na audiência: {aud['data']} às {aud['hora']}")
+            checklist.append("👔 Ir com traje adequado")
+            checklist.append("📋 Levar documentos originais e cópias")
+
+    return checklist
+
+def processar_pergunta_contextual(pergunta, contexto):
+    """Processa pergunta garantindo resposta APENAS do documento"""
+    pergunta_lower = pergunta.lower()
+    dados = contexto.get("dados_extraidos", {})
+    documento = contexto.get("documento_original", "")
+
+    # 1. VALIDAR TIPO DE PERGUNTA
+    validacao = validar_tipo_pergunta(pergunta)
+
+    # 2. BLOQUEAR PERGUNTAS INVÁLIDAS
+    if validacao["valida"] == False:
+        if validacao["tipo"] == "juridicas_gerais":
             return {
-                "texto": f"A audiência está marcada para {aud['data']} às {aud['hora']}",
-                "tipo": "resposta",
-                "referencia": "intimação"
+                "texto": "❌ Não posso dar explicações jurídicas gerais.\n\n💡 Posso responder sobre o SEU documento. Pergunte sobre:\n• Valores mencionados\n• Prazos\n• Partes envolvidas\n• Decisão do juiz",
+                "tipo": "bloqueado",
+                "sugestoes": ["Qual o valor dos danos morais?", "Qual o prazo para recorrer?", "Eu ganhei ou perdi?"]
             }
 
-    if "ganhou" in pergunta_lower or "perdeu" in pergunta_lower or "decisão" in pergunta_lower:
-        if dados["decisao"]:
+        elif validacao["tipo"] == "opiniao_legal":
+            informacoes = []
+            if dados.get("prazos"):
+                informacoes.append(f"📅 Prazo: {dados['prazos'][0]}")
+            if dados.get("valores", {}).get("total"):
+                informacoes.append(f"💰 Valor: {dados['valores']['total']}")
+
+            texto_info = "\n".join(informacoes) if informacoes else ""
+
             return {
-                "texto": f"A decisão foi: {dados['decisao']}",
+                "texto": f"❌ Não posso dar conselhos jurídicos.\n\n📄 O que SEU documento diz:\n{texto_info}\n\n⚖️ Para decidir sobre ações (recorrer, fazer acordo, etc.), consulte um advogado ou a Defensoria Pública. Leve este documento!",
+                "tipo": "redirecionamento_profissional"
+            }
+
+        elif validacao["tipo"] == "fora_documento":
+            return {
+                "texto": "❌ Só posso responder sobre o documento que você enviou.\n\nℹ️ Para informações sobre custos, endereços e horários, consulte os canais oficiais do tribunal.",
+                "tipo": "fora_escopo"
+            }
+
+    # 3. PROCESSAR PERGUNTAS VÁLIDAS
+
+    # VALORES
+    if validacao.get("tipo") == "valores" or any(word in pergunta_lower for word in ["quanto", "valor"]):
+        respostas = []
+
+        # Danos morais
+        if "moral" in pergunta_lower or "receber" in pergunta_lower:
+            if dados.get("valores", {}).get("danos_morais"):
+                valor = dados["valores"]["danos_morais"]
+                respostas.append(f"💰 **Danos morais:** R$ {valor}")
+                respostas.append(f"\n📍 Referência: Encontrado no dispositivo da sentença")
+                respostas.append("\n💡 Este valor será corrigido monetariamente até o pagamento")
+
+        # Danos materiais
+        if "material" in pergunta_lower:
+            if dados.get("valores", {}).get("danos_materiais"):
+                valor = dados["valores"]["danos_materiais"]
+                respostas.append(f"💰 **Danos materiais:** R$ {valor}")
+
+        # Total
+        if "total" in pergunta_lower or ("quanto" in pergunta_lower and "receber" in pergunta_lower):
+            if dados.get("valores", {}).get("total"):
+                respostas.append(f"\n💵 **TOTAL:** {dados['valores']['total']}")
+                respostas.append("\n⚠️ Valores sujeitos a correção e juros")
+
+        # Valor da causa
+        if "causa" in pergunta_lower:
+            if dados.get("valores", {}).get("valor_causa"):
+                respostas.append(f"📋 **Valor da causa:** R$ {dados['valores']['valor_causa']}")
+
+        if respostas:
+            return {
+                "texto": "\n".join(respostas),
+                "tipo": "resposta",
+                "referencia": "valores_extraidos"
+            }
+        else:
+            return {
+                "texto": "❓ Não encontrei informações sobre valores neste documento.\n\nO documento pode não conter valores monetários ou eles não foram identificados.",
+                "tipo": "nao_encontrado"
+            }
+
+    # PRAZOS
+    if validacao.get("tipo") == "prazos" or any(word in pergunta_lower for word in ["prazo", "quando", "dias"]):
+        if dados.get("prazos"):
+            prazos_texto = "\n• ".join(dados["prazos"])
+
+            texto = f"📅 **Prazos mencionados no documento:**\n• {prazos_texto}"
+            texto += "\n\n⚠️ Confirme estes prazos no documento original e consulte um advogado URGENTEMENTE se houver prazo para contestação ou recurso."
+
+            return {
+                "texto": texto,
+                "tipo": "resposta",
+                "referencia": "prazos_extraidos"
+            }
+        else:
+            return {
+                "texto": "❓ Não encontrei prazos específicos neste documento.",
+                "tipo": "nao_encontrado"
+            }
+
+    # PARTES
+    if validacao.get("tipo") == "partes" or any(word in pergunta_lower for word in ["quem", "autor", "réu", "juiz"]):
+        respostas = []
+
+        if dados.get("partes", {}).get("autor"):
+            respostas.append(f"👤 **Autor:** {dados['partes']['autor']}")
+        if dados.get("partes", {}).get("reu"):
+            respostas.append(f"👤 **Réu:** {dados['partes']['reu']}")
+        if dados.get("autoridade"):
+            respostas.append(f"👨‍⚖️ **{dados['autoridade']}**")
+
+        if respostas:
+            return {
+                "texto": "\n".join(respostas),
+                "tipo": "resposta",
+                "referencia": "partes"
+            }
+
+    # DECISÃO
+    if validacao.get("tipo") == "decisao" or any(word in pergunta_lower for word in ["ganhou", "perdeu", "decidiu", "resultado"]):
+        if dados.get("decisao"):
+            texto = f"⚖️ **Decisão:** {dados['decisao']}\n\n"
+
+            if "PROCEDENTE" in dados["decisao"] and "IMPROCEDENTE" not in dados["decisao"]:
+                texto += "✅ Isso geralmente significa que você GANHOU a causa.\n\n"
+            elif "IMPROCEDENTE" in dados["decisao"]:
+                texto += "❌ Isso geralmente significa que você PERDEU a causa.\n\n"
+            elif "PARCIALMENTE" in dados["decisao"]:
+                texto += "⚠️ Isso significa que você ganhou PARTE do que pediu.\n\n"
+
+            # Informações sobre recurso
+            if any(word in pergunta_lower for word in ["recurso", "cabe recurso"]):
+                texto += "📋 Geralmente cabe recurso. Consulte um advogado URGENTEMENTE para avaliar."
+
+            return {
+                "texto": texto,
                 "tipo": "resposta",
                 "referencia": "dispositivo"
             }
 
-    # Perguntas sobre advogado jurídico geral
-    if "o que é" in pergunta_lower or "como funciona" in pergunta_lower:
-        return {
-            "texto": "Não posso dar explicações jurídicas gerais. Para orientações sobre o SEU documento, pergunte sobre valores, prazos ou decisões mencionadas nele.",
-            "tipo": "redirecionamento"
-        }
+    # CHECKLIST
+    if "fazer" in pergunta_lower or "próximos passos" in pergunta_lower or "preciso" in pergunta_lower:
+        tipo_doc = dados.get("tipo_documento", "documento")
+        checklist = gerar_checklist_personalizado(dados, tipo_doc)
 
-    # Conselhos jurídicos
-    if "devo" in pergunta_lower or "deveria" in pergunta_lower or "melhor" in pergunta_lower:
-        return {
-            "texto": "Não posso dar conselhos jurídicos. Procure um advogado ou a Defensoria Pública para orientações sobre o que fazer.",
-            "tipo": "orientacao"
-        }
+        if checklist:
+            texto = "📋 **Baseado no SEU documento, você deve:**\n\n"
+            texto += "\n".join(f"{i+1}. {item}" for i, item in enumerate(checklist))
 
-    # Buscar no documento original
-    if contexto.get("documento_original"):
-        # Tentar encontrar informação relevante no texto
-        resultado = buscar_no_documento(pergunta, contexto["documento_original"])
-        if resultado:
+            return {
+                "texto": texto,
+                "tipo": "checklist"
+            }
+
+    # BUSCA GENÉRICA NO DOCUMENTO
+    # Tentar encontrar informação relevante no texto
+    resultado = buscar_no_documento(pergunta, documento, dados)
+    if resultado:
             return {
                 "texto": f"No documento consta: {resultado}",
                 "tipo": "resposta",
@@ -712,10 +953,34 @@ def processar_pergunta_contextual(pergunta, contexto):
         "tipo": "nao_encontrado"
     }
 
-def buscar_no_documento(pergunta, documento):
-    """Busca informação específica no documento"""
-    # Implementar busca inteligente
-    # Por enquanto, retorna None
+def buscar_no_documento(pergunta, documento, dados=None):
+    """Busca informação específica no documento original"""
+    if not documento:
+        return None
+
+    pergunta_lower = pergunta.lower()
+    linhas = documento.split('\n')
+
+    # Palavras-chave para busca
+    palavras_busca = pergunta_lower.split()
+
+    # Procurar linhas relevantes
+    linhas_relevantes = []
+    for linha in linhas:
+        linha_lower = linha.lower()
+        # Se a linha contém pelo menos 2 palavras da pergunta
+        matches = sum(1 for palavra in palavras_busca if palavra in linha_lower and len(palavra) > 3)
+        if matches >= 2:
+            linhas_relevantes.append(linha.strip())
+
+    if linhas_relevantes:
+        # Retornar as 3 primeiras linhas mais relevantes
+        resultado = " ".join(linhas_relevantes[:3])
+        # Limitar tamanho
+        if len(resultado) > 300:
+            resultado = resultado[:300] + "..."
+        return resultado
+
     return None
 
 def extrair_valores_sentenca(texto):
@@ -1463,10 +1728,14 @@ def gerar_pdf_simplificado(texto, metadados=None, filename="documento_simplifica
         c.setFillColorRGB(0.6, 0.6, 0.6)
         c.drawString(margem_esq, 30, "Desenvolvido pela INOVASSOL")
         c.drawString(largura - margem_dir - 150, 30, "Consulte seu advogado para orientações")
-        
+
         c.save()
+
+        # Registrar arquivo para limpeza automática LGPD (10 minutos)
+        registrar_arquivo_temporario(output_path, session_id=session.get('session_id'))
+
         return output_path
-        
+
     except Exception as e:
         logging.error(f"Erro ao gerar PDF: {e}")
         raise

@@ -1098,7 +1098,29 @@
                 <button class="button" onclick="document.getElementById('fileInput').click()">
                     <span>📎</span> Escolher Arquivo
                 </button>
-                
+
+                <!-- Seletor de Perspectiva -->
+                <div style="margin-top: 2rem; padding: 1.5rem; background: var(--info-bg); border-radius: 8px; border-left: 4px solid var(--jus-azul);">
+                    <div style="font-weight: bold; margin-bottom: 1rem; color: var(--jus-azul);">👤 Você está:</div>
+                    <div style="display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center;">
+                        <label style="cursor: pointer; flex: 1; min-width: 150px;">
+                            <input type="radio" name="perspectiva" value="autor" checked style="margin-right: 0.5rem;">
+                            <span style="font-weight: 500;">⚖️ Processando (Autor)</span>
+                        </label>
+                        <label style="cursor: pointer; flex: 1; min-width: 150px;">
+                            <input type="radio" name="perspectiva" value="reu" style="margin-right: 0.5rem;">
+                            <span style="font-weight: 500;">🛡️ Sendo processado (Réu)</span>
+                        </label>
+                        <label style="cursor: pointer; flex: 1; min-width: 150px;">
+                            <input type="radio" name="perspectiva" value="nao_informado" style="margin-right: 0.5rem;">
+                            <span style="font-weight: 500;">❓ Não sei</span>
+                        </label>
+                    </div>
+                    <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.75rem; text-align: center;">
+                        Isso nos ajuda a adaptar as informações para você
+                    </p>
+                </div>
+
                 <!-- Formatos suportados -->
                 <div class="formats-grid" style="margin-top: 2rem;">
                     <div class="format-item">
@@ -1191,7 +1213,27 @@
                 <div id="resultAnalysis" style="margin-bottom: 1.5rem;">
                     <!-- Filled dynamically -->
                 </div>
-                
+
+                <!-- Document Type and Urgency -->
+                <div id="documentTypeSection" style="display: none; margin-bottom: 1.5rem;">
+                    <!-- Filled dynamically -->
+                </div>
+
+                <!-- Structured Data (Values, Deadlines, Parties) -->
+                <div id="structuredDataSection" style="display: none; margin-bottom: 1.5rem;">
+                    <!-- Filled dynamically -->
+                </div>
+
+                <!-- Available Appeals -->
+                <div id="appealsSection" style="display: none; margin-bottom: 1.5rem;">
+                    <!-- Filled dynamically -->
+                </div>
+
+                <!-- Suggested Questions -->
+                <div id="suggestedQuestionsSection" style="display: none; margin-bottom: 1.5rem;">
+                    <!-- Filled dynamically -->
+                </div>
+
                 <!-- Simplified Text -->
                 <div id="simplifiedText" style="background: var(--light); padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem; max-height: 500px; overflow-y: auto;">
                     <!-- Filled dynamically -->
@@ -1731,6 +1773,10 @@
             
             const formData = new FormData();
             formData.append('file', file);
+
+            // Adicionar perspectiva selecionada
+            const perspectiva = document.querySelector('input[name="perspectiva"]:checked').value;
+            formData.append('perspectiva', perspectiva);
             
             let progress = 0;
             const progressInterval = setInterval(() => {
@@ -1939,21 +1985,41 @@
             
             const formattedText = formatResultText(data.texto);
             document.getElementById('simplifiedText').innerHTML = formattedText;
-            
+
             if (data.analise) {
                 showResultAnalysis(data.analise);
             }
-            
+
+            // NEW: Show document type and urgency
+            if (data.tipo_documento) {
+                showDocumentType(data.tipo_documento, data.urgencia, data.acao_necessaria);
+            }
+
+            // NEW: Show structured data (values, deadlines, parties)
+            if (data.dados_extraidos) {
+                showStructuredData(data.dados_extraidos);
+            }
+
+            // NEW: Show available appeals
+            if (data.recursos_cabiveis) {
+                showAppeals(data.recursos_cabiveis);
+            }
+
+            // NEW: Show suggested questions
+            if (data.perguntas_sugeridas && data.perguntas_sugeridas.length > 0) {
+                showSuggestedQuestions(data.perguntas_sugeridas);
+            }
+
             if (data.caracteres_original) {
                 document.getElementById('downloadBtn').style.display = 'inline-flex';
                 document.getElementById('downloadBtn').href = '/download_pdf';
             }
-            
+
             document.getElementById('resultSection').style.display = 'block';
-            
-            document.getElementById('resultSection').scrollIntoView({ 
-                behavior: 'smooth', 
-                block: 'start' 
+
+            document.getElementById('resultSection').scrollIntoView({
+                behavior: 'smooth',
+                block: 'start'
             });
         }
 
@@ -2006,9 +2072,9 @@
 
         function formatResultText(text) {
             let formatted = text;
-            
+
             formatted = formatted.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-            
+
             const iconPatterns = [
                 { icon: '📊', color: 'var(--jus-azul)' },
                 { icon: '📑', color: 'var(--jus-dourado)' },
@@ -2019,15 +2085,379 @@
                 { icon: '❌', color: 'var(--jus-vinho)' },
                 { icon: '⚠️', color: 'var(--warning)' }
             ];
-            
+
             iconPatterns.forEach(pattern => {
                 const regex = new RegExp(`(${pattern.icon}[^\\n]+)`, 'g');
                 formatted = formatted.replace(regex, `<div style="color: ${pattern.color}; font-weight: bold; margin: 1rem 0;">$1</div>`);
             });
-            
+
             formatted = formatted.replace(/\n/g, '<br>');
-            
+
             return formatted;
+        }
+
+        function showDocumentType(tipo, urgencia, acao) {
+            const section = document.getElementById('documentTypeSection');
+
+            const urgenciaColors = {
+                'MÁXIMA': { bg: '#fce8e6', border: '#ea4335', text: '#ea4335' },
+                'ALTA': { bg: '#fef7e0', border: '#fbbc04', text: '#ea4335' },
+                'MÉDIA': { bg: '#e8f0fe', border: '#4285f4', text: '#1967d2' },
+                'BAIXA': { bg: '#e6f4ea', border: '#34a853', text: '#137333' }
+            };
+
+            const colors = urgenciaColors[urgencia] || urgenciaColors['MÉDIA'];
+
+            const tipoTexto = {
+                'mandado_citacao': '📨 Mandado de Citação',
+                'mandado_intimacao': '📬 Mandado de Intimação',
+                'mandado_penhora': '🔨 Mandado de Penhora',
+                'mandado_despejo': '🏠 Mandado de Despejo',
+                'intimacao': '📢 Intimação',
+                'sentenca': '⚖️ Sentença',
+                'acordao': '📜 Acórdão',
+                'decisao_interlocutoria': '🔔 Decisão Interlocutória',
+                'despacho': '📋 Despacho',
+                'documento': '📄 Documento'
+            };
+
+            const html = `
+                <div style="background: ${colors.bg}; border-left: 4px solid ${colors.border}; padding: 1.5rem; border-radius: 8px;">
+                    <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+                        <div style="font-size: 2rem;">${urgencia === 'MÁXIMA' ? '🚨' : '📋'}</div>
+                        <div>
+                            <div style="font-size: 1.25rem; font-weight: bold; color: ${colors.text};">
+                                ${tipoTexto[tipo] || 'Documento Jurídico'}
+                            </div>
+                            <div style="font-size: 0.875rem; color: var(--text-muted); margin-top: 0.25rem;">
+                                Urgência: <strong style="color: ${colors.text};">${urgencia}</strong>
+                            </div>
+                        </div>
+                    </div>
+                    ${acao ? `
+                        <div style="background: white; padding: 1rem; border-radius: 6px; margin-top: 1rem;">
+                            <strong>⚡ Ação necessária:</strong> ${acao}
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+
+            section.innerHTML = html;
+            section.style.display = 'block';
+        }
+
+        function showStructuredData(dados) {
+            const section = document.getElementById('structuredDataSection');
+            let html = '<div style="background: var(--light); padding: 1.5rem; border-radius: 8px;">';
+            html += '<h3 style="color: var(--jus-azul); margin-bottom: 1rem;">📊 Dados do Documento</h3>';
+            html += '<div style="display: grid; gap: 1rem;">';
+
+            // Número do processo
+            if (dados.numero_processo) {
+                html += `
+                    <div style="background: white; padding: 1rem; border-radius: 6px;">
+                        <strong>📋 Processo:</strong> ${dados.numero_processo}
+                    </div>
+                `;
+            }
+
+            // Partes
+            if (dados.partes && (dados.partes.autor || dados.partes.reu)) {
+                html += '<div style="background: white; padding: 1rem; border-radius: 6px;">';
+                html += '<strong>👥 Partes:</strong><br>';
+                if (dados.partes.autor) html += `• Autor: ${dados.partes.autor}<br>`;
+                if (dados.partes.reu) html += `• Réu: ${dados.partes.reu}`;
+                html += '</div>';
+            }
+
+            // Decisão
+            if (dados.decisao) {
+                const decisaoColors = {
+                    'PROCEDENTE': { icon: '✅', color: '#34a853' },
+                    'IMPROCEDENTE': { icon: '❌', color: '#ea4335' },
+                    'PARCIALMENTE': { icon: '⚠️', color: '#fbbc04' }
+                };
+
+                let decisaoColor = '#4285f4';
+                let decisaoIcon = '⚖️';
+
+                for (const key in decisaoColors) {
+                    if (dados.decisao.includes(key)) {
+                        decisaoColor = decisaoColors[key].color;
+                        decisaoIcon = decisaoColors[key].icon;
+                        break;
+                    }
+                }
+
+                html += `
+                    <div style="background: white; padding: 1rem; border-radius: 6px; border-left: 4px solid ${decisaoColor};">
+                        <strong>${decisaoIcon} Decisão:</strong> ${dados.decisao}
+                    </div>
+                `;
+            }
+
+            // Valores
+            if (dados.valores && Object.values(dados.valores).some(v => v)) {
+                html += '<div style="background: white; padding: 1rem; border-radius: 6px;">';
+                html += '<strong>💰 Valores:</strong><br>';
+
+                if (dados.valores.danos_morais) {
+                    html += `• Danos morais: R$ ${dados.valores.danos_morais}<br>`;
+                }
+                if (dados.valores.danos_materiais) {
+                    html += `• Danos materiais: R$ ${dados.valores.danos_materiais}<br>`;
+                }
+                if (dados.valores.lucros_cessantes) {
+                    html += `• Lucros cessantes: R$ ${dados.valores.lucros_cessantes}<br>`;
+                }
+                if (dados.valores.total) {
+                    html += `<br><strong style="color: var(--jus-dourado);">Total: ${dados.valores.total}</strong><br>`;
+                }
+                if (dados.valores.honorarios) {
+                    html += `• Honorários: ${dados.valores.honorarios}<br>`;
+                }
+                if (dados.valores.valor_causa) {
+                    html += `• Valor da causa: R$ ${dados.valores.valor_causa}`;
+                }
+
+                html += '</div>';
+            }
+
+            // Prazos
+            if (dados.prazos && dados.prazos.length > 0) {
+                html += '<div style="background: white; padding: 1rem; border-radius: 6px;">';
+                html += '<strong>📅 Prazos:</strong><br>';
+                dados.prazos.forEach(prazo => {
+                    html += `• ${prazo}<br>`;
+                });
+                html += '</div>';
+            }
+
+            // Audiências
+            if (dados.audiencias && dados.audiencias.length > 0) {
+                html += '<div style="background: white; padding: 1rem; border-radius: 6px; border-left: 4px solid var(--warning);">';
+                html += '<strong>📅 Audiências Marcadas:</strong><br>';
+                dados.audiencias.forEach(aud => {
+                    html += `• ${aud.data} às ${aud.hora}<br>`;
+                });
+                html += '</div>';
+            }
+
+            // Autoridade
+            if (dados.autoridade) {
+                html += `
+                    <div style="background: white; padding: 1rem; border-radius: 6px;">
+                        <strong>👨‍⚖️ ${dados.autoridade}</strong>
+                    </div>
+                `;
+            }
+
+            html += '</div></div>';
+
+            section.innerHTML = html;
+            section.style.display = 'block';
+        }
+
+        function showAppeals(recursos) {
+            if (!recursos || !recursos.recurso) return;
+
+            const section = document.getElementById('appealsSection');
+
+            let html = '<div style="background: var(--info-bg); padding: 1.5rem; border-radius: 8px; border-left: 4px solid var(--jus-azul);">';
+            html += '<h3 style="color: var(--jus-azul); margin-bottom: 1rem;">⚖️ Recursos Cabíveis</h3>';
+
+            html += `
+                <div style="background: white; padding: 1rem; border-radius: 6px; margin-bottom: 0.5rem;">
+                    <strong>📜 Tipo de recurso:</strong> ${recursos.recurso}
+                </div>
+            `;
+
+            if (recursos.prazo) {
+                html += `
+                    <div style="background: white; padding: 1rem; border-radius: 6px; margin-bottom: 0.5rem;">
+                        <strong>⏰ Prazo:</strong> ${recursos.prazo}
+                    </div>
+                `;
+            }
+
+            if (recursos.instancia) {
+                html += `
+                    <div style="background: white; padding: 1rem; border-radius: 6px; margin-bottom: 0.5rem;">
+                        <strong>🏛️ Instância:</strong> ${recursos.instancia}
+                    </div>
+                `;
+            }
+
+            if (recursos.valor_preparo) {
+                html += `
+                    <div style="background: white; padding: 1rem; border-radius: 6px; margin-bottom: 0.5rem;">
+                        <strong>💵 Preparo:</strong> ${recursos.valor_preparo}
+                    </div>
+                `;
+            }
+
+            if (recursos.dica) {
+                html += `
+                    <div style="background: #fef7e0; padding: 1rem; border-radius: 6px; margin-top: 1rem;">
+                        <strong>💡 Dica:</strong> ${recursos.dica}
+                    </div>
+                `;
+            }
+
+            if (recursos.observacao) {
+                html += `
+                    <div style="background: white; padding: 1rem; border-radius: 6px; margin-top: 1rem;">
+                        <strong>ℹ️</strong> ${recursos.observacao}
+                    </div>
+                `;
+            }
+
+            html += '</div>';
+
+            section.innerHTML = html;
+            section.style.display = 'block';
+        }
+
+        function showSuggestedQuestions(perguntas) {
+            if (!perguntas || perguntas.length === 0) return;
+
+            const section = document.getElementById('suggestedQuestionsSection');
+
+            let html = '<div style="background: var(--success-bg); padding: 1.5rem; border-radius: 8px; border-left: 4px solid var(--secondary);">';
+            html += '<h3 style="color: var(--secondary); margin-bottom: 1rem;">💬 Perguntas Frequentes sobre este Documento</h3>';
+            html += '<div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">';
+
+            perguntas.forEach((pergunta, index) => {
+                html += `
+                    <button onclick="askQuestion('${pergunta.replace(/'/g, "\\'")}')"
+                            style="background: white; border: 2px solid var(--secondary); color: var(--secondary);
+                                   padding: 0.5rem 1rem; border-radius: 20px; cursor: pointer; font-size: 0.875rem;
+                                   transition: all 0.3s ease; font-weight: 500;">
+                        ${pergunta}
+                    </button>
+                `;
+            });
+
+            html += '</div>';
+            html += '<p style="margin-top: 1rem; font-size: 0.875rem; color: var(--text-muted);">Clique em uma pergunta para ver a resposta baseada neste documento</p>';
+            html += '</div>';
+
+            section.innerHTML = html;
+            section.style.display = 'block';
+        }
+
+        function askQuestion(pergunta) {
+            // Mostrar loading
+            showLoading('Processando pergunta...');
+
+            fetch('/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ pergunta: pergunta })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(data => {
+                        throw new Error(data.resposta || 'Erro ao processar pergunta');
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                hideLoading();
+                mostrarRespostaChat(pergunta, data);
+            })
+            .catch(error => {
+                hideLoading();
+                showToast(error.message || 'Erro ao processar pergunta', 'error');
+                console.error('Erro:', error);
+            });
+        }
+
+        function mostrarRespostaChat(pergunta, resposta) {
+            // Criar modal de resposta
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0,0,0,0.7);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 10000;
+                padding: 2rem;
+            `;
+
+            const tipos = {
+                'resposta': { icon: '💬', color: '#34a853', bg: '#e6f4ea' },
+                'bloqueado': { icon: '❌', color: '#ea4335', bg: '#fce8e6' },
+                'redirecionamento_profissional': { icon: '⚖️', color: '#fbbc04', bg: '#fef7e0' },
+                'fora_escopo': { icon: 'ℹ️', color: '#4285f4', bg: '#e8f0fe' },
+                'nao_encontrado': { icon: '❓', color: '#5f6368', bg: '#f1f3f4' },
+                'checklist': { icon: '📋', color: '#34a853', bg: '#e6f4ea' }
+            };
+
+            const tipoInfo = tipos[resposta.tipo] || tipos['resposta'];
+
+            modal.innerHTML = `
+                <div style="background: white; border-radius: 12px; max-width: 600px; width: 100%; max-height: 80vh; overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
+                    <div style="padding: 2rem; border-bottom: 1px solid var(--border);">
+                        <div style="display: flex; justify-content: space-between; align-items: start;">
+                            <div style="flex: 1;">
+                                <div style="font-size: 1.5rem; margin-bottom: 0.5rem;">${tipoInfo.icon}</div>
+                                <div style="font-weight: bold; color: var(--text); margin-bottom: 0.5rem;">Sua pergunta:</div>
+                                <div style="color: var(--text-muted); font-style: italic;">"${pergunta}"</div>
+                            </div>
+                            <button onclick="this.closest('div[style*=fixed]').remove()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; padding: 0; margin-left: 1rem;">×</button>
+                        </div>
+                    </div>
+                    <div style="padding: 2rem;">
+                        <div style="background: ${tipoInfo.bg}; border-left: 4px solid ${tipoInfo.color}; padding: 1.5rem; border-radius: 8px; margin-bottom: 1rem;">
+                            <div style="white-space: pre-wrap; line-height: 1.6;">${resposta.resposta.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>')}</div>
+                        </div>
+                        ${resposta.referencia ? `
+                            <div style="font-size: 0.875rem; color: var(--text-muted); margin-top: 1rem;">
+                                📍 Referência: ${resposta.referencia}
+                            </div>
+                        ` : ''}
+                        ${resposta.sugestoes && resposta.sugestoes.length > 0 ? `
+                            <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border);">
+                                <div style="font-weight: bold; margin-bottom: 1rem;">💡 Perguntas sugeridas:</div>
+                                <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                                    ${resposta.sugestoes.map(sug => `
+                                        <button onclick="this.closest('div[style*=fixed]').remove(); askQuestion('${sug.replace(/'/g, "\\'")}')"
+                                                style="background: var(--light); border: 2px solid var(--jus-azul); color: var(--jus-azul);
+                                                       padding: 0.75rem; border-radius: 8px; cursor: pointer; text-align: left;
+                                                       transition: all 0.3s ease; font-weight: 500;">
+                                            ${sug}
+                                        </button>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        ` : ''}
+                    </div>
+                    <div style="padding: 1rem 2rem; background: var(--light); border-top: 1px solid var(--border); text-align: right;">
+                        <button onclick="this.closest('div[style*=fixed]').remove()"
+                                class="button" style="display: inline-flex;">
+                            Fechar
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+
+            // Fechar ao clicar fora
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.remove();
+                }
+            });
         }
 
         function copyText() {
