@@ -1098,7 +1098,29 @@
                 <button class="button" onclick="document.getElementById('fileInput').click()">
                     <span>📎</span> Escolher Arquivo
                 </button>
-                
+
+                <!-- Seletor de Perspectiva -->
+                <div style="margin-top: 2rem; padding: 1.5rem; background: var(--info-bg); border-radius: 8px; border-left: 4px solid var(--jus-azul);">
+                    <div style="font-weight: bold; margin-bottom: 1rem; color: var(--jus-azul);">👤 Você está:</div>
+                    <div style="display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center;">
+                        <label style="cursor: pointer; flex: 1; min-width: 150px;">
+                            <input type="radio" name="perspectiva" value="autor" checked style="margin-right: 0.5rem;">
+                            <span style="font-weight: 500;">⚖️ Processando (Autor)</span>
+                        </label>
+                        <label style="cursor: pointer; flex: 1; min-width: 150px;">
+                            <input type="radio" name="perspectiva" value="reu" style="margin-right: 0.5rem;">
+                            <span style="font-weight: 500;">🛡️ Sendo processado (Réu)</span>
+                        </label>
+                        <label style="cursor: pointer; flex: 1; min-width: 150px;">
+                            <input type="radio" name="perspectiva" value="nao_informado" style="margin-right: 0.5rem;">
+                            <span style="font-weight: 500;">❓ Não sei</span>
+                        </label>
+                    </div>
+                    <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.75rem; text-align: center;">
+                        Isso nos ajuda a adaptar as informações para você
+                    </p>
+                </div>
+
                 <!-- Formatos suportados -->
                 <div class="formats-grid" style="margin-top: 2rem;">
                     <div class="format-item">
@@ -1751,6 +1773,10 @@
             
             const formData = new FormData();
             formData.append('file', file);
+
+            // Adicionar perspectiva selecionada
+            const perspectiva = document.querySelector('input[name="perspectiva"]:checked').value;
+            formData.append('perspectiva', perspectiva);
             
             let progress = 0;
             const progressInterval = setInterval(() => {
@@ -2321,9 +2347,117 @@
         }
 
         function askQuestion(pergunta) {
-            showToast('Função de chat em desenvolvimento. Por enquanto, veja as informações acima.', 'info', 3000);
-            console.log('Pergunta:', pergunta);
-            // TODO: Implementar integração com o endpoint /chat
+            // Mostrar loading
+            showLoading('Processando pergunta...');
+
+            fetch('/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ pergunta: pergunta })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(data => {
+                        throw new Error(data.resposta || 'Erro ao processar pergunta');
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                hideLoading();
+                mostrarRespostaChat(pergunta, data);
+            })
+            .catch(error => {
+                hideLoading();
+                showToast(error.message || 'Erro ao processar pergunta', 'error');
+                console.error('Erro:', error);
+            });
+        }
+
+        function mostrarRespostaChat(pergunta, resposta) {
+            // Criar modal de resposta
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0,0,0,0.7);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 10000;
+                padding: 2rem;
+            `;
+
+            const tipos = {
+                'resposta': { icon: '💬', color: '#34a853', bg: '#e6f4ea' },
+                'bloqueado': { icon: '❌', color: '#ea4335', bg: '#fce8e6' },
+                'redirecionamento_profissional': { icon: '⚖️', color: '#fbbc04', bg: '#fef7e0' },
+                'fora_escopo': { icon: 'ℹ️', color: '#4285f4', bg: '#e8f0fe' },
+                'nao_encontrado': { icon: '❓', color: '#5f6368', bg: '#f1f3f4' },
+                'checklist': { icon: '📋', color: '#34a853', bg: '#e6f4ea' }
+            };
+
+            const tipoInfo = tipos[resposta.tipo] || tipos['resposta'];
+
+            modal.innerHTML = `
+                <div style="background: white; border-radius: 12px; max-width: 600px; width: 100%; max-height: 80vh; overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
+                    <div style="padding: 2rem; border-bottom: 1px solid var(--border);">
+                        <div style="display: flex; justify-content: space-between; align-items: start;">
+                            <div style="flex: 1;">
+                                <div style="font-size: 1.5rem; margin-bottom: 0.5rem;">${tipoInfo.icon}</div>
+                                <div style="font-weight: bold; color: var(--text); margin-bottom: 0.5rem;">Sua pergunta:</div>
+                                <div style="color: var(--text-muted); font-style: italic;">"${pergunta}"</div>
+                            </div>
+                            <button onclick="this.closest('div[style*=fixed]').remove()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; padding: 0; margin-left: 1rem;">×</button>
+                        </div>
+                    </div>
+                    <div style="padding: 2rem;">
+                        <div style="background: ${tipoInfo.bg}; border-left: 4px solid ${tipoInfo.color}; padding: 1.5rem; border-radius: 8px; margin-bottom: 1rem;">
+                            <div style="white-space: pre-wrap; line-height: 1.6;">${resposta.resposta.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>')}</div>
+                        </div>
+                        ${resposta.referencia ? `
+                            <div style="font-size: 0.875rem; color: var(--text-muted); margin-top: 1rem;">
+                                📍 Referência: ${resposta.referencia}
+                            </div>
+                        ` : ''}
+                        ${resposta.sugestoes && resposta.sugestoes.length > 0 ? `
+                            <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border);">
+                                <div style="font-weight: bold; margin-bottom: 1rem;">💡 Perguntas sugeridas:</div>
+                                <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                                    ${resposta.sugestoes.map(sug => `
+                                        <button onclick="this.closest('div[style*=fixed]').remove(); askQuestion('${sug.replace(/'/g, "\\'")}')"
+                                                style="background: var(--light); border: 2px solid var(--jus-azul); color: var(--jus-azul);
+                                                       padding: 0.75rem; border-radius: 8px; cursor: pointer; text-align: left;
+                                                       transition: all 0.3s ease; font-weight: 500;">
+                                            ${sug}
+                                        </button>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        ` : ''}
+                    </div>
+                    <div style="padding: 1rem 2rem; background: var(--light); border-top: 1px solid var(--border); text-align: right;">
+                        <button onclick="this.closest('div[style*=fixed]').remove()"
+                                class="button" style="display: inline-flex;">
+                            Fechar
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+
+            // Fechar ao clicar fora
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.remove();
+                }
+            });
         }
 
         function copyText() {
