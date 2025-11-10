@@ -500,7 +500,7 @@ def analisar_recursos_cabiveis(tipo_doc, texto):
         "acordao": {
             "cabe_recurso": "Sim (recursos complexos)",
             "prazo": prazo_encontrado,  # Só mostra se encontrado no documento
-            "dica": "Recursos em tribunais superiores - necessário advogado especializado"
+            "dica": "Recursos em tribunais superiores - necessário advogado ou defensor público"
         },
         "decisao_interlocutoria": {
             "cabe_recurso": "Sim (decisão interlocutória)",
@@ -845,8 +845,9 @@ Analise o contexto e determine qual a perspectiva mais provável."""
 
 def gerar_chat_contextual(texto_original, dados_extraidos):
     """Prepara contexto para o chat baseado APENAS no documento"""
+    # NÃO armazenar documento_original para evitar sessão muito grande
+    # O documento será lido do arquivo temporário quando necessário
     contexto = {
-        "documento_original": texto_original,
         "dados_extraidos": dados_extraidos,
         "perguntas_sugeridas": [],
         "respostas_preparadas": {}
@@ -2216,16 +2217,24 @@ def processar():
         pdf_filename = f"simplificado_{file_hash[:8]}.pdf"
         pdf_path = gerar_pdf_simplificado(texto_simplificado, metadados_geracao, pdf_filename)
 
-        # Salvar o caminho na sessão
+        # Salvar texto_original em arquivo temporário (não na sessão - reduz cookie)
+        texto_original_path = os.path.join(UPLOAD_FOLDER, f"texto_{file_hash[:8]}.txt")
+        with open(texto_original_path, 'w', encoding='utf-8') as f:
+            f.write(texto_original)
+        # Registrar para limpeza automática LGPD
+        registrar_arquivo_temporario(texto_original_path, session_id=session.get('session_id'))
+
+        # Salvar o caminho na sessão (apenas referências, não dados grandes)
         session['pdf_path'] = pdf_path
         session['pdf_filename'] = pdf_filename
-        session['contexto_chat'] = contexto_chat  # NOVO: Salvar contexto para chat
-        session['texto_original'] = texto_original  # NOVO: Salvar texto original para referência
+        session['texto_original_path'] = texto_original_path  # Apenas o caminho, não o texto completo
+        session['contexto_chat'] = contexto_chat  # Contexto SEM documento_original
         session.modified = True  # Forçar salvamento da sessão
 
         logging.info(f"📄 PDF gerado: {pdf_filename}")
         logging.info(f"📄 PDF salvo na sessão: {pdf_path}")
-        logging.info(f"📄 Contexto chat salvo: {len(contexto_chat.get('documento_original', ''))} chars")
+        logging.info(f"📄 Texto original salvo em: {texto_original_path}")
+        logging.info(f"📄 Contexto chat salvo (sem documento): {len(str(contexto_chat))} chars")
 
         # Análise adicional do resultado
         analise = analisar_resultado_judicial(texto_simplificado)
@@ -2371,7 +2380,18 @@ def responder_com_gemini_inteligente(pergunta, contexto):
 
     logging.info(f"💬 CHAT: Pergunta recebida: '{pergunta}'")
 
+    # Tentar obter documento do contexto (compatibilidade) ou ler do arquivo
     documento_original = contexto.get("documento_original", "")
+    if not documento_original:
+        # Ler do arquivo temporário (novo método - reduz tamanho da sessão)
+        texto_original_path = session.get('texto_original_path')
+        if texto_original_path and os.path.exists(texto_original_path):
+            with open(texto_original_path, 'r', encoding='utf-8') as f:
+                documento_original = f.read()
+            logging.info(f"💬 CHAT: Documento lido do arquivo: {len(documento_original)} chars")
+        else:
+            logging.warning("💬 CHAT: Nenhum documento disponível")
+
     dados_extraidos = contexto.get("dados_extraidos", {})
     perspectiva = contexto.get("perspectiva", "autor")
 
