@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Entenda Aqui - Simplificação Jurídica com IA | INOVASSOL</title>
+    <meta name="description" content="Transforme documentos jurídicos complexos em linguagem simples">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='50%' x='50%' text-anchor='middle' font-size='80'>⚖️</text></svg>">
+
+    <style>
+        :root {
+            --primary: #2c4f5e;
+            --primary-dark: #1a3540;
+            --secondary: #b8963c;
+            --danger: #dc3545;
+            --warning: #fbbc04;
+            --success: #28a745;
+            --dark: #202124;
+            --light: #f8f9fa;
+            --border: #dadce0;
+            --shadow: rgba(0,0,0,0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            color: var(--dark);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .card {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 8px 32px var(--shadow);
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        /* Modal de Perspectiva */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .modal-header h2 {
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .perspective-options {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .perspective-option {
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .perspective-option:hover {
+            border-color: var(--primary);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px var(--shadow);
+        }
+
+        .perspective-option.selected {
+            background: var(--light);
+            border-color: var(--primary);
+        }
+
+        .perspective-option h3 {
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+        }
+
+        /* Upload Area */
+        #drop-area {
+            border: 2px dashed var(--primary);
+            border-radius: 12px;
+            padding: 3rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: var(--light);
+        }
+
+        #drop-area:hover,
+        #drop-area.hover {
+            background: white;
+            border-color: var(--secondary);
+            transform: scale(1.02);
+        }
+
+        /* Indicadores de Urgência */
+        .urgency-indicator {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-weight: bold;
+            margin: 1rem 0;
+        }
+
+        .urgency-maxima {
+            background: var(--danger);
+            color: white;
+            animation: pulse 1.5s infinite;
+        }
+
+        .urgency-alta {
+            background: var(--warning);
+            color: var(--dark);
+        }
+
+        .urgency-media {
+            background: var(--light);
+            color: var(--dark);
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.8; }
+        }
+
+        /* Chat Container */
+        .chat-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 350px;
+            height: 500px;
+            display: none;
+            flex-direction: column;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 8px 32px var(--shadow);
+            z-index: 999;
+        }
+
+        .chat-container.show {
+            display: flex;
+        }
+
+        .chat-header {
+            background: var(--primary);
+            color: white;
+            padding: 1rem;
+            border-radius: 16px 16px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+            background: var(--light);
+        }
+
+        .message {
+            margin-bottom: 1rem;
+            padding: 0.75rem;
+            border-radius: 12px;
+            max-width: 80%;
+        }
+
+        .message.bot {
+            background: white;
+            margin-right: auto;
+        }
+
+        .message.user {
+            background: var(--primary);
+            color: white;
+            margin-left: auto;
+        }
+
+        .chat-input {
+            display: flex;
+            padding: 1rem;
+            gap: 0.5rem;
+            border-top: 1px solid var(--border);
+        }
+
+        .chat-input input {
+            flex: 1;
+            padding: 0.5rem;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.9rem;
+        }
+
+        .chat-input button {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .chat-input button:hover {
+            background: var(--primary-dark);
+        }
+
+        /* Avatar Flutuante */
+        .floating-avatar {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 60px;
+            height: 60px;
+            background: var(--primary);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 4px 12px var(--shadow);
+            transition: all 0.3s ease;
+            z-index: 998;
+        }
+
+        .floating-avatar:hover {
+            transform: scale(1.1);
+        }
+
+        .floating-avatar.active {
+            background: var(--secondary);
+        }
+
+        /* Botões */
+        .button {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-block;
+            text-decoration: none;
+        }
+
+        .button:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+        }
+
+        .button.secondary {
+            background: var(--secondary);
+        }
+
+        .button.danger {
+            background: var(--danger);
+        }
+
+        /* Resultado */
+        .result-section {
+            display: none;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .result-section.show {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Tipo de Documento Badge */
+        .doc-type-badge {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            background: var(--primary);
+            color: white;
+            border-radius: 20px;
+            font-weight: bold;
+            margin: 0.5rem 0;
+        }
+
+        .doc-type-badge.mandado {
+            background: var(--danger);
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        /* Perguntas Sugeridas */
+        .suggested-questions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .suggested-question {
+            background: white;
+            border: 1px solid var(--primary);
+            color: var(--primary);
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .suggested-question:hover {
+            background: var(--primary);
+            color: white;
+        }
+
+        /* Loading */
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            margin: 0 auto;
+            border: 4px solid var(--border);
+            border-top: 4px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+
+            .chat-container {
+                width: calc(100% - 40px);
+                height: 400px;
+            }
+
+            .modal-content {
+                padding: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Modal de Perspectiva -->
+    <div id="perspectiveModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>📋 Para melhor explicar seu documento</h2>
+                <p>Escolha sua situação no processo:</p>
+            </div>
+            <div class="perspective-options">
+                <div class="perspective-option" data-value="autor">
+                    <h3>👤 Sou Autor/Requerente</h3>
+                    <p>Eu iniciei este processo, estou pedindo algo</p>
+                </div>
+                <div class="perspective-option" data-value="reu">
+                    <h3>🏢 Sou Réu/Requerido</h3>
+                    <p>Fui processado, estão pedindo algo de mim</p>
+                </div>
+                <div class="perspective-option" data-value="nao_sei">
+                    <h3>❓ Não tenho certeza</h3>
+                    <p>Não sei qual é minha posição no processo</p>
+                </div>
+            </div>
+            <div style="margin-top: 1.5rem;">
+                <label style="display: block; margin-bottom: 0.5rem;">
+                    <input type="checkbox" id="temAdvogado" style="margin-right: 0.5rem;">
+                    Tenho advogado/defensor
+                </label>
+            </div>
+            <button class="button" onclick="confirmarPerspectiva()" style="width: 100%; margin-top: 1rem;">
+                Continuar
+            </button>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1>⚖️ Entenda Aqui</h1>
+            <p>Transforme documentos jurídicos complexos em linguagem clara</p>
+            <p style="color: var(--danger); font-size: 0.9rem; margin-top: 1rem;">
+                ⚠️ Este sistema facilita a compreensão, mas não substitui orientação jurídica profissional
+            </p>
+        </header>
+
+        <!-- Upload Card -->
+        <div class="card">
+            <h2>📤 Enviar Documento</h2>
+            <div id="drop-area">
+                <p style="font-size: 1.2rem; margin-bottom: 1rem;">
+                    Arraste seu arquivo aqui ou clique para selecionar
+                </p>
+                <input type="file" id="fileInput" accept=".pdf,image/*" style="display: none;">
+                <button class="button" onclick="document.getElementById('fileInput').click()">
+                    Escolher Arquivo
+                </button>
+                <p style="font-size: 0.9rem; color: #666; margin-top: 1rem;">
+                    Aceito: PDF, Imagens (PNG, JPG, etc.) | Máx: 10MB
+                </p>
+            </div>
+
+            <div id="fileInfo" style="display: none; margin-top: 1rem;">
+                <!-- Informações do arquivo -->
+            </div>
+        </div>
+
+        <!-- Resultado -->
+        <div id="resultSection" class="result-section">
+            <div class="card">
+                <div id="documentType" style="margin-bottom: 1rem;">
+                    <!-- Tipo de documento e urgência -->
+                </div>
+
+                <div id="simplifiedContent">
+                    <!-- Conteúdo simplificado -->
+                </div>
+
+                <div id="recursosInfo" style="margin-top: 2rem;">
+                    <!-- Informações sobre recursos -->
+                </div>
+
+                <div style="margin-top: 2rem; display: flex; gap: 1rem; flex-wrap: wrap;">
+                    <button class="button" onclick="downloadPDF()">📥 Baixar PDF</button>
+                    <button class="button secondary" onclick="copyText()">📋 Copiar Texto</button>
+                    <button class="button" onclick="newDocument()">📄 Novo Documento</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading -->
+        <div id="loading" class="loading">
+            <div class="spinner"></div>
+            <p style="margin-top: 1rem;">Processando documento...</p>
+        </div>
+    </div>
+
+    <!-- Avatar Flutuante -->
+    <div class="floating-avatar" onclick="toggleChat()" title="Abrir chat">
+        💬
+    </div>
+
+    <!-- Chat Container -->
+    <div id="chatContainer" class="chat-container">
+        <div class="chat-header">
+            <span>🤖 JUS Bot - Sobre SEU documento</span>
+            <button onclick="toggleChat()" style="background: none; border: none; color: white; font-size: 1.2rem; cursor: pointer;">✕</button>
+        </div>
+        <div class="chat-messages" id="chatMessages">
+            <div class="message bot">
+                Olá! Posso responder dúvidas sobre o documento que você enviou. Pergunte sobre valores, prazos, partes ou decisões!
+            </div>
+        </div>
+        <div class="suggested-questions" id="suggestedQuestions">
+            <!-- Perguntas sugeridas serão adicionadas aqui -->
+        </div>
+        <div class="chat-input">
+            <input type="text" id="chatInput" placeholder="Digite sua pergunta..." onkeypress="handleChatKeypress(event)">
+            <button onclick="sendMessage()">Enviar</button>
+        </div>
+    </div>
+
+    <script>
+        let currentFile = null;
+        let userPerspective = null;
+        let hasLawyer = false;
+        let documentContext = null;
+        let chatOpen = false;
+
+        // Event Listeners
+        const dropArea = document.getElementById('drop-area');
+        const fileInput = document.getElementById('fileInput');
+
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, preventDefaults, false);
+            document.body.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropArea.addEventListener(eventName, () => dropArea.classList.add('hover'), false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, () => dropArea.classList.remove('hover'), false);
+        });
+
+        dropArea.addEventListener('drop', handleDrop, false);
+        fileInput.addEventListener('change', handleFileSelect, false);
+
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            handleFiles(files);
+        }
+
+        function handleFileSelect(e) {
+            const files = e.target.files;
+            handleFiles(files);
+        }
+
+        function handleFiles(files) {
+            if (files.length === 0) return;
+            currentFile = files[0];
+
+            // Mostrar modal de perspectiva
+            document.getElementById('perspectiveModal').classList.add('show');
+        }
+
+        // Perspectiva do usuário
+        document.querySelectorAll('.perspective-option').forEach(option => {
+            option.addEventListener('click', function() {
+                document.querySelectorAll('.perspective-option').forEach(opt => {
+                    opt.classList.remove('selected');
+                });
+                this.classList.add('selected');
+                userPerspective = this.dataset.value;
+            });
+        });
+
+        function confirmarPerspectiva() {
+            if (!userPerspective) {
+                alert('Por favor, selecione sua situação no processo');
+                return;
+            }
+
+            hasLawyer = document.getElementById('temAdvogado').checked;
+            document.getElementById('perspectiveModal').classList.remove('show');
+
+            // Processar arquivo
+            uploadFile();
+        }
+
+        function uploadFile() {
+            if (!currentFile) return;
+
+            document.getElementById('loading').classList.add('show');
+            document.getElementById('resultSection').classList.remove('show');
+
+            const formData = new FormData();
+            formData.append('file', currentFile);
+            formData.append('perspectiva', userPerspective);
+            formData.append('tem_advogado', hasLawyer);
+
+            fetch('/processar', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                showResult(data);
+                documentContext = data;
+                setupChat(data);
+            })
+            .catch(error => {
+                console.error('Erro:', error);
+                alert('Erro ao processar documento');
+            })
+            .finally(() => {
+                document.getElementById('loading').classList.remove('show');
+            });
+        }
+
+        function showResult(data) {
+            // Mostrar tipo de documento e urgência
+            let typeHtml = '';
+            if (data.tipo_documento) {
+                let badgeClass = data.tipo_documento.includes('mandado') ? 'mandado' : '';
+                typeHtml = `<span class="doc-type-badge ${badgeClass}">${data.tipo_documento.toUpperCase()}</span>`;
+
+                if (data.urgencia) {
+                    let urgencyClass = `urgency-${data.urgencia.toLowerCase().replace('á', 'a')}`;
+                    typeHtml += ` <span class="urgency-indicator ${urgencyClass}">Urgência: ${data.urgencia}</span>`;
+                }
+
+                if (data.acao_necessaria) {
+                    typeHtml += `<div style="margin-top: 1rem; padding: 1rem; background: #fff3cd; border-radius: 8px;">
+                        <strong>⚠️ Ação Necessária:</strong> ${data.acao_necessaria}
+                    </div>`;
+                }
+            }
+            document.getElementById('documentType').innerHTML = typeHtml;
+
+            // Mostrar conteúdo simplificado
+            document.getElementById('simplifiedContent').innerHTML = `
+                <div style="white-space: pre-wrap; line-height: 1.6;">
+                    ${formatText(data.texto)}
+                </div>
+            `;
+
+            // Mostrar informações sobre recursos
+            if (data.recursos_cabiveis && data.recursos_cabiveis.recurso) {
+                let recursosHtml = `
+                    <div style="padding: 1rem; background: #e8f4f8; border-radius: 8px;">
+                        <h3>⚖️ Cabe Recurso?</h3>
+                        <p><strong>Tipo:</strong> ${data.recursos_cabiveis.recurso}</p>
+                        <p><strong>Prazo:</strong> ${data.recursos_cabiveis.prazo}</p>
+                        <p><strong>Onde:</strong> ${data.recursos_cabiveis.instancia}</p>
+                        ${data.recursos_cabiveis.dica ? `<p><strong>💡 Dica:</strong> ${data.recursos_cabiveis.dica}</p>` : ''}
+                    </div>
+                `;
+                document.getElementById('recursosInfo').innerHTML = recursosHtml;
+            }
+
+            document.getElementById('resultSection').classList.add('show');
+        }
+
+        function formatText(text) {
+            // Formatar texto com ícones e destaques
+            text = text.replace(/✅/g, '<span style="color: green; font-size: 1.2em;">✅</span>');
+            text = text.replace(/❌/g, '<span style="color: red; font-size: 1.2em;">❌</span>');
+            text = text.replace(/⚠️/g, '<span style="color: orange; font-size: 1.2em;">⚠️</span>');
+            text = text.replace(/💰/g, '<span style="font-size: 1.2em;">💰</span>');
+            text = text.replace(/📅/g, '<span style="font-size: 1.2em;">📅</span>');
+            text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            return text;
+        }
+
+        // Chat functions
+        function toggleChat() {
+            chatOpen = !chatOpen;
+            const chatContainer = document.getElementById('chatContainer');
+            const avatar = document.querySelector('.floating-avatar');
+
+            if (chatOpen) {
+                chatContainer.classList.add('show');
+                avatar.classList.add('active');
+            } else {
+                chatContainer.classList.remove('show');
+                avatar.classList.remove('active');
+            }
+        }
+
+        function setupChat(data) {
+            // Adicionar perguntas sugeridas
+            if (data.perguntas_sugeridas && data.perguntas_sugeridas.length > 0) {
+                const suggestionsHtml = data.perguntas_sugeridas.map(pergunta =>
+                    `<span class="suggested-question" onclick="askQuestion('${pergunta}')">${pergunta}</span>`
+                ).join('');
+                document.getElementById('suggestedQuestions').innerHTML = suggestionsHtml;
+            }
+        }
+
+        function askQuestion(question) {
+            document.getElementById('chatInput').value = question;
+            sendMessage();
+        }
+
+        function sendMessage() {
+            const input = document.getElementById('chatInput');
+            const message = input.value.trim();
+
+            if (!message) return;
+
+            // Adicionar mensagem do usuário
+            addMessage(message, 'user');
+            input.value = '';
+
+            // Enviar para o backend
+            fetch('/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ pergunta: message })
+            })
+            .then(response => response.json())
+            .then(data => {
+                addMessage(data.resposta, 'bot');
+            })
+            .catch(error => {
+                console.error('Erro:', error);
+                addMessage('Desculpe, ocorreu um erro. Tente novamente.', 'bot');
+            });
+        }
+
+        function addMessage(text, sender) {
+            const messagesContainer = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${sender}`;
+            messageDiv.textContent = text;
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function handleChatKeypress(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        }
+
+        // Utility functions
+        function downloadPDF() {
+            window.location.href = '/download_pdf';
+        }
+
+        function copyText() {
+            const text = document.getElementById('simplifiedContent').innerText;
+            navigator.clipboard.writeText(text).then(() => {
+                alert('Texto copiado!');
+            });
+        }
+
+        function newDocument() {
+            location.reload();
+        }
+    </script>
+</body>
+</html>
