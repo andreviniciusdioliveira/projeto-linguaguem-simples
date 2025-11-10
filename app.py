@@ -378,64 +378,68 @@ Identifique: [Sentença/Acórdão/Decisão/Despacho/Mandado de Citação/Mandado
 # ============= NOVAS FUNÇÕES DE IDENTIFICAÇÃO E ANÁLISE =============
 
 def identificar_tipo_documento(texto):
-    """Identifica o tipo de documento jurídico com precisão"""
-    texto_lower = texto.lower()
+    """Identifica o tipo de documento jurídico usando IA (Gemini)"""
 
-    # Padrões específicos para cada tipo
-    tipos = {
-        "mandado_citacao": {
-            "padroes": ["mandado de citação", "cite-se", "para contestar", "para responder"],
-            "urgencia": "MÁXIMA",
-            "acao_necessaria": "Procurar advogado URGENTE"
-        },
-        "mandado_intimacao": {
-            "padroes": ["mandado de intimação", "mandado", "comparecer pessoalmente"],
-            "urgencia": "MÁXIMA",
-            "acao_necessaria": "Comparecer no dia/hora marcados"
-        },
-        "mandado_penhora": {
-            "padroes": ["mandado de penhora", "penhore-se", "auto de penhora"],
-            "urgencia": "MÁXIMA",
-            "acao_necessaria": "Pagar ou apresentar defesa"
-        },
-        "mandado_despejo": {
-            "padroes": ["mandado de despejo", "desocupação", "reintegração de posse"],
-            "urgencia": "MÁXIMA",
-            "acao_necessaria": "Desocupar ou procurar advogado"
-        },
-        "intimacao": {
-            "padroes": ["intimação", "fica intimado", "intimar", "dar ciência"],
-            "urgencia": "ALTA",
-            "acao_necessaria": "Tomar ciência e verificar prazos"
-        },
-        "sentenca": {
-            "padroes": ["sentença", "julgo procedente", "julgo improcedente", "dispositivo", "ante o exposto"],
-            "urgencia": "ALTA",
-            "acao_necessaria": "Verificar prazo para recurso"
-        },
-        "acordao": {
-            "padroes": ["acórdão", "turma", "câmara", "relator", "voto", "recurso conhecido"],
-            "urgencia": "MÉDIA",
-            "acao_necessaria": "Analisar decisão do recurso"
-        },
-        "decisao_interlocutoria": {
-            "padroes": ["decisão interlocutória", "tutela", "liminar", "defiro", "indefiro"],
-            "urgencia": "ALTA",
-            "acao_necessaria": "Cumprir ou recorrer via agravo"
-        },
-        "despacho": {
-            "padroes": ["despacho", "diga", "manifeste-se", "vista dos autos"],
-            "urgencia": "MÉDIA",
-            "acao_necessaria": "Aguardar ou manifestar se necessário"
+    # Truncar texto se muito longo (usar apenas início que geralmente tem o tipo)
+    texto_analise = texto[:3000] if len(texto) > 3000 else texto
+
+    prompt = f"""Analise este documento jurídico e identifique qual o tipo EXATO.
+
+IMPORTANTE: Leia o documento com atenção e identifique o tipo CORRETO. NÃO confunda sentença com mandado!
+
+Tipos possíveis:
+- sentenca: Documento que contém "julgo procedente", "julgo improcedente", decisão final do juiz
+- acordao: Decisão de tribunal, com relator, turma, câmara
+- mandado_citacao: Mandado para citar réu, pedir contestação
+- mandado_intimacao: Mandado para comparecer pessoalmente em data/hora específica
+- mandado_penhora: Mandado para penhorar bens
+- intimacao: Simples aviso/intimação (não é mandado)
+- decisao_interlocutoria: Decisão durante o processo (tutela, liminar)
+- despacho: Despacho simples do juiz
+
+Documento:
+{texto_analise}
+
+Responda APENAS com uma das palavras acima (sentenca, acordao, mandado_citacao, etc). Nada mais."""
+
+    try:
+        model = genai.GenerativeModel(GEMINI_MODELS[1])  # Usar flash para rapidez
+        response = model.generate_content(prompt)
+        tipo_identificado = response.text.strip().lower()
+
+        # Mapear tipo para informações de urgência
+        tipos_info = {
+            "sentenca": {"urgencia": "ALTA", "acao_necessaria": "Verificar prazo para recurso"},
+            "acordao": {"urgencia": "MÉDIA", "acao_necessaria": "Analisar decisão do recurso"},
+            "mandado_citacao": {"urgencia": "MÁXIMA", "acao_necessaria": "Procurar advogado URGENTE"},
+            "mandado_intimacao": {"urgencia": "MÁXIMA", "acao_necessaria": "Comparecer no dia/hora marcados"},
+            "mandado_penhora": {"urgencia": "MÁXIMA", "acao_necessaria": "Pagar ou apresentar defesa"},
+            "intimacao": {"urgencia": "ALTA", "acao_necessaria": "Tomar ciência e verificar prazos"},
+            "decisao_interlocutoria": {"urgencia": "ALTA", "acao_necessaria": "Cumprir ou recorrer via agravo"},
+            "despacho": {"urgencia": "MÉDIA", "acao_necessaria": "Aguardar ou manifestar se necessário"}
         }
-    }
 
-    for tipo, info in tipos.items():
-        for padrao in info["padroes"]:
-            if padrao in texto_lower:
-                return tipo, info
+        if tipo_identificado in tipos_info:
+            return tipo_identificado, tipos_info[tipo_identificado]
+        else:
+            # Se retornou algo inválido, tentar extrair palavra conhecida
+            for tipo in tipos_info.keys():
+                if tipo in tipo_identificado:
+                    return tipo, tipos_info[tipo]
 
-    return "documento", {"urgencia": "MÉDIA", "acao_necessaria": "Ler com atenção"}
+            # Fallback: documento genérico
+            return "documento", {"urgencia": "MÉDIA", "acao_necessaria": "Ler com atenção"}
+
+    except Exception as e:
+        logging.error(f"Erro ao identificar tipo com Gemini: {e}")
+        # Fallback para regex simples em caso de erro
+        texto_lower = texto.lower()
+        if any(palavra in texto_lower for palavra in ["julgo procedente", "julgo improcedente", "sentença"]):
+            return "sentenca", {"urgencia": "ALTA", "acao_necessaria": "Verificar prazo para recurso"}
+        elif "acórdão" in texto_lower:
+            return "acordao", {"urgencia": "MÉDIA", "acao_necessaria": "Analisar decisão do recurso"}
+        else:
+            return "documento", {"urgencia": "MÉDIA", "acao_necessaria": "Ler com atenção"}
 
 def analisar_recursos_cabiveis(tipo_doc, texto):
     """Analisa se cabe recurso baseado APENAS no documento"""
@@ -510,7 +514,8 @@ def extrair_dados_estruturados(texto):
         "links_audiencia": [],  # NOVO: Links de audiência online
         "telefones": [],  # NOVO: Telefones de contato
         "emails": [],  # NOVO: Emails
-        "qr_codes": []  # NOVO: QR codes encontrados
+        "qr_codes": [],  # NOVO: QR codes encontrados
+        "termo_paciente": False  # NOVO: Se usa termo "paciente" (habeas corpus)
     }
 
     # Número do processo (formatos variados)
@@ -527,7 +532,9 @@ def extrair_dados_estruturados(texto):
             break
 
     # Identificar partes com múltiplos padrões
+    # NOVO: Incluindo "Paciente" para Habeas Corpus
     autor_patterns = [
+        r'(?:Paciente):\s*([^,\n]+)',  # Prioridade para Paciente (Habeas Corpus)
         r'(?:Autor|Requerente|Exequente|Reclamante|Impetrante):\s*([^,\n]+)',
         r'([A-ZÀ-Ú][A-Za-zà-ú\s]+)\s*(?:moveu|ajuizou|propôs|requereu)'
     ]
@@ -536,6 +543,10 @@ def extrair_dados_estruturados(texto):
         r'(?:Réu|Requerido|Executado|Reclamado|Impetrado):\s*([^,\n]+)',
         r'em\s+face\s+de\s+([A-ZÀ-Ú][A-Za-zà-ú\s]+)'
     ]
+
+    # Detectar se usa termo "paciente" (Habeas Corpus)
+    if re.search(r'(?:Paciente):\s*', texto, re.IGNORECASE):
+        dados["termo_paciente"] = True
 
     for pattern in autor_patterns:
         match = re.search(pattern, texto)
@@ -666,29 +677,88 @@ def extrair_dados_estruturados(texto):
             if match not in dados["links_audiencia"]:
                 dados["links_audiencia"].append(match)
 
-    # NOVO: Extrair telefones (apenas telefones brasileiros válidos)
-    telefone_patterns = [
-        r'\(?([1-9]{2})\)?\s*([2-5]\d{3})-?(\d{4})',  # Fixo: (XX) XXXX-XXXX
-        r'\(?([1-9]{2})\)?\s*(9\d{4})-?(\d{4})',      # Celular: (XX) 9XXXX-XXXX
-        r'(?:tel(?:efone)?|fone|contato)[:\s]+\(?([1-9]{2})\)?\s*([2-9]\d{3,4})-?(\d{4})'
-    ]
+    # NOVO: Extrair telefones (apenas telefones brasileiros válidos COM CONTEXTO)
+    # Buscar telefones apenas quando aparecem próximos a palavras-chave
+    telefone_keywords = r'(?:tel(?:efone)?|fone|contato|celular|cel\.|whatsapp|wpp)'
 
-    for pattern in telefone_patterns:
-        matches = re.findall(pattern, texto, re.IGNORECASE)
-        for match in matches:
-            if isinstance(match, tuple) and len(match) >= 3:
-                # Formatar telefone: (DDD) XXXXX-XXXX ou (DDD) XXXX-XXXX
-                ddd, parte1, parte2 = match[0], match[1], match[2]
+    # Palavras que indicam que NÃO é telefone (chave, processo, etc.)
+    palavras_excluir = r'(?:chave|processo|código|cod\.|protocolo|cpf|cnpj|rg|identidade)'
 
-                # Validar DDD (11-99)
-                if int(ddd) < 11 or int(ddd) > 99:
-                    continue
+    # Padrão 1: Palavra-chave seguida de telefone formatado
+    # Ex: "Telefone: (11) 98765-4321" ou "Contato: 11 98765-4321"
+    # Usar regex com captura de contexto para validar
+    pattern1_completo = rf'(.{{0,50}}){telefone_keywords}[:\s]+\(?(\d{{2}})\)?[\s-]*(9?\d{{4,5}})[\s-]*(\d{{4}})(.{{0,50}})'
+    matches = re.findall(pattern1_completo, texto, re.IGNORECASE)
 
-                # Formatar telefone
-                telefone = f"({ddd}) {parte1}-{parte2}"
+    for match in matches:
+        contexto_antes = match[0]
+        ddd = match[1]
+        parte1 = match[2]
+        parte2 = match[3]
+        contexto_depois = match[4]
 
-                if telefone not in dados["telefones"]:
-                    dados["telefones"].append(telefone)
+        # Verificar se tem palavras de exclusão no contexto
+        contexto_total = contexto_antes + contexto_depois
+        if re.search(palavras_excluir, contexto_total, re.IGNORECASE):
+            continue
+
+        # Validar DDD (11-99)
+        try:
+            ddd_num = int(ddd)
+            if ddd_num < 11 or ddd_num > 99:
+                continue
+        except:
+            continue
+
+        # Validar se não é CPF/CNPJ (não pode ter 11 dígitos seguidos sem separação)
+        numero_completo = ddd + parte1 + parte2
+        if len(numero_completo) != 10 and len(numero_completo) != 11:
+            continue
+
+        # Validar formato: celular deve começar com 9 e ter 5 dígitos, fixo 4 dígitos
+        if len(parte1) == 5:
+            if not parte1.startswith('9'):
+                continue
+        elif len(parte1) == 4:
+            # Fixo: primeiro dígito deve ser 2-5
+            if parte1[0] not in ['2', '3', '4', '5']:
+                continue
+        else:
+            continue
+
+        # Formatar telefone
+        telefone = f"({ddd}) {parte1}-{parte2}"
+        if telefone not in dados["telefones"]:
+            dados["telefones"].append(telefone)
+
+    # Padrão 2: Telefone com formatação clara (parênteses e hífen) COM CONTEXTO
+    # Ex: "(11) 98765-4321" ou "(11)98765-4321"
+    pattern2_completo = r'(.{0,50})\((\d{2})\)\s*(9\d{4})-(\d{4})(.{0,50})'
+    matches = re.findall(pattern2_completo, texto)
+
+    for match in matches:
+        contexto_antes = match[0]
+        ddd = match[1]
+        parte1 = match[2]
+        parte2 = match[3]
+        contexto_depois = match[4]
+
+        # Verificar se tem palavras de exclusão no contexto
+        contexto_total = contexto_antes + contexto_depois
+        if re.search(palavras_excluir, contexto_total, re.IGNORECASE):
+            continue
+
+        # Validar DDD
+        try:
+            ddd_num = int(ddd)
+            if ddd_num < 11 or ddd_num > 99:
+                continue
+        except:
+            continue
+
+        telefone = f"({ddd}) {parte1}-{parte2}"
+        if telefone not in dados["telefones"]:
+            dados["telefones"].append(telefone)
 
     # NOVO: Extrair emails
     email_pattern = r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
@@ -702,6 +772,48 @@ def extrair_dados_estruturados(texto):
         dados["qr_codes"].append("QR Code mencionado no documento (visualize o PDF original)")
 
     return dados
+
+def detectar_perspectiva_automatica(texto, dados_extraidos):
+    """Usa IA para detectar automaticamente se usuário é autor ou réu"""
+
+    # Pegar trecho relevante do documento
+    texto_analise = texto[:2000] if len(texto) > 2000 else texto
+
+    prompt = f"""Analise este documento jurídico e identifique qual é a perspectiva correta do USUÁRIO que enviou o documento.
+
+INFORMAÇÕES DO DOCUMENTO:
+- Autor/Requerente: {dados_extraidos.get('partes', {}).get('autor', 'Não identificado')}
+- Réu/Requerido: {dados_extraidos.get('partes', {}).get('reu', 'Não identificado')}
+- Decisão: {dados_extraidos.get('decisao', 'Não identificada')}
+
+DOCUMENTO:
+{texto_analise}
+
+IMPORTANTE: Determine se o usuário que ENVIOU este documento provavelmente é:
+- "autor": Se for quem MOVEU a ação, está processando alguém, é o requerente/autor
+- "reu": Se está SENDO PROCESSADO, é quem está se defendendo, é o requerido/réu
+
+Responda APENAS com uma palavra: "autor" ou "reu"
+Analise o contexto e determine qual a perspectiva mais provável."""
+
+    try:
+        model = genai.GenerativeModel(GEMINI_MODELS[1])  # Flash para rapidez
+        response = model.generate_content(prompt)
+        perspectiva = response.text.strip().lower()
+
+        if "autor" in perspectiva:
+            return "autor"
+        elif "reu" in perspectiva or "réu" in perspectiva:
+            return "reu"
+        else:
+            return "autor"  # Padrão
+
+    except Exception as e:
+        logging.error(f"Erro ao detectar perspectiva com IA: {e}")
+        # Fallback: tentar detectar pelo tipo de documento
+        if "citação" in texto.lower() or "citado" in texto.lower():
+            return "reu"
+        return "autor"
 
 def gerar_chat_contextual(texto_original, dados_extraidos):
     """Prepara contexto para o chat baseado APENAS no documento"""
@@ -924,31 +1036,62 @@ def processar_pergunta_contextual(pergunta, contexto):
     # VALORES
     if validacao.get("tipo") == "valores" or any(word in pergunta_lower for word in ["quanto", "valor"]):
         respostas = []
+        valores = dados.get("valores", {})
+
+        # Total (prioridade máxima - mostrar primeiro se existir)
+        if valores.get("total"):
+            # Se pergunta sobre total, receber, ou valores em geral
+            if "total" in pergunta_lower or "receber" in pergunta_lower or "quanto" in pergunta_lower:
+                respostas.append(f"💵 **VALOR TOTAL:** {valores['total']}")
+                respostas.append("⚠️ Valores sujeitos a correção monetária e juros até o pagamento")
 
         # Danos morais
-        if "moral" in pergunta_lower or "receber" in pergunta_lower:
-            if dados.get("valores", {}).get("danos_morais"):
-                valor = dados["valores"]["danos_morais"]
-                respostas.append(f"💰 **Danos morais:** R$ {valor}")
-                respostas.append(f"\n📍 Referência: Encontrado no dispositivo da sentença")
-                respostas.append("\n💡 Este valor será corrigido monetariamente até o pagamento")
+        if valores.get("danos_morais"):
+            if "moral" in pergunta_lower or (not respostas and ("receber" in pergunta_lower or "quanto" in pergunta_lower)):
+                valor = valores["danos_morais"]
+                respostas.append(f"\n💰 **Danos morais:** R$ {valor}")
+                respostas.append("📍 Este valor está no dispositivo da sentença")
 
         # Danos materiais
-        if "material" in pergunta_lower:
-            if dados.get("valores", {}).get("danos_materiais"):
-                valor = dados["valores"]["danos_materiais"]
-                respostas.append(f"💰 **Danos materiais:** R$ {valor}")
+        if valores.get("danos_materiais"):
+            if "material" in pergunta_lower or (not respostas and ("receber" in pergunta_lower or "quanto" in pergunta_lower)):
+                valor = valores["danos_materiais"]
+                respostas.append(f"\n💰 **Danos materiais:** R$ {valor}")
 
-        # Total
-        if "total" in pergunta_lower or ("quanto" in pergunta_lower and "receber" in pergunta_lower):
-            if dados.get("valores", {}).get("total"):
-                respostas.append(f"\n💵 **TOTAL:** {dados['valores']['total']}")
-                respostas.append("\n⚠️ Valores sujeitos a correção e juros")
+        # Honorários
+        if valores.get("honorarios"):
+            if "honorário" in pergunta_lower or "advogado" in pergunta_lower:
+                respostas.append(f"\n⚖️ **Honorários advocatícios:** R$ {valores['honorarios']}")
+
+        # Custas
+        if valores.get("custas"):
+            if "custa" in pergunta_lower or "taxa" in pergunta_lower:
+                respostas.append(f"\n📄 **Custas processuais:** R$ {valores['custas']}")
 
         # Valor da causa
-        if "causa" in pergunta_lower:
-            if dados.get("valores", {}).get("valor_causa"):
-                respostas.append(f"📋 **Valor da causa:** R$ {dados['valores']['valor_causa']}")
+        if valores.get("valor_causa"):
+            if "causa" in pergunta_lower:
+                respostas.append(f"\n📋 **Valor da causa:** R$ {valores['valor_causa']}")
+
+        # Se não encontrou valores específicos mas a pergunta é sobre valores, mostrar TODOS os valores disponíveis
+        if not respostas:
+            valores_encontrados = []
+            if valores.get("total"):
+                valores_encontrados.append(f"💵 **TOTAL:** {valores['total']}")
+            if valores.get("danos_morais"):
+                valores_encontrados.append(f"💰 **Danos morais:** R$ {valores['danos_morais']}")
+            if valores.get("danos_materiais"):
+                valores_encontrados.append(f"💰 **Danos materiais:** R$ {valores['danos_materiais']}")
+            if valores.get("honorarios"):
+                valores_encontrados.append(f"⚖️ **Honorários:** R$ {valores['honorarios']}")
+            if valores.get("custas"):
+                valores_encontrados.append(f"📄 **Custas:** R$ {valores['custas']}")
+            if valores.get("valor_causa"):
+                valores_encontrados.append(f"📋 **Valor da causa:** R$ {valores['valor_causa']}")
+
+            if valores_encontrados:
+                respostas = valores_encontrados
+                respostas.append("\n⚠️ Valores sujeitos a correção monetária")
 
         if respostas:
             return {
@@ -1980,6 +2123,12 @@ def processar():
         dados_estruturados = extrair_dados_estruturados(texto_original)
         logging.info(f"Dados extraídos - Processo: {dados_estruturados['numero_processo']}, Decisão: {dados_estruturados['decisao']}")
 
+        # NOVO: Detectar perspectiva automaticamente se usuário marcou "não sei"
+        if perspectiva == "nao_informado":
+            logging.info("Detectando perspectiva automaticamente com IA...")
+            perspectiva = detectar_perspectiva_automatica(texto_original, dados_estruturados)
+            logging.info(f"Perspectiva detectada: {perspectiva}")
+
         # NOVA: Analisar recursos cabíveis
         recursos_info = analisar_recursos_cabiveis(tipo_doc, texto_original)
 
@@ -2004,6 +2153,11 @@ def processar():
             texto_simplificado = adaptar_perspectiva_autor(texto_simplificado, dados_adaptados)
         elif perspectiva == "reu":
             texto_simplificado = adaptar_perspectiva_reu(texto_simplificado, dados_adaptados)
+
+        # NOVO: Adicionar explicação do termo "paciente" se for Habeas Corpus
+        if dados_adaptados.get("termo_paciente"):
+            explicacao_paciente = "\n\n📚 **Explicação:** No Habeas Corpus, \"paciente\" é o termo jurídico usado para identificar a pessoa que está presa ou ameaçada de prisão e em favor de quem o habeas corpus foi impetrado. É similar ao termo \"autor\" em outras ações."
+            texto_simplificado += explicacao_paciente
 
         # NOVA: Preparar contexto para chat (DEPOIS da adaptação de perspectiva, COM DADOS ADAPTADOS)
         contexto_chat = gerar_chat_contextual(texto_original, dados_adaptados)
@@ -2140,14 +2294,14 @@ def analisar_resultado_judicial(texto):
 @app.route("/chat", methods=["POST"])
 @rate_limit
 def chat_contextual():
-    """Chat baseado APENAS no documento enviado"""
+    """Chat INTELIGENTE baseado APENAS no documento enviado usando IA"""
     try:
         data = request.get_json()
         pergunta = data.get("pergunta", "").strip()
 
         if not pergunta:
             return jsonify({
-                "resposta": "Por favor, faça uma pergunta.",
+                "resposta": "💬 Por favor, faça uma pergunta sobre o seu documento.",
                 "tipo": "erro"
             }), 400
 
@@ -2155,25 +2309,91 @@ def chat_contextual():
         contexto = session.get('contexto_chat')
         if not contexto:
             return jsonify({
-                "resposta": "Por favor, envie um documento primeiro para que eu possa responder sobre ele.",
+                "resposta": "📄 Por favor, envie um documento primeiro para que eu possa responder sobre ele.",
                 "tipo": "erro"
             }), 400
 
-        # Verificar se a pergunta é sobre o documento
-        resposta = processar_pergunta_contextual(pergunta, contexto)
+        # NOVO: Usar Gemini para responder de forma inteligente
+        resposta = responder_com_gemini_inteligente(pergunta, contexto)
 
         return jsonify({
             "resposta": resposta["texto"],
             "tipo": resposta["tipo"],
-            "referencia": resposta.get("referencia")
+            "referencia": resposta.get("referencia"),
+            "sugestoes": resposta.get("sugestoes", [])
         })
 
     except Exception as e:
         logging.error(f"Erro no chat: {e}")
         return jsonify({
-            "resposta": "Desculpe, ocorreu um erro. Tente novamente.",
+            "resposta": "😔 Desculpe, ocorreu um erro ao processar sua pergunta. Tente novamente.",
             "tipo": "erro"
         }), 500
+
+def responder_com_gemini_inteligente(pergunta, contexto):
+    """Usa Gemini para responder de forma inteligente e segura"""
+
+    documento_original = contexto.get("documento_original", "")
+    dados_extraidos = contexto.get("dados_extraidos", {})
+    perspectiva = contexto.get("perspectiva", "autor")
+
+    # Truncar documento se muito grande
+    doc_truncado = documento_original[:4000] if len(documento_original) > 4000 else documento_original
+
+    prompt = f"""Você é o JUS Bot, um assistente especializado em responder perguntas sobre documentos jurídicos.
+
+REGRAS CRÍTICAS:
+1. Responda APENAS com informações que EXISTEM no documento
+2. Se a informação NÃO estiver no documento, diga claramente "Não encontrei essa informação no documento"
+3. NÃO invente, NÃO suponha, NÃO dê opiniões jurídicas
+4. NÃO dê conselhos sobre "devo recorrer", "devo fazer acordo", etc. -> redirecione para advogado
+5. Cite a referência quando possível (ex: "Segundo o documento, na página 2...")
+6. Seja amigável, claro e direto
+
+DADOS DO DOCUMENTO:
+- Partes: Autor: {dados_extraidos.get('partes', {}).get('autor', 'Não identificado')}, Réu: {dados_extraidos.get('partes', {}).get('reu', 'Não identificado')}
+- Valores: {dados_extraidos.get('valores', {})}
+- Prazos: {dados_extraidos.get('prazos', [])}
+- Decisão: {dados_extraidos.get('decisao', 'Não identificada')}
+- Audiências: {dados_extraidos.get('audiencias', [])}
+- Perspectiva do usuário: {perspectiva}
+
+DOCUMENTO COMPLETO:
+{doc_truncado}
+
+PERGUNTA DO USUÁRIO:
+{pergunta}
+
+Analise a pergunta e responda seguindo as regras acima.Se for pergunta sobre "devo fazer X?", "tenho chance?", etc., responda:
+"Não posso dar conselhos jurídicos. Procure um advogado ou Defensoria Pública."
+
+Se for pergunta sobre informação que NÃO está no documento, responda:
+"Não encontrei essa informação no documento que você enviou. O documento contém informações sobre [listar o que tem]."
+
+Sua resposta:"""
+
+    try:
+        model = genai.GenerativeModel(GEMINI_MODELS[1])  # Flash para rapidez
+        response = model.generate_content(prompt)
+        resposta_texto = response.text.strip()
+
+        # Detectar tipo de resposta
+        tipo = "resposta"
+        if "não encontrei" in resposta_texto.lower() or "não localizei" in resposta_texto.lower():
+            tipo = "nao_encontrado"
+        elif "não posso dar conselhos" in resposta_texto.lower():
+            tipo = "redirecionamento_profissional"
+
+        return {
+            "texto": f"🤖 {resposta_texto}",
+            "tipo": tipo,
+            "referencia": "documento_original"
+        }
+
+    except Exception as e:
+        logging.error(f"Erro ao gerar resposta com Gemini: {e}")
+        # Fallback para função antiga
+        return processar_pergunta_contextual(pergunta, contexto)
 
 @app.route("/diagnostico")
 def diagnostico():
