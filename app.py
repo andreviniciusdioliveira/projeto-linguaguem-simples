@@ -378,18 +378,33 @@ Identifique: [Sentença/Acórdão/Decisão/Despacho/Mandado de Citação/Mandado
 # ============= NOVAS FUNÇÕES DE IDENTIFICAÇÃO E ANÁLISE =============
 
 def identificar_tipo_documento(texto):
-    """Identifica o tipo de documento jurídico com precisão"""
+    """Identifica o tipo de documento jurídico com precisão MELHORADA"""
     texto_lower = texto.lower()
 
-    # Padrões específicos para cada tipo
-    tipos = {
+    # PRIORIDADE 1: Documentos com palavras-chave fortes e específicas
+    # SENTENÇA tem prioridade máxima se tiver "julgo" ou "dispositivo"
+    if any(palavra in texto_lower for palavra in ["julgo procedente", "julgo improcedente", "julgo parcialmente procedente"]):
+        return "sentenca", {
+            "urgencia": "ALTA",
+            "acao_necessaria": "Verificar prazo para recurso"
+        }
+
+    # ACÓRDÃO também tem prioridade se tiver palavras específicas
+    if "acórdão" in texto_lower or ("relator" in texto_lower and "turma" in texto_lower):
+        return "acordao", {
+            "urgencia": "MÉDIA",
+            "acao_necessaria": "Analisar decisão do recurso"
+        }
+
+    # PRIORIDADE 2: Mandados (só identificar se NÃO for sentença/acórdão)
+    mandados = {
         "mandado_citacao": {
-            "padroes": ["mandado de citação", "cite-se", "para contestar", "para responder"],
+            "padroes": ["mandado de citação", "cite-se o réu", "para contestar no prazo"],
             "urgencia": "MÁXIMA",
             "acao_necessaria": "Procurar advogado URGENTE"
         },
         "mandado_intimacao": {
-            "padroes": ["mandado de intimação", "mandado", "comparecer pessoalmente"],
+            "padroes": ["mandado de intimação", "comparecer pessoalmente", "mandado de comparecimento"],
             "urgencia": "MÁXIMA",
             "acao_necessaria": "Comparecer no dia/hora marcados"
         },
@@ -402,39 +417,45 @@ def identificar_tipo_documento(texto):
             "padroes": ["mandado de despejo", "desocupação", "reintegração de posse"],
             "urgencia": "MÁXIMA",
             "acao_necessaria": "Desocupar ou procurar advogado"
-        },
-        "intimacao": {
-            "padroes": ["intimação", "fica intimado", "intimar", "dar ciência"],
-            "urgencia": "ALTA",
-            "acao_necessaria": "Tomar ciência e verificar prazos"
-        },
-        "sentenca": {
-            "padroes": ["sentença", "julgo procedente", "julgo improcedente", "dispositivo", "ante o exposto"],
-            "urgencia": "ALTA",
-            "acao_necessaria": "Verificar prazo para recurso"
-        },
-        "acordao": {
-            "padroes": ["acórdão", "turma", "câmara", "relator", "voto", "recurso conhecido"],
-            "urgencia": "MÉDIA",
-            "acao_necessaria": "Analisar decisão do recurso"
-        },
-        "decisao_interlocutoria": {
-            "padroes": ["decisão interlocutória", "tutela", "liminar", "defiro", "indefiro"],
-            "urgencia": "ALTA",
-            "acao_necessaria": "Cumprir ou recorrer via agravo"
-        },
-        "despacho": {
-            "padroes": ["despacho", "diga", "manifeste-se", "vista dos autos"],
-            "urgencia": "MÉDIA",
-            "acao_necessaria": "Aguardar ou manifestar se necessário"
         }
     }
 
-    for tipo, info in tipos.items():
+    for tipo, info in mandados.items():
         for padrao in info["padroes"]:
             if padrao in texto_lower:
                 return tipo, info
 
+    # PRIORIDADE 3: Intimações (avisos, não mandados)
+    if "intimação" in texto_lower or "fica intimado" in texto_lower:
+        # Verificar se NÃO é mandado (já checado acima)
+        if "mandado" not in texto_lower:
+            return "intimacao", {
+                "urgencia": "ALTA",
+                "acao_necessaria": "Tomar ciência e verificar prazos"
+            }
+
+    # PRIORIDADE 4: Decisões interlocutórias
+    if "decisão interlocutória" in texto_lower or "tutela antecipada" in texto_lower:
+        return "decisao_interlocutoria", {
+            "urgencia": "ALTA",
+            "acao_necessaria": "Cumprir ou recorrer via agravo"
+        }
+
+    # PRIORIDADE 5: Despachos
+    if "despacho" in texto_lower or "vista dos autos" in texto_lower:
+        return "despacho", {
+            "urgencia": "MÉDIA",
+            "acao_necessaria": "Aguardar ou manifestar se necessário"
+        }
+
+    # PRIORIDADE 6: Sentença genérica (se tiver "sentença" mas não teve "julgo")
+    if "sentença" in texto_lower:
+        return "sentenca", {
+            "urgencia": "ALTA",
+            "acao_necessaria": "Verificar prazo para recurso"
+        }
+
+    # Documento não identificado
     return "documento", {"urgencia": "MÉDIA", "acao_necessaria": "Ler com atenção"}
 
 def analisar_recursos_cabiveis(tipo_doc, texto):
@@ -510,7 +531,8 @@ def extrair_dados_estruturados(texto):
         "links_audiencia": [],  # NOVO: Links de audiência online
         "telefones": [],  # NOVO: Telefones de contato
         "emails": [],  # NOVO: Emails
-        "qr_codes": []  # NOVO: QR codes encontrados
+        "qr_codes": [],  # NOVO: QR codes encontrados
+        "termo_paciente": False  # NOVO: Se usa termo "paciente" (habeas corpus)
     }
 
     # Número do processo (formatos variados)
@@ -527,7 +549,9 @@ def extrair_dados_estruturados(texto):
             break
 
     # Identificar partes com múltiplos padrões
+    # NOVO: Incluindo "Paciente" para Habeas Corpus
     autor_patterns = [
+        r'(?:Paciente):\s*([^,\n]+)',  # Prioridade para Paciente (Habeas Corpus)
         r'(?:Autor|Requerente|Exequente|Reclamante|Impetrante):\s*([^,\n]+)',
         r'([A-ZÀ-Ú][A-Za-zà-ú\s]+)\s*(?:moveu|ajuizou|propôs|requereu)'
     ]
@@ -536,6 +560,10 @@ def extrair_dados_estruturados(texto):
         r'(?:Réu|Requerido|Executado|Reclamado|Impetrado):\s*([^,\n]+)',
         r'em\s+face\s+de\s+([A-ZÀ-Ú][A-Za-zà-ú\s]+)'
     ]
+
+    # Detectar se usa termo "paciente" (Habeas Corpus)
+    if re.search(r'(?:Paciente):\s*', texto, re.IGNORECASE):
+        dados["termo_paciente"] = True
 
     for pattern in autor_patterns:
         match = re.search(pattern, texto)
@@ -666,29 +694,66 @@ def extrair_dados_estruturados(texto):
             if match not in dados["links_audiencia"]:
                 dados["links_audiencia"].append(match)
 
-    # NOVO: Extrair telefones (apenas telefones brasileiros válidos)
-    telefone_patterns = [
-        r'\(?([1-9]{2})\)?\s*([2-5]\d{3})-?(\d{4})',  # Fixo: (XX) XXXX-XXXX
-        r'\(?([1-9]{2})\)?\s*(9\d{4})-?(\d{4})',      # Celular: (XX) 9XXXX-XXXX
-        r'(?:tel(?:efone)?|fone|contato)[:\s]+\(?([1-9]{2})\)?\s*([2-9]\d{3,4})-?(\d{4})'
-    ]
+    # NOVO: Extrair telefones (apenas telefones brasileiros válidos COM CONTEXTO)
+    # Buscar telefones apenas quando aparecem próximos a palavras-chave
+    telefone_keywords = r'(?:tel(?:efone)?|fone|contato|celular|cel\.|whatsapp|wpp)'
 
-    for pattern in telefone_patterns:
-        matches = re.findall(pattern, texto, re.IGNORECASE)
-        for match in matches:
-            if isinstance(match, tuple) and len(match) >= 3:
-                # Formatar telefone: (DDD) XXXXX-XXXX ou (DDD) XXXX-XXXX
-                ddd, parte1, parte2 = match[0], match[1], match[2]
+    # Padrão 1: Palavra-chave seguida de telefone formatado
+    # Ex: "Telefone: (11) 98765-4321" ou "Contato: 11 98765-4321"
+    pattern1 = rf'{telefone_keywords}[:\s]+\(?(\d{{2}})\)?[\s-]*(9?\d{{4,5}})[\s-]*(\d{{4}})'
+    matches = re.findall(pattern1, texto, re.IGNORECASE)
 
-                # Validar DDD (11-99)
-                if int(ddd) < 11 or int(ddd) > 99:
-                    continue
+    for match in matches:
+        ddd, parte1, parte2 = match[0], match[1], match[2]
 
-                # Formatar telefone
-                telefone = f"({ddd}) {parte1}-{parte2}"
+        # Validar DDD (11-99)
+        try:
+            ddd_num = int(ddd)
+            if ddd_num < 11 or ddd_num > 99:
+                continue
+        except:
+            continue
 
-                if telefone not in dados["telefones"]:
-                    dados["telefones"].append(telefone)
+        # Validar se não é CPF/CNPJ (não pode ter 11 dígitos seguidos sem separação)
+        numero_completo = ddd + parte1 + parte2
+        if len(numero_completo) != 10 and len(numero_completo) != 11:
+            continue
+
+        # Validar formato: celular deve começar com 9 e ter 5 dígitos, fixo 4 dígitos
+        if len(parte1) == 5:
+            if not parte1.startswith('9'):
+                continue
+        elif len(parte1) == 4:
+            # Fixo: segundo dígito deve ser 2-5
+            if parte1[0] not in ['2', '3', '4', '5']:
+                continue
+        else:
+            continue
+
+        # Formatar telefone
+        telefone = f"({ddd}) {parte1}-{parte2}"
+        if telefone not in dados["telefones"]:
+            dados["telefones"].append(telefone)
+
+    # Padrão 2: Telefone com formatação clara (parênteses e hífen)
+    # Ex: "(11) 98765-4321" ou "(11)98765-4321"
+    pattern2 = r'\((\d{2})\)\s*(9\d{4})-(\d{4})'
+    matches = re.findall(pattern2, texto)
+
+    for match in matches:
+        ddd, parte1, parte2 = match[0], match[1], match[2]
+
+        # Validar DDD
+        try:
+            ddd_num = int(ddd)
+            if ddd_num < 11 or ddd_num > 99:
+                continue
+        except:
+            continue
+
+        telefone = f"({ddd}) {parte1}-{parte2}"
+        if telefone not in dados["telefones"]:
+            dados["telefones"].append(telefone)
 
     # NOVO: Extrair emails
     email_pattern = r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
@@ -924,31 +989,62 @@ def processar_pergunta_contextual(pergunta, contexto):
     # VALORES
     if validacao.get("tipo") == "valores" or any(word in pergunta_lower for word in ["quanto", "valor"]):
         respostas = []
+        valores = dados.get("valores", {})
+
+        # Total (prioridade máxima - mostrar primeiro se existir)
+        if valores.get("total"):
+            # Se pergunta sobre total, receber, ou valores em geral
+            if "total" in pergunta_lower or "receber" in pergunta_lower or "quanto" in pergunta_lower:
+                respostas.append(f"💵 **VALOR TOTAL:** {valores['total']}")
+                respostas.append("⚠️ Valores sujeitos a correção monetária e juros até o pagamento")
 
         # Danos morais
-        if "moral" in pergunta_lower or "receber" in pergunta_lower:
-            if dados.get("valores", {}).get("danos_morais"):
-                valor = dados["valores"]["danos_morais"]
-                respostas.append(f"💰 **Danos morais:** R$ {valor}")
-                respostas.append(f"\n📍 Referência: Encontrado no dispositivo da sentença")
-                respostas.append("\n💡 Este valor será corrigido monetariamente até o pagamento")
+        if valores.get("danos_morais"):
+            if "moral" in pergunta_lower or (not respostas and ("receber" in pergunta_lower or "quanto" in pergunta_lower)):
+                valor = valores["danos_morais"]
+                respostas.append(f"\n💰 **Danos morais:** R$ {valor}")
+                respostas.append("📍 Este valor está no dispositivo da sentença")
 
         # Danos materiais
-        if "material" in pergunta_lower:
-            if dados.get("valores", {}).get("danos_materiais"):
-                valor = dados["valores"]["danos_materiais"]
-                respostas.append(f"💰 **Danos materiais:** R$ {valor}")
+        if valores.get("danos_materiais"):
+            if "material" in pergunta_lower or (not respostas and ("receber" in pergunta_lower or "quanto" in pergunta_lower)):
+                valor = valores["danos_materiais"]
+                respostas.append(f"\n💰 **Danos materiais:** R$ {valor}")
 
-        # Total
-        if "total" in pergunta_lower or ("quanto" in pergunta_lower and "receber" in pergunta_lower):
-            if dados.get("valores", {}).get("total"):
-                respostas.append(f"\n💵 **TOTAL:** {dados['valores']['total']}")
-                respostas.append("\n⚠️ Valores sujeitos a correção e juros")
+        # Honorários
+        if valores.get("honorarios"):
+            if "honorário" in pergunta_lower or "advogado" in pergunta_lower:
+                respostas.append(f"\n⚖️ **Honorários advocatícios:** R$ {valores['honorarios']}")
+
+        # Custas
+        if valores.get("custas"):
+            if "custa" in pergunta_lower or "taxa" in pergunta_lower:
+                respostas.append(f"\n📄 **Custas processuais:** R$ {valores['custas']}")
 
         # Valor da causa
-        if "causa" in pergunta_lower:
-            if dados.get("valores", {}).get("valor_causa"):
-                respostas.append(f"📋 **Valor da causa:** R$ {dados['valores']['valor_causa']}")
+        if valores.get("valor_causa"):
+            if "causa" in pergunta_lower:
+                respostas.append(f"\n📋 **Valor da causa:** R$ {valores['valor_causa']}")
+
+        # Se não encontrou valores específicos mas a pergunta é sobre valores, mostrar TODOS os valores disponíveis
+        if not respostas:
+            valores_encontrados = []
+            if valores.get("total"):
+                valores_encontrados.append(f"💵 **TOTAL:** {valores['total']}")
+            if valores.get("danos_morais"):
+                valores_encontrados.append(f"💰 **Danos morais:** R$ {valores['danos_morais']}")
+            if valores.get("danos_materiais"):
+                valores_encontrados.append(f"💰 **Danos materiais:** R$ {valores['danos_materiais']}")
+            if valores.get("honorarios"):
+                valores_encontrados.append(f"⚖️ **Honorários:** R$ {valores['honorarios']}")
+            if valores.get("custas"):
+                valores_encontrados.append(f"📄 **Custas:** R$ {valores['custas']}")
+            if valores.get("valor_causa"):
+                valores_encontrados.append(f"📋 **Valor da causa:** R$ {valores['valor_causa']}")
+
+            if valores_encontrados:
+                respostas = valores_encontrados
+                respostas.append("\n⚠️ Valores sujeitos a correção monetária")
 
         if respostas:
             return {
@@ -2004,6 +2100,11 @@ def processar():
             texto_simplificado = adaptar_perspectiva_autor(texto_simplificado, dados_adaptados)
         elif perspectiva == "reu":
             texto_simplificado = adaptar_perspectiva_reu(texto_simplificado, dados_adaptados)
+
+        # NOVO: Adicionar explicação do termo "paciente" se for Habeas Corpus
+        if dados_adaptados.get("termo_paciente"):
+            explicacao_paciente = "\n\n📚 **Explicação:** No Habeas Corpus, \"paciente\" é o termo jurídico usado para identificar a pessoa que está presa ou ameaçada de prisão e em favor de quem o habeas corpus foi impetrado. É similar ao termo \"autor\" em outras ações."
+            texto_simplificado += explicacao_paciente
 
         # NOVA: Preparar contexto para chat (DEPOIS da adaptação de perspectiva, COM DADOS ADAPTADOS)
         contexto_chat = gerar_chat_contextual(texto_original, dados_adaptados)
