@@ -1235,7 +1235,75 @@
                 <div id="simplifiedText" style="background: var(--light); padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem; max-height: 500px; overflow-y: auto;">
                     <!-- Filled dynamically -->
                 </div>
-                
+
+                <!-- NOVO: CHAT INTELIGENTE COM AVATAR -->
+                <div id="chatSection" style="display: none; background: white; border: 2px solid var(--primary); border-radius: 12px; margin-bottom: 1.5rem; box-shadow: 0 4px 12px rgba(0,0,0,0.1); overflow: hidden;">
+                    <!-- Header do Chat -->
+                    <div style="background: linear-gradient(135deg, var(--primary) 0%, #8b3a4a 100%); color: white; padding: 1rem; display: flex; justify-content: space-between; align-items: center;">
+                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                            <div style="width: 45px; height: 45px; border-radius: 50%; background: white; display: flex; align-items: center; justify-content: center; font-size: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.2);">
+                                🤖
+                            </div>
+                            <div>
+                                <div style="font-weight: bold; font-size: 1.1rem;">JUS Bot</div>
+                                <div style="font-size: 0.85rem; opacity: 0.9;">Chat sobre SEU documento</div>
+                            </div>
+                        </div>
+                        <button onclick="toggleChat()" style="background: rgba(255,255,255,0.2); border: none; color: white; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; font-size: 20px; display: flex; align-items: center; justify-content: center;">
+                            ✕
+                        </button>
+                    </div>
+
+                    <!-- Mensagens do Chat -->
+                    <div id="chatMessages" style="background: #f5f5f5; height: 400px; overflow-y: auto; padding: 1rem; display: flex; flex-direction: column; gap: 1rem;">
+                        <!-- Mensagem inicial do bot -->
+                        <div class="chat-message-bot">
+                            <div style="display: flex; gap: 0.5rem; align-items: start;">
+                                <div style="width: 32px; height: 32px; border-radius: 50%; background: var(--primary); color: white; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                                    🤖
+                                </div>
+                                <div style="background: white; padding: 0.75rem 1rem; border-radius: 12px; border-top-left-radius: 4px; max-width: 70%; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                                    <div style="color: var(--text); line-height: 1.5;">
+                                        Olá! 👋 Posso responder dúvidas sobre <strong>O SEU DOCUMENTO</strong>.<br><br>
+                                        Pergunte sobre:<br>
+                                        • 📅 Prazos mencionados<br>
+                                        • 💰 Valores citados<br>
+                                        • 👥 Partes envolvidas<br>
+                                        • ⚖️ Decisões tomadas<br>
+                                        • 📋 Próximos passos
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Input do Chat -->
+                    <div style="background: white; padding: 1rem; border-top: 1px solid #e0e0e0;">
+                        <div style="display: flex; gap: 0.5rem;">
+                            <input
+                                type="text"
+                                id="chatInput"
+                                placeholder="Digite sua pergunta sobre o documento..."
+                                style="flex: 1; padding: 0.75rem; border: 2px solid #e0e0e0; border-radius: 24px; font-size: 0.95rem; outline: none; transition: all 0.3s;"
+                                onkeypress="if(event.key==='Enter') enviarPerguntaChat()"
+                                onfocus="this.style.borderColor='var(--primary)'"
+                                onblur="this.style.borderColor='#e0e0e0'"
+                            >
+                            <button
+                                onclick="enviarPerguntaChat()"
+                                style="background: var(--primary); color: white; border: none; border-radius: 50%; width: 48px; height: 48px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 20px; transition: all 0.3s; box-shadow: 0 2px 8px rgba(109,41,50,0.3);"
+                                onmouseover="this.style.transform='scale(1.05)'"
+                                onmouseout="this.style.transform='scale(1)'"
+                            >
+                                ➤
+                            </button>
+                        </div>
+                        <div style="margin-top: 0.5rem; font-size: 0.75rem; color: var(--text-muted); text-align: center;">
+                            ⚠️ Respondo apenas sobre informações do seu documento
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Action Buttons -->
                 <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
                     <a href="#" class="button" id="downloadBtn" style="display: none;">
@@ -2004,6 +2072,9 @@
 
             // REMOVIDO: Perguntas Frequentes foram removidas
 
+            // NOVO: Mostrar chat após processamento
+            document.getElementById('chatSection').style.display = 'block';
+
             if (data.caracteres_original) {
                 document.getElementById('downloadBtn').style.display = 'inline-flex';
                 document.getElementById('downloadBtn').href = '/download_pdf';
@@ -2560,6 +2631,164 @@ P.R.I.`;
                 }
             }
         });
+
+        // ============ FUNÇÕES DO CHAT INTELIGENTE ============
+
+        function toggleChat() {
+            const chatSection = document.getElementById('chatSection');
+            if (chatSection.style.display === 'none') {
+                chatSection.style.display = 'block';
+                chatSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            } else {
+                chatSection.style.display = 'none';
+            }
+        }
+
+        function enviarPerguntaChat() {
+            const input = document.getElementById('chatInput');
+            const pergunta = input.value.trim();
+
+            if (!pergunta) {
+                showToast('Digite uma pergunta primeiro', 'warning');
+                return;
+            }
+
+            // Adicionar mensagem do usuário
+            adicionarMensagemUsuario(pergunta);
+            input.value = '';
+
+            // Mostrar indicador de digitação
+            mostrarDigitando();
+
+            // Enviar para o backend
+            fetch('/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ pergunta: pergunta })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(data => {
+                        throw new Error(data.resposta || 'Erro ao processar pergunta');
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                esconderDigitando();
+                adicionarMensagemBot(data.resposta, data.tipo);
+            })
+            .catch(error => {
+                esconderDigitando();
+                adicionarMensagemBot(
+                    `😔 Desculpe, ocorreu um erro: ${error.message}`,
+                    'erro'
+                );
+                console.error('Erro:', error);
+            });
+        }
+
+        function adicionarMensagemUsuario(texto) {
+            const chatMessages = document.getElementById('chatMessages');
+            const mensagem = document.createElement('div');
+            mensagem.style.cssText = 'display: flex; justify-content: flex-end;';
+            mensagem.innerHTML = `
+                <div style="background: var(--primary); color: white; padding: 0.75rem 1rem; border-radius: 12px; border-top-right-radius: 4px; max-width: 70%; box-shadow: 0 1px 3px rgba(0,0,0,0.2);">
+                    <div style="line-height: 1.5;">${texto}</div>
+                    <div style="font-size: 0.7rem; opacity: 0.8; margin-top: 0.25rem; text-align: right;">
+                        ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                </div>
+            `;
+            chatMessages.appendChild(mensagem);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function adicionarMensagemBot(texto, tipo = 'resposta') {
+            const chatMessages = document.getElementById('chatMessages');
+            const mensagem = document.createElement('div');
+
+            // Cores baseadas no tipo
+            const cores = {
+                'resposta': { bg: 'white', border: '#e0e0e0' },
+                'nao_encontrado': { bg: '#fff9e6', border: '#ffc107' },
+                'redirecionamento_profissional': { bg: '#e8f5e9', border: '#4caf50' },
+                'erro': { bg: '#ffebee', border: '#f44336' }
+            };
+            const cor = cores[tipo] || cores['resposta'];
+
+            mensagem.style.cssText = 'display: flex; gap: 0.5rem; align-items: start;';
+            mensagem.innerHTML = `
+                <div style="width: 32px; height: 32px; border-radius: 50%; background: var(--primary); color: white; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                    🤖
+                </div>
+                <div style="background: ${cor.bg}; padding: 0.75rem 1rem; border-radius: 12px; border-top-left-radius: 4px; max-width: 70%; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border: 1px solid ${cor.border};">
+                    <div style="color: var(--text); line-height: 1.5;">${texto}</div>
+                    <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 0.25rem;">
+                        ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                </div>
+            `;
+            chatMessages.appendChild(mensagem);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function mostrarDigitando() {
+            const chatMessages = document.getElementById('chatMessages');
+            const digitando = document.createElement('div');
+            digitando.id = 'typing-indicator';
+            digitando.style.cssText = 'display: flex; gap: 0.5rem; align-items: center;';
+            digitando.innerHTML = `
+                <div style="width: 32px; height: 32px; border-radius: 50%; background: var(--primary); color: white; display: flex; align-items: center; justify-content: center;">
+                    🤖
+                </div>
+                <div style="background: white; padding: 0.75rem 1rem; border-radius: 12px; border-top-left-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                    <div style="display: flex; gap: 4px; align-items: center;">
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                    </div>
+                </div>
+            `;
+            chatMessages.appendChild(digitando);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+
+            // Adicionar CSS para animação dos pontos
+            if (!document.getElementById('typing-animation-style')) {
+                const style = document.createElement('style');
+                style.id = 'typing-animation-style';
+                style.textContent = `
+                    .typing-dot {
+                        width: 8px;
+                        height: 8px;
+                        border-radius: 50%;
+                        background: var(--primary);
+                        animation: typing 1.4s infinite;
+                    }
+                    .typing-dot:nth-child(2) {
+                        animation-delay: 0.2s;
+                    }
+                    .typing-dot:nth-child(3) {
+                        animation-delay: 0.4s;
+                    }
+                    @keyframes typing {
+                        0%, 60%, 100% { opacity: 0.3; transform: scale(0.8); }
+                        30% { opacity: 1; transform: scale(1); }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+        }
+
+        function esconderDigitando() {
+            const digitando = document.getElementById('typing-indicator');
+            if (digitando) {
+                digitando.remove();
+            }
+        }
+
     </script>
 </body>
 </html>

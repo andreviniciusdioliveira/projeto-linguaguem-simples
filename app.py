@@ -773,6 +773,48 @@ def extrair_dados_estruturados(texto):
 
     return dados
 
+def detectar_perspectiva_automatica(texto, dados_extraidos):
+    """Usa IA para detectar automaticamente se usuário é autor ou réu"""
+
+    # Pegar trecho relevante do documento
+    texto_analise = texto[:2000] if len(texto) > 2000 else texto
+
+    prompt = f"""Analise este documento jurídico e identifique qual é a perspectiva correta do USUÁRIO que enviou o documento.
+
+INFORMAÇÕES DO DOCUMENTO:
+- Autor/Requerente: {dados_extraidos.get('partes', {}).get('autor', 'Não identificado')}
+- Réu/Requerido: {dados_extraidos.get('partes', {}).get('reu', 'Não identificado')}
+- Decisão: {dados_extraidos.get('decisao', 'Não identificada')}
+
+DOCUMENTO:
+{texto_analise}
+
+IMPORTANTE: Determine se o usuário que ENVIOU este documento provavelmente é:
+- "autor": Se for quem MOVEU a ação, está processando alguém, é o requerente/autor
+- "reu": Se está SENDO PROCESSADO, é quem está se defendendo, é o requerido/réu
+
+Responda APENAS com uma palavra: "autor" ou "reu"
+Analise o contexto e determine qual a perspectiva mais provável."""
+
+    try:
+        model = genai.GenerativeModel(GEMINI_MODELS[1])  # Flash para rapidez
+        response = model.generate_content(prompt)
+        perspectiva = response.text.strip().lower()
+
+        if "autor" in perspectiva:
+            return "autor"
+        elif "reu" in perspectiva or "réu" in perspectiva:
+            return "reu"
+        else:
+            return "autor"  # Padrão
+
+    except Exception as e:
+        logging.error(f"Erro ao detectar perspectiva com IA: {e}")
+        # Fallback: tentar detectar pelo tipo de documento
+        if "citação" in texto.lower() or "citado" in texto.lower():
+            return "reu"
+        return "autor"
+
 def gerar_chat_contextual(texto_original, dados_extraidos):
     """Prepara contexto para o chat baseado APENAS no documento"""
     contexto = {
@@ -2081,6 +2123,12 @@ def processar():
         dados_estruturados = extrair_dados_estruturados(texto_original)
         logging.info(f"Dados extraídos - Processo: {dados_estruturados['numero_processo']}, Decisão: {dados_estruturados['decisao']}")
 
+        # NOVO: Detectar perspectiva automaticamente se usuário marcou "não sei"
+        if perspectiva == "nao_informado":
+            logging.info("Detectando perspectiva automaticamente com IA...")
+            perspectiva = detectar_perspectiva_automatica(texto_original, dados_estruturados)
+            logging.info(f"Perspectiva detectada: {perspectiva}")
+
         # NOVA: Analisar recursos cabíveis
         recursos_info = analisar_recursos_cabiveis(tipo_doc, texto_original)
 
@@ -2246,14 +2294,14 @@ def analisar_resultado_judicial(texto):
 @app.route("/chat", methods=["POST"])
 @rate_limit
 def chat_contextual():
-    """Chat baseado APENAS no documento enviado"""
+    """Chat INTELIGENTE baseado APENAS no documento enviado usando IA"""
     try:
         data = request.get_json()
         pergunta = data.get("pergunta", "").strip()
 
         if not pergunta:
             return jsonify({
-                "resposta": "Por favor, faça uma pergunta.",
+                "resposta": "💬 Por favor, faça uma pergunta sobre o seu documento.",
                 "tipo": "erro"
             }), 400
 
@@ -2261,25 +2309,91 @@ def chat_contextual():
         contexto = session.get('contexto_chat')
         if not contexto:
             return jsonify({
-                "resposta": "Por favor, envie um documento primeiro para que eu possa responder sobre ele.",
+                "resposta": "📄 Por favor, envie um documento primeiro para que eu possa responder sobre ele.",
                 "tipo": "erro"
             }), 400
 
-        # Verificar se a pergunta é sobre o documento
-        resposta = processar_pergunta_contextual(pergunta, contexto)
+        # NOVO: Usar Gemini para responder de forma inteligente
+        resposta = responder_com_gemini_inteligente(pergunta, contexto)
 
         return jsonify({
             "resposta": resposta["texto"],
             "tipo": resposta["tipo"],
-            "referencia": resposta.get("referencia")
+            "referencia": resposta.get("referencia"),
+            "sugestoes": resposta.get("sugestoes", [])
         })
 
     except Exception as e:
         logging.error(f"Erro no chat: {e}")
         return jsonify({
-            "resposta": "Desculpe, ocorreu um erro. Tente novamente.",
+            "resposta": "😔 Desculpe, ocorreu um erro ao processar sua pergunta. Tente novamente.",
             "tipo": "erro"
         }), 500
+
+def responder_com_gemini_inteligente(pergunta, contexto):
+    """Usa Gemini para responder de forma inteligente e segura"""
+
+    documento_original = contexto.get("documento_original", "")
+    dados_extraidos = contexto.get("dados_extraidos", {})
+    perspectiva = contexto.get("perspectiva", "autor")
+
+    # Truncar documento se muito grande
+    doc_truncado = documento_original[:4000] if len(documento_original) > 4000 else documento_original
+
+    prompt = f"""Você é o JUS Bot, um assistente especializado em responder perguntas sobre documentos jurídicos.
+
+REGRAS CRÍTICAS:
+1. Responda APENAS com informações que EXISTEM no documento
+2. Se a informação NÃO estiver no documento, diga claramente "Não encontrei essa informação no documento"
+3. NÃO invente, NÃO suponha, NÃO dê opiniões jurídicas
+4. NÃO dê conselhos sobre "devo recorrer", "devo fazer acordo", etc. -> redirecione para advogado
+5. Cite a referência quando possível (ex: "Segundo o documento, na página 2...")
+6. Seja amigável, claro e direto
+
+DADOS DO DOCUMENTO:
+- Partes: Autor: {dados_extraidos.get('partes', {}).get('autor', 'Não identificado')}, Réu: {dados_extraidos.get('partes', {}).get('reu', 'Não identificado')}
+- Valores: {dados_extraidos.get('valores', {})}
+- Prazos: {dados_extraidos.get('prazos', [])}
+- Decisão: {dados_extraidos.get('decisao', 'Não identificada')}
+- Audiências: {dados_extraidos.get('audiencias', [])}
+- Perspectiva do usuário: {perspectiva}
+
+DOCUMENTO COMPLETO:
+{doc_truncado}
+
+PERGUNTA DO USUÁRIO:
+{pergunta}
+
+Analise a pergunta e responda seguindo as regras acima.Se for pergunta sobre "devo fazer X?", "tenho chance?", etc., responda:
+"Não posso dar conselhos jurídicos. Procure um advogado ou Defensoria Pública."
+
+Se for pergunta sobre informação que NÃO está no documento, responda:
+"Não encontrei essa informação no documento que você enviou. O documento contém informações sobre [listar o que tem]."
+
+Sua resposta:"""
+
+    try:
+        model = genai.GenerativeModel(GEMINI_MODELS[1])  # Flash para rapidez
+        response = model.generate_content(prompt)
+        resposta_texto = response.text.strip()
+
+        # Detectar tipo de resposta
+        tipo = "resposta"
+        if "não encontrei" in resposta_texto.lower() or "não localizei" in resposta_texto.lower():
+            tipo = "nao_encontrado"
+        elif "não posso dar conselhos" in resposta_texto.lower():
+            tipo = "redirecionamento_profissional"
+
+        return {
+            "texto": f"🤖 {resposta_texto}",
+            "tipo": tipo,
+            "referencia": "documento_original"
+        }
+
+    except Exception as e:
+        logging.error(f"Erro ao gerar resposta com Gemini: {e}")
+        # Fallback para função antiga
+        return processar_pergunta_contextual(pergunta, contexto)
 
 @app.route("/diagnostico")
 def diagnostico():
