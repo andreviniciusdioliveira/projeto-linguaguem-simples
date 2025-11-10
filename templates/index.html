@@ -1229,10 +1229,7 @@
                     <!-- Filled dynamically -->
                 </div>
 
-                <!-- Suggested Questions -->
-                <div id="suggestedQuestionsSection" style="display: none; margin-bottom: 1.5rem;">
-                    <!-- Filled dynamically -->
-                </div>
+                <!-- REMOVIDO: Seção de Perguntas Frequentes -->
 
                 <!-- Simplified Text -->
                 <div id="simplifiedText" style="background: var(--light); padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem; max-height: 500px; overflow-y: auto;">
@@ -2005,10 +2002,7 @@
                 showAppeals(data.recursos_cabiveis);
             }
 
-            // NEW: Show suggested questions
-            if (data.perguntas_sugeridas && data.perguntas_sugeridas.length > 0) {
-                showSuggestedQuestions(data.perguntas_sugeridas);
-            }
+            // REMOVIDO: Perguntas Frequentes foram removidas
 
             if (data.caracteres_original) {
                 document.getElementById('downloadBtn').style.display = 'inline-flex';
@@ -2346,33 +2340,7 @@
             section.style.display = 'block';
         }
 
-        function showSuggestedQuestions(perguntas) {
-            if (!perguntas || perguntas.length === 0) return;
-
-            const section = document.getElementById('suggestedQuestionsSection');
-
-            let html = '<div style="background: var(--success-bg); padding: 1.5rem; border-radius: 8px; border-left: 4px solid var(--secondary);">';
-            html += '<h3 style="color: var(--secondary); margin-bottom: 1rem;">💬 Perguntas Frequentes sobre este Documento</h3>';
-            html += '<div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">';
-
-            perguntas.forEach((pergunta, index) => {
-                html += `
-                    <button onclick="askQuestion('${pergunta.replace(/'/g, "\\'")}')"
-                            style="background: white; border: 2px solid var(--secondary); color: var(--secondary);
-                                   padding: 0.5rem 1rem; border-radius: 20px; cursor: pointer; font-size: 0.875rem;
-                                   transition: all 0.3s ease; font-weight: 500;">
-                        ${pergunta}
-                    </button>
-                `;
-            });
-
-            html += '</div>';
-            html += '<p style="margin-top: 1rem; font-size: 0.875rem; color: var(--text-muted);">Clique em uma pergunta para ver a resposta baseada neste documento</p>';
-            html += '</div>';
-
-            section.innerHTML = html;
-            section.style.display = 'block';
-        }
+        // FUNÇÃO REMOVIDA: showSuggestedQuestions - Perguntas Frequentes foram removidas
 
         function askQuestion(pergunta) {
             // Mostrar loading

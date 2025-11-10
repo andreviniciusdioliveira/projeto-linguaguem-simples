@@ -378,85 +378,68 @@ Identifique: [Sentença/Acórdão/Decisão/Despacho/Mandado de Citação/Mandado
 # ============= NOVAS FUNÇÕES DE IDENTIFICAÇÃO E ANÁLISE =============
 
 def identificar_tipo_documento(texto):
-    """Identifica o tipo de documento jurídico com precisão MELHORADA"""
-    texto_lower = texto.lower()
+    """Identifica o tipo de documento jurídico usando IA (Gemini)"""
 
-    # PRIORIDADE 1: Documentos com palavras-chave fortes e específicas
-    # SENTENÇA tem prioridade máxima se tiver "julgo" ou "dispositivo"
-    if any(palavra in texto_lower for palavra in ["julgo procedente", "julgo improcedente", "julgo parcialmente procedente"]):
-        return "sentenca", {
-            "urgencia": "ALTA",
-            "acao_necessaria": "Verificar prazo para recurso"
+    # Truncar texto se muito longo (usar apenas início que geralmente tem o tipo)
+    texto_analise = texto[:3000] if len(texto) > 3000 else texto
+
+    prompt = f"""Analise este documento jurídico e identifique qual o tipo EXATO.
+
+IMPORTANTE: Leia o documento com atenção e identifique o tipo CORRETO. NÃO confunda sentença com mandado!
+
+Tipos possíveis:
+- sentenca: Documento que contém "julgo procedente", "julgo improcedente", decisão final do juiz
+- acordao: Decisão de tribunal, com relator, turma, câmara
+- mandado_citacao: Mandado para citar réu, pedir contestação
+- mandado_intimacao: Mandado para comparecer pessoalmente em data/hora específica
+- mandado_penhora: Mandado para penhorar bens
+- intimacao: Simples aviso/intimação (não é mandado)
+- decisao_interlocutoria: Decisão durante o processo (tutela, liminar)
+- despacho: Despacho simples do juiz
+
+Documento:
+{texto_analise}
+
+Responda APENAS com uma das palavras acima (sentenca, acordao, mandado_citacao, etc). Nada mais."""
+
+    try:
+        model = genai.GenerativeModel(GEMINI_MODELS[1])  # Usar flash para rapidez
+        response = model.generate_content(prompt)
+        tipo_identificado = response.text.strip().lower()
+
+        # Mapear tipo para informações de urgência
+        tipos_info = {
+            "sentenca": {"urgencia": "ALTA", "acao_necessaria": "Verificar prazo para recurso"},
+            "acordao": {"urgencia": "MÉDIA", "acao_necessaria": "Analisar decisão do recurso"},
+            "mandado_citacao": {"urgencia": "MÁXIMA", "acao_necessaria": "Procurar advogado URGENTE"},
+            "mandado_intimacao": {"urgencia": "MÁXIMA", "acao_necessaria": "Comparecer no dia/hora marcados"},
+            "mandado_penhora": {"urgencia": "MÁXIMA", "acao_necessaria": "Pagar ou apresentar defesa"},
+            "intimacao": {"urgencia": "ALTA", "acao_necessaria": "Tomar ciência e verificar prazos"},
+            "decisao_interlocutoria": {"urgencia": "ALTA", "acao_necessaria": "Cumprir ou recorrer via agravo"},
+            "despacho": {"urgencia": "MÉDIA", "acao_necessaria": "Aguardar ou manifestar se necessário"}
         }
 
-    # ACÓRDÃO também tem prioridade se tiver palavras específicas
-    if "acórdão" in texto_lower or ("relator" in texto_lower and "turma" in texto_lower):
-        return "acordao", {
-            "urgencia": "MÉDIA",
-            "acao_necessaria": "Analisar decisão do recurso"
-        }
+        if tipo_identificado in tipos_info:
+            return tipo_identificado, tipos_info[tipo_identificado]
+        else:
+            # Se retornou algo inválido, tentar extrair palavra conhecida
+            for tipo in tipos_info.keys():
+                if tipo in tipo_identificado:
+                    return tipo, tipos_info[tipo]
 
-    # PRIORIDADE 2: Mandados (só identificar se NÃO for sentença/acórdão)
-    mandados = {
-        "mandado_citacao": {
-            "padroes": ["mandado de citação", "cite-se o réu", "para contestar no prazo"],
-            "urgencia": "MÁXIMA",
-            "acao_necessaria": "Procurar advogado URGENTE"
-        },
-        "mandado_intimacao": {
-            "padroes": ["mandado de intimação", "comparecer pessoalmente", "mandado de comparecimento"],
-            "urgencia": "MÁXIMA",
-            "acao_necessaria": "Comparecer no dia/hora marcados"
-        },
-        "mandado_penhora": {
-            "padroes": ["mandado de penhora", "penhore-se", "auto de penhora"],
-            "urgencia": "MÁXIMA",
-            "acao_necessaria": "Pagar ou apresentar defesa"
-        },
-        "mandado_despejo": {
-            "padroes": ["mandado de despejo", "desocupação", "reintegração de posse"],
-            "urgencia": "MÁXIMA",
-            "acao_necessaria": "Desocupar ou procurar advogado"
-        }
-    }
+            # Fallback: documento genérico
+            return "documento", {"urgencia": "MÉDIA", "acao_necessaria": "Ler com atenção"}
 
-    for tipo, info in mandados.items():
-        for padrao in info["padroes"]:
-            if padrao in texto_lower:
-                return tipo, info
-
-    # PRIORIDADE 3: Intimações (avisos, não mandados)
-    if "intimação" in texto_lower or "fica intimado" in texto_lower:
-        # Verificar se NÃO é mandado (já checado acima)
-        if "mandado" not in texto_lower:
-            return "intimacao", {
-                "urgencia": "ALTA",
-                "acao_necessaria": "Tomar ciência e verificar prazos"
-            }
-
-    # PRIORIDADE 4: Decisões interlocutórias
-    if "decisão interlocutória" in texto_lower or "tutela antecipada" in texto_lower:
-        return "decisao_interlocutoria", {
-            "urgencia": "ALTA",
-            "acao_necessaria": "Cumprir ou recorrer via agravo"
-        }
-
-    # PRIORIDADE 5: Despachos
-    if "despacho" in texto_lower or "vista dos autos" in texto_lower:
-        return "despacho", {
-            "urgencia": "MÉDIA",
-            "acao_necessaria": "Aguardar ou manifestar se necessário"
-        }
-
-    # PRIORIDADE 6: Sentença genérica (se tiver "sentença" mas não teve "julgo")
-    if "sentença" in texto_lower:
-        return "sentenca", {
-            "urgencia": "ALTA",
-            "acao_necessaria": "Verificar prazo para recurso"
-        }
-
-    # Documento não identificado
-    return "documento", {"urgencia": "MÉDIA", "acao_necessaria": "Ler com atenção"}
+    except Exception as e:
+        logging.error(f"Erro ao identificar tipo com Gemini: {e}")
+        # Fallback para regex simples em caso de erro
+        texto_lower = texto.lower()
+        if any(palavra in texto_lower for palavra in ["julgo procedente", "julgo improcedente", "sentença"]):
+            return "sentenca", {"urgencia": "ALTA", "acao_necessaria": "Verificar prazo para recurso"}
+        elif "acórdão" in texto_lower:
+            return "acordao", {"urgencia": "MÉDIA", "acao_necessaria": "Analisar decisão do recurso"}
+        else:
+            return "documento", {"urgencia": "MÉDIA", "acao_necessaria": "Ler com atenção"}
 
 def analisar_recursos_cabiveis(tipo_doc, texto):
     """Analisa se cabe recurso baseado APENAS no documento"""
@@ -698,13 +681,26 @@ def extrair_dados_estruturados(texto):
     # Buscar telefones apenas quando aparecem próximos a palavras-chave
     telefone_keywords = r'(?:tel(?:efone)?|fone|contato|celular|cel\.|whatsapp|wpp)'
 
+    # Palavras que indicam que NÃO é telefone (chave, processo, etc.)
+    palavras_excluir = r'(?:chave|processo|código|cod\.|protocolo|cpf|cnpj|rg|identidade)'
+
     # Padrão 1: Palavra-chave seguida de telefone formatado
     # Ex: "Telefone: (11) 98765-4321" ou "Contato: 11 98765-4321"
-    pattern1 = rf'{telefone_keywords}[:\s]+\(?(\d{{2}})\)?[\s-]*(9?\d{{4,5}})[\s-]*(\d{{4}})'
-    matches = re.findall(pattern1, texto, re.IGNORECASE)
+    # Usar regex com captura de contexto para validar
+    pattern1_completo = rf'(.{{0,50}}){telefone_keywords}[:\s]+\(?(\d{{2}})\)?[\s-]*(9?\d{{4,5}})[\s-]*(\d{{4}})(.{{0,50}})'
+    matches = re.findall(pattern1_completo, texto, re.IGNORECASE)
 
     for match in matches:
-        ddd, parte1, parte2 = match[0], match[1], match[2]
+        contexto_antes = match[0]
+        ddd = match[1]
+        parte1 = match[2]
+        parte2 = match[3]
+        contexto_depois = match[4]
+
+        # Verificar se tem palavras de exclusão no contexto
+        contexto_total = contexto_antes + contexto_depois
+        if re.search(palavras_excluir, contexto_total, re.IGNORECASE):
+            continue
 
         # Validar DDD (11-99)
         try:
@@ -724,7 +720,7 @@ def extrair_dados_estruturados(texto):
             if not parte1.startswith('9'):
                 continue
         elif len(parte1) == 4:
-            # Fixo: segundo dígito deve ser 2-5
+            # Fixo: primeiro dígito deve ser 2-5
             if parte1[0] not in ['2', '3', '4', '5']:
                 continue
         else:
@@ -735,13 +731,22 @@ def extrair_dados_estruturados(texto):
         if telefone not in dados["telefones"]:
             dados["telefones"].append(telefone)
 
-    # Padrão 2: Telefone com formatação clara (parênteses e hífen)
+    # Padrão 2: Telefone com formatação clara (parênteses e hífen) COM CONTEXTO
     # Ex: "(11) 98765-4321" ou "(11)98765-4321"
-    pattern2 = r'\((\d{2})\)\s*(9\d{4})-(\d{4})'
-    matches = re.findall(pattern2, texto)
+    pattern2_completo = r'(.{0,50})\((\d{2})\)\s*(9\d{4})-(\d{4})(.{0,50})'
+    matches = re.findall(pattern2_completo, texto)
 
     for match in matches:
-        ddd, parte1, parte2 = match[0], match[1], match[2]
+        contexto_antes = match[0]
+        ddd = match[1]
+        parte1 = match[2]
+        parte2 = match[3]
+        contexto_depois = match[4]
+
+        # Verificar se tem palavras de exclusão no contexto
+        contexto_total = contexto_antes + contexto_depois
+        if re.search(palavras_excluir, contexto_total, re.IGNORECASE):
+            continue
 
         # Validar DDD
         try:
