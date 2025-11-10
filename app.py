@@ -24,6 +24,7 @@ import re
 import base64
 import subprocess
 import numpy as np
+import google.generativeai as genai  # CRÍTICO: Import do Gemini
 
 # Tentativa de importar OpenCV
 try:
@@ -41,6 +42,13 @@ logging.basicConfig(level=logging.INFO)
 
 # --- Configurações ---
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+
+# CONFIGURAR GEMINI
+if GEMINI_API_KEY:
+    genai.configure(api_key=GEMINI_API_KEY)
+    logging.info("✅ Gemini configurado com API Key")
+else:
+    logging.error("❌ GEMINI_API_KEY não configurada!")
 
 # Modelos Gemini ATUALIZADOS - Setembro 2025
 GEMINI_MODELS = [
