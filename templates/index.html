@@ -2259,43 +2259,30 @@
         }
 
         function showAppeals(recursos) {
-            if (!recursos || !recursos.recurso) return;
+            if (!recursos || !recursos.cabe_recurso) return;
 
             const section = document.getElementById('appealsSection');
 
             let html = '<div style="background: var(--info-bg); padding: 1.5rem; border-radius: 8px; border-left: 4px solid var(--jus-azul);">';
-            html += '<h3 style="color: var(--jus-azul); margin-bottom: 1rem;">⚖️ Recursos Cabíveis</h3>';
+            html += '<h3 style="color: var(--jus-azul); margin-bottom: 1rem;">⚖️ Recursos</h3>';
 
+            // Cabe recurso (principal)
             html += `
                 <div style="background: white; padding: 1rem; border-radius: 6px; margin-bottom: 0.5rem;">
-                    <strong>📜 Tipo de recurso:</strong> ${recursos.recurso}
+                    <strong>📜 Cabe recurso:</strong> ${recursos.cabe_recurso}
                 </div>
             `;
 
+            // Prazo (só mostra se encontrado no documento)
             if (recursos.prazo) {
                 html += `
                     <div style="background: white; padding: 1rem; border-radius: 6px; margin-bottom: 0.5rem;">
-                        <strong>⏰ Prazo:</strong> ${recursos.prazo}
+                        <strong>⏰ Prazo mencionado no documento:</strong> ${recursos.prazo}
                     </div>
                 `;
             }
 
-            if (recursos.instancia) {
-                html += `
-                    <div style="background: white; padding: 1rem; border-radius: 6px; margin-bottom: 0.5rem;">
-                        <strong>🏛️ Instância:</strong> ${recursos.instancia}
-                    </div>
-                `;
-            }
-
-            if (recursos.valor_preparo) {
-                html += `
-                    <div style="background: white; padding: 1rem; border-radius: 6px; margin-bottom: 0.5rem;">
-                        <strong>💵 Preparo:</strong> ${recursos.valor_preparo}
-                    </div>
-                `;
-            }
-
+            // Dica
             if (recursos.dica) {
                 html += `
                     <div style="background: #fef7e0; padding: 1rem; border-radius: 6px; margin-top: 1rem;">
@@ -2304,6 +2291,7 @@
                 `;
             }
 
+            // Observação
             if (recursos.observacao) {
                 html += `
                     <div style="background: white; padding: 1rem; border-radius: 6px; margin-top: 1rem;">
