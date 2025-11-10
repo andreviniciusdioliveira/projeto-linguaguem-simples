@@ -24,6 +24,7 @@ import re
 import base64
 import subprocess
 import numpy as np
+import google.generativeai as genai  # CRÍTICO: Import do Gemini
 
 # Tentativa de importar OpenCV
 try:
@@ -41,6 +42,13 @@ logging.basicConfig(level=logging.INFO)
 
 # --- Configurações ---
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+
+# CONFIGURAR GEMINI
+if GEMINI_API_KEY:
+    genai.configure(api_key=GEMINI_API_KEY)
+    logging.info("✅ Gemini configurado com API Key")
+else:
+    logging.error("❌ GEMINI_API_KEY não configurada!")
 
 # Modelos Gemini ATUALIZADOS - Setembro 2025
 GEMINI_MODELS = [
@@ -385,32 +393,36 @@ def identificar_tipo_documento(texto):
 
     prompt = f"""Analise este documento jurídico e identifique qual o tipo EXATO.
 
-IMPORTANTE: Leia o documento com atenção e identifique o tipo CORRETO. NÃO confunda sentença com mandado!
+IMPORTANTE: Leia o documento com atenção. Se tiver dúvida, prefira "mandado" a "documento".
 
-Tipos possíveis:
-- sentenca: Documento que contém "julgo procedente", "julgo improcedente", decisão final do juiz
-- acordao: Decisão de tribunal, com relator, turma, câmara
-- mandado_citacao: Mandado para citar réu, pedir contestação
-- mandado_intimacao: Mandado para comparecer pessoalmente em data/hora específica
-- mandado_penhora: Mandado para penhorar bens
-- intimacao: Simples aviso/intimação (não é mandado)
-- decisao_interlocutoria: Decisão durante o processo (tutela, liminar)
-- despacho: Despacho simples do juiz
+Tipos possíveis (responda EXATAMENTE uma destas palavras):
+- sentenca (decisão final com "julgo procedente/improcedente")
+- acordao (decisão de tribunal, tem relator/turma)
+- mandado (qualquer tipo de mandado: citação, intimação, penhora, etc)
+- intimacao (aviso simples, não é mandado)
+- despacho (despacho do juiz)
 
 Documento:
 {texto_analise}
 
-Responda APENAS com uma das palavras acima (sentenca, acordao, mandado_citacao, etc). Nada mais."""
+Responda com UMA ÚNICA PALAVRA: sentenca, acordao, mandado, intimacao ou despacho"""
 
     try:
+        logging.info("🤖 Chamando Gemini para identificar tipo de documento...")
         model = genai.GenerativeModel(GEMINI_MODELS[1])  # Usar flash para rapidez
         response = model.generate_content(prompt)
-        tipo_identificado = response.text.strip().lower()
+        tipo_bruto = response.text.strip()
+        logging.info(f"🤖 Gemini retornou: '{tipo_bruto}'")
+
+        # Limpar resposta (remover pontos, espaços extras, etc)
+        tipo_identificado = tipo_bruto.lower().replace(".", "").replace(",", "").strip()
+        logging.info(f"🤖 Tipo limpo: '{tipo_identificado}'")
 
         # Mapear tipo para informações de urgência
         tipos_info = {
             "sentenca": {"urgencia": "ALTA", "acao_necessaria": "Verificar prazo para recurso"},
             "acordao": {"urgencia": "MÉDIA", "acao_necessaria": "Analisar decisão do recurso"},
+            "mandado": {"urgencia": "MÁXIMA", "acao_necessaria": "Comparecer/Contestar URGENTE"},
             "mandado_citacao": {"urgencia": "MÁXIMA", "acao_necessaria": "Procurar advogado URGENTE"},
             "mandado_intimacao": {"urgencia": "MÁXIMA", "acao_necessaria": "Comparecer no dia/hora marcados"},
             "mandado_penhora": {"urgencia": "MÁXIMA", "acao_necessaria": "Pagar ou apresentar defesa"},
@@ -419,26 +431,42 @@ Responda APENAS com uma das palavras acima (sentenca, acordao, mandado_citacao, 
             "despacho": {"urgencia": "MÉDIA", "acao_necessaria": "Aguardar ou manifestar se necessário"}
         }
 
+        # Tentar match exato primeiro
         if tipo_identificado in tipos_info:
+            logging.info(f"✅ Tipo identificado: {tipo_identificado}")
             return tipo_identificado, tipos_info[tipo_identificado]
-        else:
-            # Se retornou algo inválido, tentar extrair palavra conhecida
-            for tipo in tipos_info.keys():
-                if tipo in tipo_identificado:
-                    return tipo, tipos_info[tipo]
 
-            # Fallback: documento genérico
-            return "documento", {"urgencia": "MÉDIA", "acao_necessaria": "Ler com atenção"}
+        # Tentar encontrar a palavra dentro da resposta
+        for tipo in tipos_info.keys():
+            if tipo in tipo_identificado:
+                logging.info(f"✅ Tipo identificado (match parcial): {tipo}")
+                return tipo, tipos_info[tipo]
+
+        # Se Gemini mencionou "mandado" mas não especificou tipo, usar genérico
+        if "mandado" in tipo_identificado:
+            logging.info("✅ Tipo identificado: mandado (genérico)")
+            return "mandado", tipos_info["mandado"]
+
+        # Se nada bateu, registrar e usar documento genérico
+        logging.warning(f"⚠️ Tipo não reconhecido: '{tipo_identificado}' - usando 'documento'")
+        return "documento", {"urgencia": "MÉDIA", "acao_necessaria": "Ler com atenção"}
 
     except Exception as e:
-        logging.error(f"Erro ao identificar tipo com Gemini: {e}")
+        logging.error(f"❌ ERRO ao identificar tipo com Gemini: {e}", exc_info=True)
         # Fallback para regex simples em caso de erro
         texto_lower = texto.lower()
+
         if any(palavra in texto_lower for palavra in ["julgo procedente", "julgo improcedente", "sentença"]):
+            logging.info("⚠️ Fallback regex: sentenca")
             return "sentenca", {"urgencia": "ALTA", "acao_necessaria": "Verificar prazo para recurso"}
         elif "acórdão" in texto_lower:
+            logging.info("⚠️ Fallback regex: acordao")
             return "acordao", {"urgencia": "MÉDIA", "acao_necessaria": "Analisar decisão do recurso"}
+        elif "mandado" in texto_lower:
+            logging.info("⚠️ Fallback regex: mandado")
+            return "mandado", {"urgencia": "MÁXIMA", "acao_necessaria": "Ler e tomar providências URGENTE"}
         else:
+            logging.info("⚠️ Fallback regex: documento genérico")
             return "documento", {"urgencia": "MÉDIA", "acao_necessaria": "Ler com atenção"}
 
 def analisar_recursos_cabiveis(tipo_doc, texto):
@@ -472,7 +500,7 @@ def analisar_recursos_cabiveis(tipo_doc, texto):
         "acordao": {
             "cabe_recurso": "Sim (recursos complexos)",
             "prazo": prazo_encontrado,  # Só mostra se encontrado no documento
-            "dica": "Recursos em tribunais superiores - necessário advogado especializado"
+            "dica": "Recursos em tribunais superiores - necessário advogado ou defensor público"
         },
         "decisao_interlocutoria": {
             "cabe_recurso": "Sim (decisão interlocutória)",
@@ -817,8 +845,9 @@ Analise o contexto e determine qual a perspectiva mais provável."""
 
 def gerar_chat_contextual(texto_original, dados_extraidos):
     """Prepara contexto para o chat baseado APENAS no documento"""
+    # NÃO armazenar documento_original para evitar sessão muito grande
+    # O documento será lido do arquivo temporário quando necessário
     contexto = {
-        "documento_original": texto_original,
         "dados_extraidos": dados_extraidos,
         "perguntas_sugeridas": [],
         "respostas_preparadas": {}
@@ -2058,14 +2087,17 @@ def index():
 def processar():
     """Processa upload de PDF ou imagem com análise aprimorada"""
     try:
-        # Tornar sessão permanente para garantir persistência
+        # Tornar sessão permanente para garantir persistência ANTES de qualquer coisa
         session.permanent = True
+        session.modified = True
+        logging.info("📄 Sessão configurada como permanente")
 
         if 'file' not in request.files:
             return jsonify({"erro": "Nenhum arquivo enviado"}), 400
 
         file = request.files['file']
         perspectiva = request.form.get('perspectiva', 'nao_informado')  # autor/reu/nao_informado
+        logging.info(f"📄 Processando arquivo: {file.filename}, Perspectiva: {perspectiva}")
 
         if file.filename == '':
             return jsonify({"erro": "Nenhum arquivo selecionado"}), 400
@@ -2185,11 +2217,24 @@ def processar():
         pdf_filename = f"simplificado_{file_hash[:8]}.pdf"
         pdf_path = gerar_pdf_simplificado(texto_simplificado, metadados_geracao, pdf_filename)
 
-        # Salvar o caminho na sessão
+        # Salvar texto_original em arquivo temporário (não na sessão - reduz cookie)
+        texto_original_path = os.path.join(UPLOAD_FOLDER, f"texto_{file_hash[:8]}.txt")
+        with open(texto_original_path, 'w', encoding='utf-8') as f:
+            f.write(texto_original)
+        # Registrar para limpeza automática LGPD
+        registrar_arquivo_temporario(texto_original_path, session_id=session.get('session_id'))
+
+        # Salvar o caminho na sessão (apenas referências, não dados grandes)
         session['pdf_path'] = pdf_path
         session['pdf_filename'] = pdf_filename
-        session['contexto_chat'] = contexto_chat  # NOVO: Salvar contexto para chat
-        session['texto_original'] = texto_original  # NOVO: Salvar texto original para referência
+        session['texto_original_path'] = texto_original_path  # Apenas o caminho, não o texto completo
+        session['contexto_chat'] = contexto_chat  # Contexto SEM documento_original
+        session.modified = True  # Forçar salvamento da sessão
+
+        logging.info(f"📄 PDF gerado: {pdf_filename}")
+        logging.info(f"📄 PDF salvo na sessão: {pdf_path}")
+        logging.info(f"📄 Texto original salvo em: {texto_original_path}")
+        logging.info(f"📄 Contexto chat salvo (sem documento): {len(str(contexto_chat))} chars")
 
         # Análise adicional do resultado
         analise = analisar_resultado_judicial(texto_simplificado)
@@ -2333,9 +2378,25 @@ def chat_contextual():
 def responder_com_gemini_inteligente(pergunta, contexto):
     """Usa Gemini para responder de forma inteligente e segura"""
 
+    logging.info(f"💬 CHAT: Pergunta recebida: '{pergunta}'")
+
+    # Tentar obter documento do contexto (compatibilidade) ou ler do arquivo
     documento_original = contexto.get("documento_original", "")
+    if not documento_original:
+        # Ler do arquivo temporário (novo método - reduz tamanho da sessão)
+        texto_original_path = session.get('texto_original_path')
+        if texto_original_path and os.path.exists(texto_original_path):
+            with open(texto_original_path, 'r', encoding='utf-8') as f:
+                documento_original = f.read()
+            logging.info(f"💬 CHAT: Documento lido do arquivo: {len(documento_original)} chars")
+        else:
+            logging.warning("💬 CHAT: Nenhum documento disponível")
+
     dados_extraidos = contexto.get("dados_extraidos", {})
     perspectiva = contexto.get("perspectiva", "autor")
+
+    logging.info(f"💬 CHAT: Contexto - Documento: {len(documento_original)} chars, Perspectiva: {perspectiva}")
+    logging.info(f"💬 CHAT: Dados extraídos: Valores={list(dados_extraidos.get('valores', {}).keys())}, Prazos={len(dados_extraidos.get('prazos', []))}")
 
     # Truncar documento se muito grande
     doc_truncado = documento_original[:4000] if len(documento_original) > 4000 else documento_original
@@ -2343,55 +2404,55 @@ def responder_com_gemini_inteligente(pergunta, contexto):
     prompt = f"""Você é o JUS Bot, um assistente especializado em responder perguntas sobre documentos jurídicos.
 
 REGRAS CRÍTICAS:
-1. Responda APENAS com informações que EXISTEM no documento
-2. Se a informação NÃO estiver no documento, diga claramente "Não encontrei essa informação no documento"
-3. NÃO invente, NÃO suponha, NÃO dê opiniões jurídicas
-4. NÃO dê conselhos sobre "devo recorrer", "devo fazer acordo", etc. -> redirecione para advogado
-5. Cite a referência quando possível (ex: "Segundo o documento, na página 2...")
-6. Seja amigável, claro e direto
+1. Responda APENAS com informações que EXISTEM no documento abaixo
+2. Se a informação NÃO estiver no documento, diga: "Não encontrei essa informação no documento"
+3. NÃO invente nada
+4. Se pergunta for "devo fazer X?", responda: "Não posso dar conselhos jurídicos. Procure um advogado"
+5. Cite onde encontrou a informação quando possível
+6. Seja direto e objetivo
 
-DADOS DO DOCUMENTO:
-- Partes: Autor: {dados_extraidos.get('partes', {}).get('autor', 'Não identificado')}, Réu: {dados_extraidos.get('partes', {}).get('reu', 'Não identificado')}
+DADOS EXTRAÍDOS:
+- Autor: {dados_extraidos.get('partes', {}).get('autor', 'Não encontrado')}
+- Réu: {dados_extraidos.get('partes', {}).get('reu', 'Não encontrado')}
 - Valores: {dados_extraidos.get('valores', {})}
 - Prazos: {dados_extraidos.get('prazos', [])}
-- Decisão: {dados_extraidos.get('decisao', 'Não identificada')}
+- Decisão: {dados_extraidos.get('decisao', 'Não encontrada')}
 - Audiências: {dados_extraidos.get('audiencias', [])}
-- Perspectiva do usuário: {perspectiva}
 
-DOCUMENTO COMPLETO:
+DOCUMENTO:
 {doc_truncado}
 
-PERGUNTA DO USUÁRIO:
-{pergunta}
+PERGUNTA: {pergunta}
 
-Analise a pergunta e responda seguindo as regras acima.Se for pergunta sobre "devo fazer X?", "tenho chance?", etc., responda:
-"Não posso dar conselhos jurídicos. Procure um advogado ou Defensoria Pública."
-
-Se for pergunta sobre informação que NÃO está no documento, responda:
-"Não encontrei essa informação no documento que você enviou. O documento contém informações sobre [listar o que tem]."
-
-Sua resposta:"""
+Responda de forma clara e direta:"""
 
     try:
+        logging.info("💬 🤖 Chamando Gemini para responder chat...")
         model = genai.GenerativeModel(GEMINI_MODELS[1])  # Flash para rapidez
         response = model.generate_content(prompt)
         resposta_texto = response.text.strip()
+        logging.info(f"💬 🤖 Gemini respondeu: '{resposta_texto[:100]}...'")
 
         # Detectar tipo de resposta
         tipo = "resposta"
         if "não encontrei" in resposta_texto.lower() or "não localizei" in resposta_texto.lower():
             tipo = "nao_encontrado"
+            logging.info("💬 Tipo: nao_encontrado")
         elif "não posso dar conselhos" in resposta_texto.lower():
             tipo = "redirecionamento_profissional"
+            logging.info("💬 Tipo: redirecionamento_profissional")
+        else:
+            logging.info("💬 Tipo: resposta")
 
         return {
-            "texto": f"🤖 {resposta_texto}",
+            "texto": resposta_texto,
             "tipo": tipo,
             "referencia": "documento_original"
         }
 
     except Exception as e:
-        logging.error(f"Erro ao gerar resposta com Gemini: {e}")
+        logging.error(f"💬 ❌ ERRO ao gerar resposta com Gemini: {e}", exc_info=True)
+        logging.info("💬 ⚠️ Usando fallback (função antiga)")
         # Fallback para função antiga
         return processar_pergunta_contextual(pergunta, contexto)
 
@@ -2537,11 +2598,23 @@ def estatisticas():
 @app.route("/download_pdf")
 def download_pdf():
     """Download do PDF com verificação de sessão"""
+    logging.info("📥 Tentando baixar PDF...")
+
     pdf_path = session.get('pdf_path')
     pdf_filename = session.get('pdf_filename', 'documento_simplificado.pdf')
-    
-    if not pdf_path or not os.path.exists(pdf_path):
+
+    logging.info(f"📥 PDF path na sessão: {pdf_path}")
+    logging.info(f"📥 PDF filename na sessão: {pdf_filename}")
+
+    if not pdf_path:
+        logging.error("📥 ❌ PDF path não encontrado na sessão")
         return jsonify({"erro": "PDF não encontrado. Por favor, processe um documento primeiro"}), 404
+
+    if not os.path.exists(pdf_path):
+        logging.error(f"📥 ❌ PDF não existe no disco: {pdf_path}")
+        return jsonify({"erro": "PDF não encontrado. Por favor, processe um documento primeiro"}), 404
+
+    logging.info(f"📥 ✅ PDF encontrado, enviando: {pdf_path}")
     
     try:
         return send_file(
