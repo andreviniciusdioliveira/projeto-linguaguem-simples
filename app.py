@@ -2257,7 +2257,7 @@ def processar():
         })
 
     except Exception as e:
-        logging.error(f"Erro ao processar arquivo: {e}")
+        logging.error(f"❌ Erro ao processar arquivo: {e}", exc_info=True)
         return jsonify({"erro": "Erro ao processar o arquivo. Verifique se não está corrompido"}), 500
 
 @app.route("/processar_texto", methods=["POST"])
