@@ -36,9 +36,7 @@ except ImportError:
 
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", os.urandom(24))
-app.config['SESSION_TYPE'] = 'filesystem'  # Usar filesystem para persistir sessões
-app.config['SESSION_PERMANENT'] = True  # Tornar sessões permanentes
-app.config['PERMANENT_SESSION_LIFETIME'] = 3600  # 1 hora (3600 segundos)
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=1)  # Sessão dura 1 hora
 logging.basicConfig(level=logging.INFO)
 
 # --- Configurações ---
@@ -668,18 +666,29 @@ def extrair_dados_estruturados(texto):
             if match not in dados["links_audiencia"]:
                 dados["links_audiencia"].append(match)
 
-    # NOVO: Extrair telefones
+    # NOVO: Extrair telefones (apenas telefones brasileiros válidos)
     telefone_patterns = [
-        r'\(?\d{2}\)?\s*\d{4,5}-?\d{4}',  # (11) 98765-4321 ou 11 98765-4321
-        r'(?:tel(?:efone)?|fone|contato):\s*(\d{2,4}[-\s]?\d{4,5}[-\s]?\d{4})'
+        r'\(?([1-9]{2})\)?\s*([2-5]\d{3})-?(\d{4})',  # Fixo: (XX) XXXX-XXXX
+        r'\(?([1-9]{2})\)?\s*(9\d{4})-?(\d{4})',      # Celular: (XX) 9XXXX-XXXX
+        r'(?:tel(?:efone)?|fone|contato)[:\s]+\(?([1-9]{2})\)?\s*([2-9]\d{3,4})-?(\d{4})'
     ]
 
     for pattern in telefone_patterns:
         matches = re.findall(pattern, texto, re.IGNORECASE)
         for match in matches:
-            telefone = match if isinstance(match, str) else match[0] if match else None
-            if telefone and telefone not in dados["telefones"]:
-                dados["telefones"].append(telefone)
+            if isinstance(match, tuple) and len(match) >= 3:
+                # Formatar telefone: (DDD) XXXXX-XXXX ou (DDD) XXXX-XXXX
+                ddd, parte1, parte2 = match[0], match[1], match[2]
+
+                # Validar DDD (11-99)
+                if int(ddd) < 11 or int(ddd) > 99:
+                    continue
+
+                # Formatar telefone
+                telefone = f"({ddd}) {parte1}-{parte2}"
+
+                if telefone not in dados["telefones"]:
+                    dados["telefones"].append(telefone)
 
     # NOVO: Extrair emails
     email_pattern = r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
@@ -1906,6 +1915,9 @@ def index():
 def processar():
     """Processa upload de PDF ou imagem com análise aprimorada"""
     try:
+        # Tornar sessão permanente para garantir persistência
+        session.permanent = True
+
         if 'file' not in request.files:
             return jsonify({"erro": "Nenhum arquivo enviado"}), 400
 
@@ -1983,22 +1995,27 @@ def processar():
         if erro:
             return jsonify({"erro": erro}), 500
 
+        # Criar cópia dos dados para adaptação de perspectiva
+        import copy
+        dados_adaptados = copy.deepcopy(dados_estruturados)
+
         # Adaptar texto E dados baseado na perspectiva do usuário
         if perspectiva == "autor":
-            texto_simplificado = adaptar_perspectiva_autor(texto_simplificado, dados_estruturados)
+            texto_simplificado = adaptar_perspectiva_autor(texto_simplificado, dados_adaptados)
         elif perspectiva == "reu":
-            texto_simplificado = adaptar_perspectiva_reu(texto_simplificado, dados_estruturados)
+            texto_simplificado = adaptar_perspectiva_reu(texto_simplificado, dados_adaptados)
 
-        # NOVA: Preparar contexto para chat (DEPOIS da adaptação de perspectiva)
-        contexto_chat = gerar_chat_contextual(texto_original, dados_estruturados)
+        # NOVA: Preparar contexto para chat (DEPOIS da adaptação de perspectiva, COM DADOS ADAPTADOS)
+        contexto_chat = gerar_chat_contextual(texto_original, dados_adaptados)
+        contexto_chat["perspectiva"] = perspectiva  # Salvar perspectiva no contexto
 
-        # Preparar metadados para o PDF
+        # Preparar metadados para o PDF (COM DADOS ADAPTADOS)
         metadados_geracao = {
             "modelo": results_cache.get(hashlib.md5(texto_original.encode()).hexdigest(), {}).get("modelo", "Gemini"),
             "tipo": metadados.get("tipo", file_extension),
             "tipo_documento": tipo_doc,
             "urgencia": info_doc["urgencia"],
-            "dados": dados_estruturados,
+            "dados": dados_adaptados,  # USAR DADOS ADAPTADOS
             "recursos": recursos_info
         }
 
@@ -2028,7 +2045,7 @@ def processar():
             "tipo_documento": tipo_doc,
             "urgencia": info_doc["urgencia"],
             "acao_necessaria": info_doc["acao_necessaria"],
-            "dados_extraidos": dados_estruturados,
+            "dados_extraidos": dados_adaptados,  # RETORNAR DADOS ADAPTADOS, NÃO OS ORIGINAIS
             "recursos_cabiveis": recursos_info,
             "perguntas_sugeridas": contexto_chat["perguntas_sugeridas"],
             "caracteres_original": len(texto_original),
