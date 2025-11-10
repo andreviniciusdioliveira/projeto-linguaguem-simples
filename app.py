@@ -189,7 +189,7 @@ IDENTIFICAÇÃO DO DOCUMENTO
 💰 VALORES E OBRIGAÇÕES
 **ATENÇÃO: Procure atentamente por valores monetários no texto, especialmente:**
 - Indenizações por danos morais (procure "danos morais", "R$", "reais")
-- Indenizações por danos materiais (procure "danos materiais", "lucros cessantes")  
+- Indenizações por danos materiais (procure "danos materiais", "lucros cessantes")
 - Custas e honorários (procure "honorários", "custas", "despesas")
 
 - Valor da causa: R$ [extrair valor ou indicar "não especificado"]
@@ -228,6 +228,496 @@ IDENTIFICAÇÃO DO DOCUMENTO
 
 **TEXTO ORIGINAL A SIMPLIFICAR:**
 """
+
+# Prompt melhorado com identificação de tipo
+PROMPT_SIMPLIFICACAO_MELHORADO = """**PAPEL:** Você é um especialista em linguagem simples do Poder Judiciário.
+
+**INSTRUÇÕES CRÍTICAS:**
+1. NUNCA invente informações que não estejam no documento
+2. SEMPRE identifique o tipo de documento primeiro
+3. Use APENAS informações presentes no texto original
+4. Se for MANDADO, destaque a urgência e ação necessária
+5. Se for INTIMAÇÃO, explique claramente do que se trata
+
+**ANÁLISE OBRIGATÓRIA DO DOCUMENTO:**
+
+1. TIPO DE DOCUMENTO:
+Identifique: [Sentença/Acórdão/Decisão/Despacho/Mandado de Citação/Mandado de Intimação/Intimação/etc.]
+
+2. SE FOR MANDADO (URGÊNCIA MÁXIMA):
+🚨 MANDADO - AÇÃO OBRIGATÓRIA 🚨
+- Tipo específico: [Citação/Intimação/Penhora/Despejo]
+- O que fazer: [Ação clara e específica]
+- Prazo: [Extrair do documento]
+- Consequências de ignorar: [Baseado no tipo]
+
+3. SE FOR INTIMAÇÃO:
+📬 INTIMAÇÃO - AVISO IMPORTANTE
+- Sobre o quê: [Sentença/Audiência/Pagamento/etc.]
+- Data/Prazo: [Extrair do documento]
+- Ação necessária: [O que o cidadão deve fazer]
+
+4. ESTRUTURA PARA OUTROS DOCUMENTOS:
+
+📊 ENTENDA AQUI
+[Escolha o ícone apropriado baseado no resultado]
+✅ VITÓRIA TOTAL - Você ganhou completamente
+❌ DERROTA - Você perdeu a causa
+⚠️ VITÓRIA PARCIAL - Você ganhou parte
+⏳ AGUARDANDO - Não há decisão final
+📋 ANDAMENTO - Apenas despacho processual
+
+**Em uma frase:** [Resultado em linguagem simples]
+
+📑 O QUE ACONTECEU
+[Contexto em 3-4 linhas simples]
+
+⚖️ DECISÃO
+[Use Juiz(a) para 1ª instância ou Desembargador(a) para 2ª instância]
+[Explique a decisão em parágrafos curtos]
+
+💰 VALORES E OBRIGAÇÕES
+**EXTRAIA TODOS OS VALORES MENCIONADOS:**
+- Danos morais: R$ [valor exato do documento]
+- Danos materiais: R$ [valor exato do documento]
+- Valor total: R$ [somar se possível]
+- Honorários: [percentual e base de cálculo]
+- Custas: [quem paga]
+- Correção: [índice e data inicial]
+
+📅 PRAZOS IMPORTANTES
+- Recurso: [dias - se cabível]
+- Pagamento: [dias - se houver]
+- Audiência: [data e hora - se houver]
+
+🚶 PRÓXIMOS PASSOS
+[Orientações práticas baseadas no tipo de decisão]
+
+📚 MINI DICIONÁRIO
+[APENAS termos que aparecem no documento]
+• **Termo**: Explicação simples
+
+⚠️ CABE RECURSO?
+[Se cabível, explique:]
+- Tipo de recurso: [Nome]
+- Prazo: [Dias]
+- Onde: [Tribunal/Turma]
+- Precisa de advogado: [Sim/Não]
+
+---
+*Documento processado em: [data/hora]*
+*Este resumo não substitui orientação jurídica*
+
+**REGRAS:**
+1. Máximo 20 palavras por frase
+2. Substitua jargões por palavras comuns
+3. Identifique corretamente o tipo de documento
+4. DESTAQUE se for MANDADO (urgência máxima)
+5. Mantenha 100% de fidelidade ao documento original
+
+**TEXTO ORIGINAL:**
+"""
+
+# ============= NOVAS FUNÇÕES DE IDENTIFICAÇÃO E ANÁLISE =============
+
+def identificar_tipo_documento(texto):
+    """Identifica o tipo de documento jurídico com precisão"""
+    texto_lower = texto.lower()
+
+    # Padrões específicos para cada tipo
+    tipos = {
+        "mandado_citacao": {
+            "padroes": ["mandado de citação", "cite-se", "para contestar", "para responder"],
+            "urgencia": "MÁXIMA",
+            "acao_necessaria": "Procurar advogado URGENTE"
+        },
+        "mandado_intimacao": {
+            "padroes": ["mandado de intimação", "mandado", "comparecer pessoalmente"],
+            "urgencia": "MÁXIMA",
+            "acao_necessaria": "Comparecer no dia/hora marcados"
+        },
+        "mandado_penhora": {
+            "padroes": ["mandado de penhora", "penhore-se", "auto de penhora"],
+            "urgencia": "MÁXIMA",
+            "acao_necessaria": "Pagar ou apresentar defesa"
+        },
+        "mandado_despejo": {
+            "padroes": ["mandado de despejo", "desocupação", "reintegração de posse"],
+            "urgencia": "MÁXIMA",
+            "acao_necessaria": "Desocupar ou procurar advogado"
+        },
+        "intimacao": {
+            "padroes": ["intimação", "fica intimado", "intimar", "dar ciência"],
+            "urgencia": "ALTA",
+            "acao_necessaria": "Tomar ciência e verificar prazos"
+        },
+        "sentenca": {
+            "padroes": ["sentença", "julgo procedente", "julgo improcedente", "dispositivo", "ante o exposto"],
+            "urgencia": "ALTA",
+            "acao_necessaria": "Verificar prazo para recurso"
+        },
+        "acordao": {
+            "padroes": ["acórdão", "turma", "câmara", "relator", "voto", "recurso conhecido"],
+            "urgencia": "MÉDIA",
+            "acao_necessaria": "Analisar decisão do recurso"
+        },
+        "decisao_interlocutoria": {
+            "padroes": ["decisão interlocutória", "tutela", "liminar", "defiro", "indefiro"],
+            "urgencia": "ALTA",
+            "acao_necessaria": "Cumprir ou recorrer via agravo"
+        },
+        "despacho": {
+            "padroes": ["despacho", "diga", "manifeste-se", "vista dos autos"],
+            "urgencia": "MÉDIA",
+            "acao_necessaria": "Aguardar ou manifestar se necessário"
+        }
+    }
+
+    for tipo, info in tipos.items():
+        for padrao in info["padroes"]:
+            if padrao in texto_lower:
+                return tipo, info
+
+    return "documento", {"urgencia": "MÉDIA", "acao_necessaria": "Ler com atenção"}
+
+def analisar_recursos_cabiveis(tipo_doc, texto):
+    """Analisa recursos cabíveis com detalhes específicos"""
+    texto_lower = texto.lower()
+
+    # Verifica se é Juizado Especial
+    eh_juizado = "juizado especial" in texto_lower
+
+    recursos_info = {
+        "sentenca": {
+            "recurso": "Recurso Inominado" if eh_juizado else "Apelação",
+            "prazo": "10 dias" if eh_juizado else "15 dias úteis",
+            "instancia": "Turma Recursal" if eh_juizado else "Tribunal de Justiça",
+            "preparo": True,
+            "valor_preparo": "Aproximadamente 3% do valor da causa",
+            "dica": "Sem advogado? Procure o Juizado!" if eh_juizado else "Procure advogado ou Defensoria"
+        },
+        "acordao": {
+            "recurso": "Recurso Especial/Extraordinário ou Embargos de Declaração",
+            "prazo": "15 dias úteis (REsp/RE) ou 5 dias (Embargos)",
+            "instancia": "STJ/STF ou mesmo Tribunal",
+            "preparo": True,
+            "valor_preparo": "Porte de remessa e retorno",
+            "dica": "Recursos complexos - necessário advogado especializado"
+        },
+        "decisao_interlocutoria": {
+            "recurso": "Agravo de Instrumento",
+            "prazo": "15 dias úteis",
+            "instancia": "Tribunal de Justiça",
+            "preparo": True,
+            "valor_preparo": "Valor reduzido comparado à apelação",
+            "dica": "Recurso urgente - não espere a sentença final"
+        },
+        "despacho": {
+            "recurso": None,
+            "observacao": "Despacho não comporta recurso",
+            "dica": "Apenas cumpra o determinado ou aguarde"
+        }
+    }
+
+    return recursos_info.get(tipo_doc, None)
+
+def extrair_dados_estruturados(texto):
+    """Extrai todos os dados importantes do documento"""
+    import re
+    from datetime import datetime, timedelta
+
+    dados = {
+        "numero_processo": None,
+        "partes": {"autor": None, "reu": None},
+        "valores": {
+            "danos_morais": None,
+            "danos_materiais": None,
+            "lucros_cessantes": None,
+            "valor_causa": None,
+            "honorarios": None,
+            "custas": None,
+            "total": None
+        },
+        "prazos": [],
+        "datas_importantes": {},
+        "decisao": None,
+        "autoridade": None,
+        "audiencias": [],
+        "tipo_acao": None
+    }
+
+    # Número do processo (formatos variados)
+    processo_patterns = [
+        r'\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}',  # CNJ
+        r'\d{4}\.\d{2}\.\d{6}-\d',  # Antigo
+        r'Processo\s+n[º°]?\s*([\d\.\-\/]+)'
+    ]
+
+    for pattern in processo_patterns:
+        match = re.search(pattern, texto, re.IGNORECASE)
+        if match:
+            dados["numero_processo"] = match.group()
+            break
+
+    # Identificar partes com múltiplos padrões
+    autor_patterns = [
+        r'(?:Autor|Requerente|Exequente|Reclamante|Impetrante):\s*([^,\n]+)',
+        r'([A-ZÀ-Ú][A-Za-zà-ú\s]+)\s*(?:moveu|ajuizou|propôs|requereu)'
+    ]
+
+    reu_patterns = [
+        r'(?:Réu|Requerido|Executado|Reclamado|Impetrado):\s*([^,\n]+)',
+        r'em\s+face\s+de\s+([A-ZÀ-Ú][A-Za-zà-ú\s]+)'
+    ]
+
+    for pattern in autor_patterns:
+        match = re.search(pattern, texto)
+        if match:
+            dados["partes"]["autor"] = match.group(1).strip()
+            break
+
+    for pattern in reu_patterns:
+        match = re.search(pattern, texto)
+        if match:
+            dados["partes"]["reu"] = match.group(1).strip()
+            break
+
+    # Extração detalhada de valores
+    # Procurar especificamente no dispositivo
+    dispositivo_match = re.search(
+        r'(?:DISPOSITIVO|DECIDE|JULGO|ACORDAM).*?(?=Publique-se|P\.R\.I\.|Intimem-se|$)',
+        texto, re.IGNORECASE | re.DOTALL
+    )
+
+    texto_busca = dispositivo_match.group(0) if dispositivo_match else texto
+
+    # Danos morais
+    danos_morais_patterns = [
+        r'danos?\s+morais?.*?R\$\s*([\d\.,]+)',
+        r'indenização.*?moral.*?R\$\s*([\d\.,]+)',
+        r'R\$\s*([\d\.,]+).*?danos?\s+morais?'
+    ]
+
+    for pattern in danos_morais_patterns:
+        match = re.search(pattern, texto_busca, re.IGNORECASE | re.DOTALL)
+        if match:
+            dados["valores"]["danos_morais"] = match.group(1)
+            break
+
+    # Danos materiais
+    danos_materiais_patterns = [
+        r'danos?\s+materiais?.*?R\$\s*([\d\.,]+)',
+        r'danos?\s+emergentes?.*?R\$\s*([\d\.,]+)'
+    ]
+
+    for pattern in danos_materiais_patterns:
+        match = re.search(pattern, texto_busca, re.IGNORECASE | re.DOTALL)
+        if match:
+            dados["valores"]["danos_materiais"] = match.group(1)
+            break
+
+    # Honorários
+    honorarios_match = re.search(r'honorários.*?(\d+)\s*%', texto, re.IGNORECASE)
+    if honorarios_match:
+        dados["valores"]["honorarios"] = f"{honorarios_match.group(1)}%"
+
+    # Valor da causa
+    valor_causa_match = re.search(r'valor\s+da\s+causa.*?R\$\s*([\d\.,]+)', texto, re.IGNORECASE)
+    if valor_causa_match:
+        dados["valores"]["valor_causa"] = valor_causa_match.group(1)
+
+    # Calcular total se possível
+    total = 0
+    for key in ["danos_morais", "danos_materiais", "lucros_cessantes"]:
+        if dados["valores"][key]:
+            valor_str = dados["valores"][key].replace(".", "").replace(",", ".")
+            try:
+                total += float(valor_str)
+            except:
+                pass
+
+    if total > 0:
+        dados["valores"]["total"] = f"R$ {total:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+    # Extrair prazos
+    prazo_patterns = [
+        r'prazo\s+de\s+(\d+)\s+(dias?(?:\s+úteis)?)',
+        r'(\d+)\s+(dias?(?:\s+úteis)?)\s+para',
+        r'no\s+prazo\s+de\s+(\d+)\s+(dias?)'
+    ]
+
+    for pattern in prazo_patterns:
+        matches = re.findall(pattern, texto, re.IGNORECASE)
+        for match in matches:
+            prazo = f"{match[0]} {match[1]}"
+            if prazo not in dados["prazos"]:
+                dados["prazos"].append(prazo)
+
+    # Identificar decisão
+    if re.search(r'julgo\s+procedentes?\s+os\s+pedidos', texto, re.IGNORECASE):
+        dados["decisao"] = "PROCEDENTE (Você ganhou)"
+    elif re.search(r'julgo\s+improcedentes?\s+os\s+pedidos', texto, re.IGNORECASE):
+        dados["decisao"] = "IMPROCEDENTE (Você perdeu)"
+    elif re.search(r'julgo\s+parcialmente\s+procedentes?', texto, re.IGNORECASE):
+        dados["decisao"] = "PARCIALMENTE PROCEDENTE (Vitória parcial)"
+    elif re.search(r'homologo.*?acordo', texto, re.IGNORECASE):
+        dados["decisao"] = "ACORDO HOMOLOGADO"
+
+    # Identificar autoridade
+    juiz_match = re.search(r'(?:Juiz|Juíza)(?:\s+de\s+Direito)?:\s*([A-ZÀ-Ú][A-Za-zà-ú\s]+)', texto)
+    if juiz_match:
+        dados["autoridade"] = f"Juiz(a): {juiz_match.group(1).strip()}"
+    else:
+        desembargador_match = re.search(r'(?:Desembargador|Relator):\s*([A-ZÀ-Ú][A-Za-zà-ú\s]+)', texto)
+        if desembargador_match:
+            dados["autoridade"] = f"Desembargador(a): {desembargador_match.group(1).strip()}"
+
+    # Extrair audiências
+    audiencia_patterns = [
+        r'audiência.*?dia\s+(\d{1,2}[/\.]\d{1,2}[/\.]\d{2,4}).*?(\d{1,2}[:h]\d{2})',
+        r'(\d{1,2}[/\.]\d{1,2}[/\.]\d{2,4}).*?às?\s+(\d{1,2}[:h]\d{2}).*?audiência'
+    ]
+
+    for pattern in audiencia_patterns:
+        matches = re.findall(pattern, texto, re.IGNORECASE)
+        for match in matches:
+            dados["audiencias"].append({
+                "data": match[0],
+                "hora": match[1].replace("h", ":")
+            })
+
+    return dados
+
+def gerar_chat_contextual(texto_original, dados_extraidos):
+    """Prepara contexto para o chat baseado APENAS no documento"""
+    contexto = {
+        "documento_original": texto_original,
+        "dados_extraidos": dados_extraidos,
+        "perguntas_sugeridas": [],
+        "respostas_preparadas": {}
+    }
+
+    # Gerar perguntas sugeridas baseadas no que foi encontrado
+    if dados_extraidos["valores"]["total"]:
+        contexto["perguntas_sugeridas"].append("Qual o valor total que vou receber?")
+        contexto["respostas_preparadas"]["valor_total"] = f"Segundo o documento, o valor total é {dados_extraidos['valores']['total']}"
+
+    if dados_extraidos["prazos"]:
+        contexto["perguntas_sugeridas"].append("Quais são os prazos importantes?")
+        prazos_texto = ", ".join(dados_extraidos["prazos"])
+        contexto["respostas_preparadas"]["prazos"] = f"Os prazos mencionados no documento são: {prazos_texto}"
+
+    if dados_extraidos["audiencias"]:
+        contexto["perguntas_sugeridas"].append("Quando é a audiência?")
+        aud = dados_extraidos["audiencias"][0]
+        contexto["respostas_preparadas"]["audiencia"] = f"A audiência está marcada para {aud['data']} às {aud['hora']}"
+
+    if dados_extraidos["decisao"]:
+        contexto["perguntas_sugeridas"].append("Qual foi a decisão?")
+        contexto["respostas_preparadas"]["decisao"] = f"A decisão foi: {dados_extraidos['decisao']}"
+
+    return contexto
+
+def adaptar_perspectiva_autor(texto, dados):
+    """Adapta o texto para a perspectiva do autor"""
+    texto = texto.replace("a parte autora", "você")
+    texto = texto.replace("o requerente", "você")
+    texto = texto.replace("ao autor", "a você")
+
+    if dados["decisao"] and "PROCEDENTE" in dados["decisao"]:
+        texto = texto.replace("Foi decidido", "✅ Boa notícia! Foi decidido")
+
+    return texto
+
+def adaptar_perspectiva_reu(texto, dados):
+    """Adapta o texto para a perspectiva do réu"""
+    texto = texto.replace("a parte ré", "você")
+    texto = texto.replace("o requerido", "você")
+    texto = texto.replace("o réu", "você")
+
+    if dados["decisao"] and "IMPROCEDENTE" in dados["decisao"]:
+        texto = texto.replace("Foi decidido", "✅ Boa notícia! Foi decidido")
+    elif dados["decisao"] and "PROCEDENTE" in dados["decisao"]:
+        texto = texto.replace("Foi decidido", "⚠️ Atenção! Foi decidido")
+
+    return texto
+
+def processar_pergunta_contextual(pergunta, contexto):
+    """Processa pergunta garantindo resposta apenas do documento"""
+    pergunta_lower = pergunta.lower()
+    dados = contexto["dados_extraidos"]
+
+    # Respostas preparadas
+    if "valor" in pergunta_lower and "total" in pergunta_lower:
+        if dados["valores"]["total"]:
+            return {
+                "texto": f"Segundo o documento, o valor total é {dados['valores']['total']}",
+                "tipo": "resposta",
+                "referencia": "dispositivo"
+            }
+
+    if "prazo" in pergunta_lower:
+        if dados["prazos"]:
+            prazos = ", ".join(dados["prazos"])
+            return {
+                "texto": f"Os prazos mencionados no documento são: {prazos}",
+                "tipo": "resposta",
+                "referencia": "documento"
+            }
+
+    if "audiência" in pergunta_lower or "audiencia" in pergunta_lower:
+        if dados["audiencias"]:
+            aud = dados["audiencias"][0]
+            return {
+                "texto": f"A audiência está marcada para {aud['data']} às {aud['hora']}",
+                "tipo": "resposta",
+                "referencia": "intimação"
+            }
+
+    if "ganhou" in pergunta_lower or "perdeu" in pergunta_lower or "decisão" in pergunta_lower:
+        if dados["decisao"]:
+            return {
+                "texto": f"A decisão foi: {dados['decisao']}",
+                "tipo": "resposta",
+                "referencia": "dispositivo"
+            }
+
+    # Perguntas sobre advogado jurídico geral
+    if "o que é" in pergunta_lower or "como funciona" in pergunta_lower:
+        return {
+            "texto": "Não posso dar explicações jurídicas gerais. Para orientações sobre o SEU documento, pergunte sobre valores, prazos ou decisões mencionadas nele.",
+            "tipo": "redirecionamento"
+        }
+
+    # Conselhos jurídicos
+    if "devo" in pergunta_lower or "deveria" in pergunta_lower or "melhor" in pergunta_lower:
+        return {
+            "texto": "Não posso dar conselhos jurídicos. Procure um advogado ou a Defensoria Pública para orientações sobre o que fazer.",
+            "tipo": "orientacao"
+        }
+
+    # Buscar no documento original
+    if contexto.get("documento_original"):
+        # Tentar encontrar informação relevante no texto
+        resultado = buscar_no_documento(pergunta, contexto["documento_original"])
+        if resultado:
+            return {
+                "texto": f"No documento consta: {resultado}",
+                "tipo": "resposta",
+                "referencia": "documento"
+            }
+
+    return {
+        "texto": "Não encontrei essa informação no documento enviado. Posso ajudar com valores, prazos, partes ou decisões que estejam mencionados.",
+        "tipo": "nao_encontrado"
+    }
+
+def buscar_no_documento(pergunta, documento):
+    """Busca informação específica no documento"""
+    # Implementar busca inteligente
+    # Por enquanto, retorna None
+    return None
+
 def extrair_valores_sentenca(texto):
     """Extrai valores monetários importantes da sentença"""
     valores = {
@@ -992,30 +1482,32 @@ def processar():
     try:
         if 'file' not in request.files:
             return jsonify({"erro": "Nenhum arquivo enviado"}), 400
-            
+
         file = request.files['file']
+        perspectiva = request.form.get('perspectiva', 'nao_informado')  # autor/reu/nao_informado
+
         if file.filename == '':
             return jsonify({"erro": "Nenhum arquivo selecionado"}), 400
-            
+
         if not allowed_file(file.filename):
             return jsonify({"erro": "Formato inválido. Aceitos: PDF, PNG, JPG, JPEG, GIF, BMP, TIFF, WEBP"}), 400
-        
+
         # Verifica tamanho
         file.seek(0, os.SEEK_END)
         size = file.tell()
         file.seek(0)
-        
+
         if size > MAX_FILE_SIZE:
             return jsonify({"erro": f"Arquivo muito grande. Máximo: {MAX_FILE_SIZE//1024//1024}MB"}), 400
-        
+
         # Lê o arquivo
         file_bytes = file.read()
         file_extension = file.filename.rsplit('.', 1)[1].lower()
-        
+
         # Hash do arquivo para cache
         file_hash = hashlib.md5(file_bytes).hexdigest()
         logging.info(f"Processando arquivo: {secure_filename(file.filename)} ({size/1024:.1f}KB) - Hash: {file_hash}")
-        
+
         # Determina se é PDF ou imagem
         if file_extension == 'pdf':
             # Processa PDF
@@ -1032,28 +1524,58 @@ def processar():
                     }), 500
                 else:
                     raise
-            
+
             # Adiciona aviso sobre qualidade do OCR se necessário
             if metadados.get("qualidade_ocr") == "baixa":
                 texto_original = "[AVISO: A qualidade do OCR foi baixa. Alguns trechos podem estar incorretos.]\n\n" + texto_original
         else:
             return jsonify({"erro": "Tipo de arquivo não suportado"}), 400
-        
+
         if len(texto_original) < 10:
             return jsonify({"erro": "Arquivo não contém texto suficiente para processar"}), 400
-        
-        # Simplificar com Gemini
-        texto_simplificado, erro = simplificar_com_gemini(texto_original)
-        
+
+        # NOVA: Identificar tipo de documento
+        tipo_doc, info_doc = identificar_tipo_documento(texto_original)
+        logging.info(f"Tipo de documento identificado: {tipo_doc} - Urgência: {info_doc['urgencia']}")
+
+        # NOVA: Extrair dados estruturados
+        dados_estruturados = extrair_dados_estruturados(texto_original)
+        logging.info(f"Dados extraídos - Processo: {dados_estruturados['numero_processo']}, Decisão: {dados_estruturados['decisao']}")
+
+        # NOVA: Analisar recursos cabíveis
+        recursos_info = analisar_recursos_cabiveis(tipo_doc, texto_original)
+
+        # NOVA: Preparar contexto para chat
+        contexto_chat = gerar_chat_contextual(texto_original, dados_estruturados)
+
+        # Adaptar prompt com informações do tipo de documento
+        prompt_adaptado = PROMPT_SIMPLIFICACAO_MELHORADO
+        prompt_adaptado += f"\n\nTIPO IDENTIFICADO: {tipo_doc}"
+        prompt_adaptado += f"\nPERSPECTIVA DO USUÁRIO: {perspectiva}"
+        prompt_adaptado += f"\n\nTEXTO ORIGINAL:\n{texto_original}"
+
+        # Simplificar com Gemini usando prompt melhorado
+        texto_simplificado, erro = simplificar_com_gemini(prompt_adaptado)
+
         if erro:
             return jsonify({"erro": erro}), 500
-        
+
+        # Adaptar texto baseado na perspectiva do usuário
+        if perspectiva == "autor":
+            texto_simplificado = adaptar_perspectiva_autor(texto_simplificado, dados_estruturados)
+        elif perspectiva == "reu":
+            texto_simplificado = adaptar_perspectiva_reu(texto_simplificado, dados_estruturados)
+
         # Preparar metadados para o PDF
         metadados_geracao = {
             "modelo": results_cache.get(hashlib.md5(texto_original.encode()).hexdigest(), {}).get("modelo", "Gemini"),
-            "tipo": metadados.get("tipo", file_extension)
+            "tipo": metadados.get("tipo", file_extension),
+            "tipo_documento": tipo_doc,
+            "urgencia": info_doc["urgencia"],
+            "dados": dados_estruturados,
+            "recursos": recursos_info
         }
-        
+
         # Adiciona informações específicas do tipo de arquivo
         if file_extension == 'pdf':
             metadados_geracao["paginas"] = metadados.get("total_paginas")
@@ -1061,20 +1583,28 @@ def processar():
         else:
             metadados_geracao["dimensoes"] = metadados.get("dimensoes")
             metadados_geracao["qualidade_ocr"] = metadados.get("qualidade_ocr")
-        
+
         # Gerar PDF simplificado
         pdf_filename = f"simplificado_{file_hash[:8]}.pdf"
         pdf_path = gerar_pdf_simplificado(texto_simplificado, metadados_geracao, pdf_filename)
-        
+
         # Salvar o caminho na sessão
         session['pdf_path'] = pdf_path
         session['pdf_filename'] = pdf_filename
-        
+        session['contexto_chat'] = contexto_chat  # NOVO: Salvar contexto para chat
+        session['texto_original'] = texto_original  # NOVO: Salvar texto original para referência
+
         # Análise adicional do resultado
         analise = analisar_resultado_judicial(texto_simplificado)
-        
+
         return jsonify({
             "texto": texto_simplificado,
+            "tipo_documento": tipo_doc,
+            "urgencia": info_doc["urgencia"],
+            "acao_necessaria": info_doc["acao_necessaria"],
+            "dados_extraidos": dados_estruturados,
+            "recursos_cabiveis": recursos_info,
+            "perguntas_sugeridas": contexto_chat["perguntas_sugeridas"],
             "caracteres_original": len(texto_original),
             "caracteres_simplificado": len(texto_simplificado),
             "reducao_percentual": round((1 - len(texto_simplificado)/len(texto_original)) * 100, 1),
@@ -1083,7 +1613,7 @@ def processar():
             "modelo_usado": metadados_geracao.get("modelo", "Gemini"),
             "tipo_arquivo": file_extension
         })
-        
+
     except Exception as e:
         logging.error(f"Erro ao processar arquivo: {e}")
         return jsonify({"erro": "Erro ao processar o arquivo. Verifique se não está corrompido"}), 500
@@ -1163,6 +1693,44 @@ def analisar_resultado_judicial(texto):
         analise["palavras_chave"].append("recursos")
     
     return analise
+
+@app.route("/chat", methods=["POST"])
+@rate_limit
+def chat_contextual():
+    """Chat baseado APENAS no documento enviado"""
+    try:
+        data = request.get_json()
+        pergunta = data.get("pergunta", "").strip()
+
+        if not pergunta:
+            return jsonify({
+                "resposta": "Por favor, faça uma pergunta.",
+                "tipo": "erro"
+            }), 400
+
+        # Recuperar contexto da sessão
+        contexto = session.get('contexto_chat')
+        if not contexto:
+            return jsonify({
+                "resposta": "Por favor, envie um documento primeiro para que eu possa responder sobre ele.",
+                "tipo": "erro"
+            }), 400
+
+        # Verificar se a pergunta é sobre o documento
+        resposta = processar_pergunta_contextual(pergunta, contexto)
+
+        return jsonify({
+            "resposta": resposta["texto"],
+            "tipo": resposta["tipo"],
+            "referencia": resposta.get("referencia")
+        })
+
+    except Exception as e:
+        logging.error(f"Erro no chat: {e}")
+        return jsonify({
+            "resposta": "Desculpe, ocorreu um erro. Tente novamente.",
+            "tipo": "erro"
+        }), 500
 
 @app.route("/diagnostico")
 def diagnostico():
