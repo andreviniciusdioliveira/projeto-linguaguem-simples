@@ -391,25 +391,25 @@ def identificar_tipo_documento(texto):
     # Truncar texto se muito longo (usar apenas início que geralmente tem o tipo)
     texto_analise = texto[:3000] if len(texto) > 3000 else texto
 
-    prompt = f"""Analise este documento jurídico e identifique qual o tipo EXATO.
+    prompt = f"""Analise este documento jurídico brasileiro e identifique o tipo EXATO.
 
-IMPORTANTE: Leia o documento com atenção. Se tiver dúvida, prefira "mandado" a "documento".
+REGRAS CRÍTICAS:
+1. Se o documento tem as palavras "MANDADO" ou "OFICIAL DE JUSTIÇA" ou "CUMPRA-SE" → responda "mandado"
+2. Se tem "SENTENÇA" ou "JULGO PROCEDENTE/IMPROCEDENTE" → responda "sentenca"
+3. Se tem "ACÓRDÃO" ou "RELATOR" ou "TURMA JULGADORA" → responda "acordao"
+4. Se tem apenas "INTIMAÇÃO" SEM mandado → responda "intimacao"
+5. Se tem "DESPACHO" → responda "despacho"
 
-Tipos possíveis (responda EXATAMENTE uma destas palavras):
-- sentenca (decisão final com "julgo procedente/improcedente")
-- acordao (decisão de tribunal, tem relator/turma)
-- mandado (qualquer tipo de mandado: citação, intimação, penhora, etc)
-- intimacao (aviso simples, não é mandado)
-- despacho (despacho do juiz)
+ATENÇÃO: Procure pelas palavras-chave no INÍCIO do documento!
 
 Documento:
 {texto_analise}
 
-Responda com UMA ÚNICA PALAVRA: sentenca, acordao, mandado, intimacao ou despacho"""
+Responda APENAS UMA PALAVRA (sem pontuação): sentenca, acordao, mandado, intimacao ou despacho"""
 
     try:
         logging.info("🤖 Chamando Gemini para identificar tipo de documento...")
-        model = genai.GenerativeModel(GEMINI_MODELS[1])  # Usar flash para rapidez
+        model = genai.GenerativeModel(GEMINI_MODELS[1]["name"])  # Usar flash para rapidez
         response = model.generate_content(prompt)
         tipo_bruto = response.text.strip()
         logging.info(f"🤖 Gemini retornou: '{tipo_bruto}'")
@@ -825,7 +825,7 @@ Responda APENAS com uma palavra: "autor" ou "reu"
 Analise o contexto e determine qual a perspectiva mais provável."""
 
     try:
-        model = genai.GenerativeModel(GEMINI_MODELS[1])  # Flash para rapidez
+        model = genai.GenerativeModel(GEMINI_MODELS[1]["name"])  # Flash para rapidez
         response = model.generate_content(prompt)
         perspectiva = response.text.strip().lower()
 
@@ -2401,34 +2401,37 @@ def responder_com_gemini_inteligente(pergunta, contexto):
     # Truncar documento se muito grande
     doc_truncado = documento_original[:4000] if len(documento_original) > 4000 else documento_original
 
-    prompt = f"""Você é o JUS Bot, um assistente especializado em responder perguntas sobre documentos jurídicos.
+    prompt = f"""Você é o JUS Bot, assistente que explica documentos jurídicos em LINGUAGEM SIMPLES.
 
 REGRAS CRÍTICAS:
-1. Responda APENAS com informações que EXISTEM no documento abaixo
-2. Se a informação NÃO estiver no documento, diga: "Não encontrei essa informação no documento"
-3. NÃO invente nada
-4. Se pergunta for "devo fazer X?", responda: "Não posso dar conselhos jurídicos. Procure um advogado"
-5. Cite onde encontrou a informação quando possível
-6. Seja direto e objetivo
+1. Seja EXTREMAMENTE CONCISO - máximo 2-3 frases curtas
+2. Use linguagem SIMPLES, como se explicasse para uma criança
+3. NÃO cite o documento literalmente - PARAFRASEIE
+4. Se perguntar "o que é X?", explique em 1 frase simples
+5. Se NÃO tiver a informação, diga apenas: "Não encontrei essa informação no documento"
+6. Se perguntar "devo fazer X?", diga: "Procure um advogado para orientação"
+7. NÃO use termos jurídicos complexos - SIMPLIFIQUE
 
-DADOS EXTRAÍDOS:
-- Autor: {dados_extraidos.get('partes', {}).get('autor', 'Não encontrado')}
-- Réu: {dados_extraidos.get('partes', {}).get('reu', 'Não encontrado')}
-- Valores: {dados_extraidos.get('valores', {})}
-- Prazos: {dados_extraidos.get('prazos', [])}
-- Decisão: {dados_extraidos.get('decisao', 'Não encontrada')}
-- Audiências: {dados_extraidos.get('audiencias', [])}
+EXEMPLOS DE RESPOSTAS BOAS:
+❌ RUIM: "A decisão tomada foi PARCIALMENTE PROCEDENTE. (Fonte: 'Sobre o mérito, o pedido é procedente em parte.' - FUNDAMENTAÇÃO do DOCUMENTO)"
+✅ BOM: "O juiz aceitou parte do que você pediu e negou outra parte."
 
-DOCUMENTO:
-{doc_truncado}
+❌ RUIM: "Os próximos passos são: 1. Participar da teleaudiência... 2. Comparecer acompanhado..."
+✅ BOM: "Você precisa entrar na audiência online no dia 26/05/2025 às 9h. Leve um advogado."
+
+DADOS DO DOCUMENTO:
+- Partes: {dados_extraidos.get('partes', {}).get('autor', 'não encontrado')} vs {dados_extraidos.get('partes', {}).get('reu', 'não encontrado')}
+- Valores: {dados_extraidos.get('valores', {}).get('total', 'não informado')}
+- Prazos: {', '.join(dados_extraidos.get('prazos', [])[:2]) if dados_extraidos.get('prazos') else 'nenhum'}
+- Decisão: {dados_extraidos.get('decisao', 'não informada')[:100]}
 
 PERGUNTA: {pergunta}
 
-Responda de forma clara e direta:"""
+Responda em NO MÁXIMO 2-3 FRASES CURTAS E SIMPLES:"""
 
     try:
         logging.info("💬 🤖 Chamando Gemini para responder chat...")
-        model = genai.GenerativeModel(GEMINI_MODELS[1])  # Flash para rapidez
+        model = genai.GenerativeModel(GEMINI_MODELS[1]["name"])  # Flash para rapidez
         response = model.generate_content(prompt)
         resposta_texto = response.text.strip()
         logging.info(f"💬 🤖 Gemini respondeu: '{resposta_texto[:100]}...'")
