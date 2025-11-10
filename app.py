@@ -2218,7 +2218,7 @@ def processar():
         pdf_path = gerar_pdf_simplificado(texto_simplificado, metadados_geracao, pdf_filename)
 
         # Salvar texto_original em arquivo temporário (não na sessão - reduz cookie)
-        texto_original_path = os.path.join(UPLOAD_FOLDER, f"texto_{file_hash[:8]}.txt")
+        texto_original_path = os.path.join(TEMP_DIR, f"texto_{file_hash[:8]}.txt")
         with open(texto_original_path, 'w', encoding='utf-8') as f:
             f.write(texto_original)
         # Registrar para limpeza automática LGPD
@@ -2257,7 +2257,7 @@ def processar():
         })
 
     except Exception as e:
-        logging.error(f"Erro ao processar arquivo: {e}")
+        logging.error(f"❌ Erro ao processar arquivo: {e}", exc_info=True)
         return jsonify({"erro": "Erro ao processar o arquivo. Verifique se não está corrompido"}), 500
 
 @app.route("/processar_texto", methods=["POST"])
