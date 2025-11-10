@@ -26,3 +26,7 @@ python-dotenv==1.0.1
 
 # Processamento de texto
 regex==2023.12.25
+
+
+# Google Generative AI (Gemini)
+google-generativeai==0.3.2
