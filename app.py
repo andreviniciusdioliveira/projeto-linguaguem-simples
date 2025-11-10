@@ -447,9 +447,25 @@ Responda APENAS UMA PALAVRA (sem pontuação): sentenca, acordao, mandado, intim
             logging.info("✅ Tipo identificado: mandado (genérico)")
             return "mandado", tipos_info["mandado"]
 
-        # Se nada bateu, registrar e usar documento genérico
-        logging.warning(f"⚠️ Tipo não reconhecido: '{tipo_identificado}' - usando 'documento'")
-        return "documento", {"urgencia": "MÉDIA", "acao_necessaria": "Ler com atenção"}
+        # Se nada bateu, fazer fallback com regex antes de retornar documento genérico
+        logging.warning(f"⚠️ Tipo não reconhecido pela IA: '{tipo_identificado}' - tentando regex")
+        texto_lower = texto.lower()
+
+        # Verificar mandado primeiro (maior prioridade)
+        if any(palavra in texto_lower for palavra in ["mandado", "oficial de justiça", "cumpra-se", "mandado de"]):
+            logging.info("✅ Tipo identificado por regex: mandado")
+            return "mandado", tipos_info["mandado"]
+
+        # Outros tipos
+        if any(palavra in texto_lower for palavra in ["sentença", "julgo procedente", "julgo improcedente"]):
+            return "sentenca", tipos_info["sentenca"]
+        if "acórdão" in texto_lower or "acordão" in texto_lower:
+            return "acordao", tipos_info["acordao"]
+        if "intimação" in texto_lower or "intimacao" in texto_lower:
+            return "intimacao", tipos_info["intimacao"]
+
+        logging.warning(f"⚠️ Nenhum tipo reconhecido - usando 'mandado' como padrão seguro")
+        return "mandado", tipos_info["mandado"]  # Mudado de "documento" para "mandado" como padrão seguro
 
     except Exception as e:
         logging.error(f"❌ ERRO ao identificar tipo com Gemini: {e}", exc_info=True)
@@ -495,10 +511,10 @@ def analisar_recursos_cabiveis(tipo_doc, texto):
         "sentenca": {
             "cabe_recurso": "Sim",
             "prazo": prazo_encontrado,  # Só mostra se encontrado no documento
-            "dica": "Sem advogado? Procure o Juizado!" if eh_juizado else "Procure advogado ou Defensoria Pública"
+            "dica": "Sem advogado ou Defensor Público? Procure Juizado!" if eh_juizado else "Procure advogado ou Defensoria Pública"
         },
         "acordao": {
-            "cabe_recurso": "Sim (recursos complexos)",
+            "cabe_recurso": "Sim (procure seu advogado ou defensor público)",
             "prazo": prazo_encontrado,  # Só mostra se encontrado no documento
             "dica": "Recursos em tribunais superiores - necessário advogado ou defensor público"
         },
@@ -2369,7 +2385,7 @@ def chat_contextual():
         })
 
     except Exception as e:
-        logging.error(f"Erro no chat: {e}")
+        logging.error(f"Erro no chat: {e}", exc_info=True)
         return jsonify({
             "resposta": "😔 Desculpe, ocorreu um erro ao processar sua pergunta. Tente novamente.",
             "tipo": "erro"
@@ -2455,9 +2471,12 @@ Responda em NO MÁXIMO 2-3 FRASES CURTAS E SIMPLES:"""
 
     except Exception as e:
         logging.error(f"💬 ❌ ERRO ao gerar resposta com Gemini: {e}", exc_info=True)
-        logging.info("💬 ⚠️ Usando fallback (função antiga)")
-        # Fallback para função antiga
-        return processar_pergunta_contextual(pergunta, contexto)
+        # Retornar mensagem de erro simples
+        return {
+            "texto": "Não consegui processar sua pergunta. Tente reformular de forma mais simples.",
+            "tipo": "erro",
+            "referencia": None
+        }
 
 @app.route("/diagnostico")
 def diagnostico():
