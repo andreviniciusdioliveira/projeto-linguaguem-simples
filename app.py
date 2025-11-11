@@ -2439,7 +2439,7 @@ DADOS DO DOCUMENTO:
 - Partes: {dados_extraidos.get('partes', {}).get('autor', 'não encontrado')} vs {dados_extraidos.get('partes', {}).get('reu', 'não encontrado')}
 - Valores: {dados_extraidos.get('valores', {}).get('total', 'não informado')}
 - Prazos: {', '.join(dados_extraidos.get('prazos', [])[:2]) if dados_extraidos.get('prazos') else 'nenhum'}
-- Decisão: {dados_extraidos.get('decisao', 'não informada')[:100]}
+- Decisão: {(dados_extraidos.get('decisao') or 'não informada')[:100]}
 
 PERGUNTA: {pergunta}
 
