@@ -2414,8 +2414,17 @@ def responder_com_gemini_inteligente(pergunta, contexto):
     logging.info(f"💬 CHAT: Contexto - Documento: {len(documento_original)} chars, Perspectiva: {perspectiva}")
     logging.info(f"💬 CHAT: Dados extraídos: Valores={list(dados_extraidos.get('valores', {}).keys())}, Prazos={len(dados_extraidos.get('prazos', []))}")
 
-    # Truncar documento se muito grande
-    doc_truncado = documento_original[:4000] if len(documento_original) > 4000 else documento_original
+    # Truncar documento para 3000 chars (economiza tokens e acelera resposta)
+    doc_truncado = documento_original[:3000] if len(documento_original) > 3000 else documento_original
+
+    # Se documento vazio, informar
+    if not documento_original:
+        logging.warning("💬 CHAT: Documento vazio ou não encontrado!")
+        return {
+            "texto": "Não consegui acessar o documento. Por favor, processe um documento primeiro.",
+            "tipo": "erro",
+            "referencia": None
+        }
 
     prompt = f"""Você é o JUS Bot, assistente que explica documentos jurídicos em LINGUAGEM SIMPLES.
 
@@ -2440,6 +2449,9 @@ DADOS DO DOCUMENTO:
 - Valores: {dados_extraidos.get('valores', {}).get('total', 'não informado')}
 - Prazos: {', '.join(dados_extraidos.get('prazos', [])[:2]) if dados_extraidos.get('prazos') else 'nenhum'}
 - Decisão: {(dados_extraidos.get('decisao') or 'não informada')[:100]}
+
+TEXTO DO DOCUMENTO (primeiros 3000 caracteres):
+{doc_truncado}
 
 PERGUNTA: {pergunta}
 
