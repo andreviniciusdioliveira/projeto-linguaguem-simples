@@ -1087,12 +1087,55 @@
             position: relative;
             width: 160px;
             height: 160px;
+            cursor: pointer;
+            transition: all 0.4s ease;
+        }
+
+        .gauge-container:hover {
+            transform: scale(1.05) rotate(5deg);
         }
 
         .gauge-svg {
             width: 100%;
             height: 100%;
-            filter: drop-shadow(0 2px 8px rgba(0,0,0,0.1));
+            filter: drop-shadow(0 4px 16px rgba(44, 79, 94, 0.3));
+            animation: gaugePulse 3s ease-in-out infinite;
+        }
+
+        @keyframes gaugePulse {
+            0%, 100% {
+                filter: drop-shadow(0 4px 16px rgba(44, 79, 94, 0.3));
+            }
+            50% {
+                filter: drop-shadow(0 6px 24px rgba(44, 79, 94, 0.6)) drop-shadow(0 0 40px rgba(184, 150, 60, 0.4));
+            }
+        }
+
+        #gaugeProgress {
+            filter: drop-shadow(0 0 8px rgba(184, 150, 60, 0.6));
+            animation: gaugeGlow 2s ease-in-out infinite;
+        }
+
+        @keyframes gaugeGlow {
+            0%, 100% {
+                filter: drop-shadow(0 0 8px rgba(184, 150, 60, 0.6));
+            }
+            50% {
+                filter: drop-shadow(0 0 16px rgba(184, 150, 60, 0.9)) drop-shadow(0 0 24px rgba(109, 41, 50, 0.5));
+            }
+        }
+
+        #gaugeTotal {
+            animation: numberPulse 2s ease-in-out infinite;
+        }
+
+        @keyframes numberPulse {
+            0%, 100% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.05);
+            }
         }
 
         .gauge-milestone {
@@ -1122,22 +1165,60 @@
             align-items: center;
             gap: 0.75rem;
             padding: 0.5rem;
-            background: var(--light);
+            background: linear-gradient(135deg, var(--light) 0%, rgba(255,255,255,0.8) 100%);
             border: 1px solid var(--border);
             border-radius: 8px;
-            transition: all 0.3s ease;
+            transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-item::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(44, 79, 94, 0.1), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .stat-item:hover::before {
+            left: 100%;
         }
 
         .stat-item:hover {
-            transform: translateX(5px);
+            transform: translateX(8px) scale(1.02);
             border-color: var(--jus-azul);
-            box-shadow: 0 2px 8px var(--shadow);
+            box-shadow: 0 4px 16px rgba(44, 79, 94, 0.3), 0 0 20px rgba(184, 150, 60, 0.2);
+            background: linear-gradient(135deg, rgba(255,255,255,1) 0%, rgba(44, 79, 94, 0.05) 100%);
+        }
+
+        .stat-item:active {
+            transform: translateX(4px) scale(0.98);
         }
 
         .stat-icon {
             font-size: 1.5rem;
             min-width: 30px;
             text-align: center;
+            transition: all 0.3s ease;
+            animation: iconFloat 3s ease-in-out infinite;
+        }
+
+        .stat-item:hover .stat-icon {
+            transform: scale(1.2) rotate(10deg);
+            filter: drop-shadow(0 4px 8px rgba(0,0,0,0.2));
+        }
+
+        @keyframes iconFloat {
+            0%, 100% {
+                transform: translateY(0px);
+            }
+            50% {
+                transform: translateY(-3px);
+            }
         }
 
         .stat-compact-value {
@@ -1145,6 +1226,12 @@
             font-weight: 700;
             color: var(--jus-azul);
             line-height: 1;
+            transition: all 0.3s ease;
+        }
+
+        .stat-item:hover .stat-compact-value {
+            color: var(--jus-dourado);
+            transform: scale(1.1);
         }
 
         .stat-compact-label {
@@ -1166,18 +1253,58 @@
         .badge-item {
             font-size: 1.75rem;
             filter: grayscale(100%) opacity(0.3);
-            transition: all 0.3s ease;
+            transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
             cursor: pointer;
+            position: relative;
         }
 
         .badge-item:hover {
             filter: grayscale(0%) opacity(1);
-            transform: scale(1.2);
+            transform: scale(1.3) rotate(20deg);
+            animation: badgeShake 0.5s ease infinite;
+        }
+
+        @keyframes badgeShake {
+            0%, 100% {
+                transform: scale(1.3) rotate(18deg);
+            }
+            50% {
+                transform: scale(1.3) rotate(22deg);
+            }
         }
 
         .badge-item.achieved {
             filter: grayscale(0%) opacity(1);
-            animation: bounce 0.6s ease;
+            animation: achievedBounce 1s ease infinite;
+        }
+
+        @keyframes achievedBounce {
+            0%, 100% {
+                transform: scale(1) translateY(0);
+            }
+            50% {
+                transform: scale(1.15) translateY(-5px);
+            }
+        }
+
+        .badge-item.achieved::after {
+            content: '✨';
+            position: absolute;
+            top: -10px;
+            right: -10px;
+            font-size: 1rem;
+            animation: sparkle 2s ease infinite;
+        }
+
+        @keyframes sparkle {
+            0%, 100% {
+                opacity: 0;
+                transform: scale(0.5) rotate(0deg);
+            }
+            50% {
+                opacity: 1;
+                transform: scale(1.2) rotate(180deg);
+            }
         }
 
         /* Compartilhamento social compacto */
@@ -1577,73 +1704,7 @@
                     <!-- Filled dynamically -->
                 </div>
 
-                <!-- NOVO: CHAT INTELIGENTE COM AVATAR -->
-                <div id="chatSection" style="display: none; background: white; border: 2px solid var(--primary); border-radius: 12px; margin-bottom: 1.5rem; box-shadow: 0 4px 12px rgba(0,0,0,0.1); overflow: hidden;">
-                    <!-- Header do Chat -->
-                    <div style="background: linear-gradient(135deg, var(--primary) 0%, #8b3a4a 100%); color: white; padding: 1rem; display: flex; justify-content: space-between; align-items: center;">
-                        <div style="display: flex; align-items: center; gap: 0.75rem;">
-                            <div style="width: 45px; height: 45px; border-radius: 50%; background: white; display: flex; align-items: center; justify-content: center; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.2);">
-                                <img src="/static/avatar.png" alt="JUS Bot" style="width: 100%; height: 100%; object-fit: cover;">
-                            </div>
-                            <div>
-                                <div style="font-weight: bold; font-size: 1.1rem;">JUS Bot</div>
-                                <div style="font-size: 0.85rem; opacity: 0.9;">Chat sobre SEU documento</div>
-                            </div>
-                        </div>
-                        <button onclick="toggleChat()" style="background: rgba(255,255,255,0.2); border: none; color: white; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; font-size: 20px; display: flex; align-items: center; justify-content: center;">
-                            ✕
-                        </button>
-                    </div>
-
-                    <!-- Mensagens do Chat -->
-                    <div id="chatMessages" style="background: #f5f5f5; height: 400px; overflow-y: auto; padding: 1rem; display: flex; flex-direction: column; gap: 1rem;">
-                        <!-- Mensagem inicial do bot -->
-                        <div class="chat-message-bot">
-                            <div style="display: flex; gap: 0.5rem; align-items: start;">
-                                <div style="width: 32px; height: 32px; border-radius: 50%; background: white; display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden;">
-                                    <img src="/static/avatar.png" alt="JUS Bot" style="width: 100%; height: 100%; object-fit: cover;">
-                                </div>
-                                <div style="background: white; padding: 0.75rem 1rem; border-radius: 12px; border-top-left-radius: 4px; max-width: 70%; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                                    <div style="color: var(--text); line-height: 1.5;">
-                                        Olá! 👋 Posso responder dúvidas sobre <strong>O SEU DOCUMENTO</strong>.<br><br>
-                                        Pergunte sobre:<br>
-                                        • 📅 Prazos mencionados<br>
-                                        • 💰 Valores citados<br>
-                                        • 👥 Partes envolvidas<br>
-                                        • ⚖️ Decisões tomadas<br>
-                                        • 📋 Próximos passos
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Input do Chat -->
-                    <div style="background: white; padding: 1rem; border-top: 1px solid #e0e0e0;">
-                        <div style="display: flex; gap: 0.5rem;">
-                            <input
-                                type="text"
-                                id="chatInput"
-                                placeholder="Digite sua pergunta sobre o documento..."
-                                style="flex: 1; padding: 0.75rem; border: 2px solid #e0e0e0; border-radius: 24px; font-size: 0.95rem; outline: none; transition: all 0.3s;"
-                                onkeypress="if(event.key==='Enter') enviarPerguntaChat()"
-                                onfocus="this.style.borderColor='var(--primary)'"
-                                onblur="this.style.borderColor='#e0e0e0'"
-                            >
-                            <button
-                                onclick="enviarPerguntaChat()"
-                                style="background: var(--primary); color: white; border: none; border-radius: 50%; width: 48px; height: 48px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 20px; transition: all 0.3s; box-shadow: 0 2px 8px rgba(109,41,50,0.3);"
-                                onmouseover="this.style.transform='scale(1.05)'"
-                                onmouseout="this.style.transform='scale(1)'"
-                            >
-                                ➤
-                            </button>
-                        </div>
-                        <div style="margin-top: 0.5rem; font-size: 0.75rem; color: var(--text-muted); text-align: center;">
-                            ⚠️ Respondo apenas sobre informações do seu documento
-                        </div>
-                    </div>
-                </div>
+                <!-- CHAT DESABILITADO -->
 
                 <!-- Action Buttons -->
                 <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
@@ -2445,9 +2506,7 @@
             }
 
             // REMOVIDO: Perguntas Frequentes foram removidas
-
-            // NOVO: Mostrar chat após processamento
-            document.getElementById('chatSection').style.display = 'block';
+            // CHAT DESABILITADO: document.getElementById('chatSection').style.display = 'block';
 
             if (data.caracteres_original) {
                 document.getElementById('downloadBtn').style.display = 'inline-flex';
@@ -3007,16 +3066,13 @@ P.R.I.`;
         // ============ FUNÇÕES DO CHAT INTELIGENTE ============
 
         function toggleChat() {
-            const chatSection = document.getElementById('chatSection');
-            if (chatSection.style.display === 'none') {
-                chatSection.style.display = 'block';
-                chatSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            } else {
-                chatSection.style.display = 'none';
-            }
+            // CHAT DESABILITADO
+            return;
         }
 
         function enviarPerguntaChat() {
+            // CHAT DESABILITADO
+            return;
             const input = document.getElementById('chatInput');
             const pergunta = input.value.trim();
 
@@ -3172,6 +3228,21 @@ P.R.I.`;
             return num.toString();
         }
 
+        function animateCounter(element, target, duration = 2000) {
+            const start = parseInt(element.textContent.replace(/[^0-9]/g, '')) || 0;
+            const increment = (target - start) / (duration / 16);
+            let current = start;
+
+            const timer = setInterval(() => {
+                current += increment;
+                if ((increment > 0 && current >= target) || (increment < 0 && current <= target)) {
+                    current = target;
+                    clearInterval(timer);
+                }
+                element.textContent = formatNumber(Math.floor(current));
+            }, 16);
+        }
+
         function getTipoEmoji(tipo) {
             const emojiMap = {
                 'mandado': '📨',
@@ -3182,6 +3253,27 @@ P.R.I.`;
                 'ata': '📄'
             };
             return emojiMap[tipo] || '📄';
+        }
+
+        function formatarTipoDocumento(tipo) {
+            const tiposMap = {
+                'mandado': 'Mandado',
+                'mandado_citacao': 'Mandado de Citação',
+                'mandado_prisao': 'Mandado de Prisão',
+                'sentenca': 'Sentença',
+                'acordao': 'Acórdão',
+                'peticao': 'Petição',
+                'peticao_inicial': 'Petição Inicial',
+                'despacho': 'Despacho',
+                'decisao': 'Decisão',
+                'ata': 'Ata',
+                'oficio': 'Ofício',
+                'intimacao': 'Intimação',
+                'citacao': 'Citação',
+                'alvara': 'Alvará',
+                'certidao': 'Certidão'
+            };
+            return tiposMap[tipo] || tipo.charAt(0).toUpperCase() + tipo.slice(1);
         }
 
         async function carregarEstatisticas() {
@@ -3204,8 +3296,8 @@ P.R.I.`;
                 const thermometer = document.getElementById('statsThermometer');
                 thermometer.style.display = 'block';
 
-                // Atualizar gauge circular (total no centro)
-                document.getElementById('gaugeTotal').textContent = formatNumber(stats.total_documentos);
+                // Atualizar gauge circular (total no centro) com animação de contador
+                animateCounter(document.getElementById('gaugeTotal'), stats.total_documentos, 1500);
 
                 // Animar círculo de progresso
                 const gaugeProgress = document.getElementById('gaugeProgress');
@@ -3227,8 +3319,7 @@ P.R.I.`;
 
                 // Tipo mais comum
                 if (stats.tipo_mais_comum) {
-                    const tipoFormatado = stats.tipo_mais_comum.charAt(0).toUpperCase() + stats.tipo_mais_comum.slice(1);
-                    document.getElementById('statMostCommon').textContent = tipoFormatado;
+                    document.getElementById('statMostCommon').textContent = formatarTipoDocumento(stats.tipo_mais_comum);
                 } else {
                     document.getElementById('statMostCommon').textContent = '—';
                 }
