@@ -1019,6 +1019,257 @@
                 max-width: 200px;
                 font-size: 13px;
             }
+
+            .stats-thermometer {
+                padding: 1rem;
+            }
+
+            .thermometer-content {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+
+            .gauge-container {
+                width: 140px;
+                height: 140px;
+                margin: 0 auto;
+            }
+
+            .stats-compact {
+                gap: 0.5rem;
+            }
+
+            .milestones-badges {
+                gap: 0.75rem;
+            }
+
+            .badge-item {
+                font-size: 1.5rem;
+            }
+        }
+
+        /* === Termômetro de Estatísticas Compacto === */
+        .stats-thermometer {
+            background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.9) 100%);
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            padding: 1rem 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 12px var(--shadow);
+            animation: fadeIn 0.6s ease;
+        }
+
+        body.dark-mode .stats-thermometer {
+            background: linear-gradient(135deg, rgba(40,40,40,0.95) 0%, rgba(30,30,30,0.9) 100%);
+        }
+
+        .thermometer-header {
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+
+        .thermometer-header h3 {
+            font-size: 1.25rem;
+            color: var(--jus-azul);
+            margin: 0;
+            font-weight: 700;
+        }
+
+        .thermometer-content {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 1.5rem;
+            align-items: center;
+        }
+
+        /* Gauge Circular */
+        .gauge-container {
+            position: relative;
+            width: 160px;
+            height: 160px;
+        }
+
+        .gauge-svg {
+            width: 100%;
+            height: 100%;
+            filter: drop-shadow(0 2px 8px rgba(0,0,0,0.1));
+        }
+
+        .gauge-milestone {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, var(--jus-vinho) 0%, var(--jus-azul) 100%);
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            white-space: nowrap;
+            box-shadow: 0 2px 8px rgba(109, 41, 50, 0.3);
+        }
+
+        /* Estatísticas compactas */
+        .stats-compact {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.5rem;
+            background: var(--light);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .stat-item:hover {
+            transform: translateX(5px);
+            border-color: var(--jus-azul);
+            box-shadow: 0 2px 8px var(--shadow);
+        }
+
+        .stat-icon {
+            font-size: 1.5rem;
+            min-width: 30px;
+            text-align: center;
+        }
+
+        .stat-compact-value {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--jus-azul);
+            line-height: 1;
+        }
+
+        .stat-compact-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            line-height: 1;
+        }
+
+        /* Milestones badges */
+        .milestones-badges {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border);
+        }
+
+        .badge-item {
+            font-size: 1.75rem;
+            filter: grayscale(100%) opacity(0.3);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .badge-item:hover {
+            filter: grayscale(0%) opacity(1);
+            transform: scale(1.2);
+        }
+
+        .badge-item.achieved {
+            filter: grayscale(0%) opacity(1);
+            animation: bounce 0.6s ease;
+        }
+
+        /* Compartilhamento social compacto */
+        .social-share-compact {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border);
+        }
+
+        .share-btn-small {
+            background: var(--light);
+            border: 1px solid var(--border);
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            padding: 0;
+        }
+
+        .share-btn-small:hover {
+            transform: translateY(-2px) scale(1.1);
+            box-shadow: 0 4px 12px var(--shadow);
+        }
+
+        .share-btn-small.whatsapp {
+            color: #25D366;
+            border-color: #25D366;
+        }
+
+        .share-btn-small.whatsapp:hover {
+            background: #25D366;
+            color: white;
+        }
+
+        .share-btn-small.twitter {
+            color: #1DA1F2;
+            border-color: #1DA1F2;
+        }
+
+        .share-btn-small.twitter:hover {
+            background: #1DA1F2;
+            color: white;
+        }
+
+        .share-btn-small.facebook {
+            color: #1877F2;
+            border-color: #1877F2;
+        }
+
+        .share-btn-small.facebook:hover {
+            background: #1877F2;
+            color: white;
+        }
+
+        .share-btn-small.copy {
+            color: var(--jus-azul);
+            border-color: var(--jus-azul);
+        }
+
+        .share-btn-small.copy:hover {
+            background: var(--jus-azul);
+            color: white;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes countUp {
+            from {
+                opacity: 0;
+                transform: scale(0.5);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
         }
     </style>
 </head>
@@ -1069,6 +1320,96 @@
                 </p>
             </div>
         </header>
+
+        <!-- Termômetro de Estatísticas - LGPD Compliant -->
+        <div class="stats-thermometer" id="statsThermometer" style="display: none;">
+            <div class="thermometer-header">
+                <h3>🌡️ Termômetro de Impacto Social</h3>
+            </div>
+
+            <div class="thermometer-content">
+                <!-- Gauge Circular -->
+                <div class="gauge-container">
+                    <svg class="gauge-svg" viewBox="0 0 200 200">
+                        <!-- Círculo de fundo -->
+                        <circle cx="100" cy="100" r="80" fill="none" stroke="var(--border)" stroke-width="12" opacity="0.3"/>
+
+                        <!-- Círculo de progresso -->
+                        <circle id="gaugeProgress" cx="100" cy="100" r="80" fill="none"
+                                stroke="url(#gaugeGradient)" stroke-width="12"
+                                stroke-dasharray="502.65" stroke-dashoffset="502.65"
+                                transform="rotate(-90 100 100)"
+                                stroke-linecap="round"/>
+
+                        <!-- Gradiente -->
+                        <defs>
+                            <linearGradient id="gaugeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                                <stop offset="0%" style="stop-color:#6d2932;stop-opacity:1" />
+                                <stop offset="50%" style="stop-color:#2c4f5e;stop-opacity:1" />
+                                <stop offset="100%" style="stop-color:#b8963c;stop-opacity:1" />
+                            </linearGradient>
+                        </defs>
+
+                        <!-- Texto central -->
+                        <text x="100" y="95" text-anchor="middle" font-size="32" font-weight="700" fill="var(--jus-azul)" id="gaugeTotal">0</text>
+                        <text x="100" y="115" text-anchor="middle" font-size="12" fill="var(--text-muted)">documentos</text>
+                    </svg>
+
+                    <!-- Milestone atual -->
+                    <div class="gauge-milestone" id="gaugeMilestone">🏁 Começando</div>
+                </div>
+
+                <!-- Estatísticas compactas -->
+                <div class="stats-compact">
+                    <div class="stat-item">
+                        <span class="stat-icon">📅</span>
+                        <div>
+                            <div class="stat-compact-value" id="statToday">-</div>
+                            <div class="stat-compact-label">Hoje</div>
+                        </div>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-icon">📄</span>
+                        <div>
+                            <div class="stat-compact-value" id="statMostCommon">-</div>
+                            <div class="stat-compact-label">Mais comum</div>
+                        </div>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-icon" id="nextMilestoneIcon">🥉</span>
+                        <div>
+                            <div class="stat-compact-value" id="nextMilestoneValue">100</div>
+                            <div class="stat-compact-label" id="nextMilestoneLabel">Próximo</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Milestones badges -->
+            <div class="milestones-badges">
+                <div class="badge-item" data-milestone="bronze" title="Bronze - 100 docs">🥉</div>
+                <div class="badge-item" data-milestone="silver" title="Prata - 1.000 docs">🥈</div>
+                <div class="badge-item" data-milestone="gold" title="Ouro - 10.000 docs">🥇</div>
+                <div class="badge-item" data-milestone="diamond" title="Diamante - 100.000 docs">💎</div>
+            </div>
+
+            <!-- Compartilhamento social compacto -->
+            <div class="social-share-compact">
+                <button class="share-btn-small whatsapp" onclick="shareStats('whatsapp')" title="WhatsApp">
+                    <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                </button>
+                <button class="share-btn-small twitter" onclick="shareStats('twitter')" title="Twitter">
+                    <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z"/></svg>
+                </button>
+                <button class="share-btn-small facebook" onclick="shareStats('facebook')" title="Facebook">
+                    <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+                </button>
+                <button class="share-btn-small copy" onclick="shareStats('copy')" title="Copiar link">
+                    <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+                </button>
+                <span style="margin-left: 0.5rem; font-size: 0.75rem; color: var(--text-muted);">🔒 LGPD</span>
+            </div>
+        </div>
 
         <!-- Progress Steps -->
         <div class="progress-steps">
@@ -1229,16 +1570,81 @@
                     <!-- Filled dynamically -->
                 </div>
 
-                <!-- Suggested Questions -->
-                <div id="suggestedQuestionsSection" style="display: none; margin-bottom: 1.5rem;">
-                    <!-- Filled dynamically -->
-                </div>
+                <!-- REMOVIDO: Seção de Perguntas Frequentes -->
 
                 <!-- Simplified Text -->
                 <div id="simplifiedText" style="background: var(--light); padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem; max-height: 500px; overflow-y: auto;">
                     <!-- Filled dynamically -->
                 </div>
-                
+
+                <!-- NOVO: CHAT INTELIGENTE COM AVATAR -->
+                <div id="chatSection" style="display: none; background: white; border: 2px solid var(--primary); border-radius: 12px; margin-bottom: 1.5rem; box-shadow: 0 4px 12px rgba(0,0,0,0.1); overflow: hidden;">
+                    <!-- Header do Chat -->
+                    <div style="background: linear-gradient(135deg, var(--primary) 0%, #8b3a4a 100%); color: white; padding: 1rem; display: flex; justify-content: space-between; align-items: center;">
+                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                            <div style="width: 45px; height: 45px; border-radius: 50%; background: white; display: flex; align-items: center; justify-content: center; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.2);">
+                                <img src="/static/avatar.png" alt="JUS Bot" style="width: 100%; height: 100%; object-fit: cover;">
+                            </div>
+                            <div>
+                                <div style="font-weight: bold; font-size: 1.1rem;">JUS Bot</div>
+                                <div style="font-size: 0.85rem; opacity: 0.9;">Chat sobre SEU documento</div>
+                            </div>
+                        </div>
+                        <button onclick="toggleChat()" style="background: rgba(255,255,255,0.2); border: none; color: white; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; font-size: 20px; display: flex; align-items: center; justify-content: center;">
+                            ✕
+                        </button>
+                    </div>
+
+                    <!-- Mensagens do Chat -->
+                    <div id="chatMessages" style="background: #f5f5f5; height: 400px; overflow-y: auto; padding: 1rem; display: flex; flex-direction: column; gap: 1rem;">
+                        <!-- Mensagem inicial do bot -->
+                        <div class="chat-message-bot">
+                            <div style="display: flex; gap: 0.5rem; align-items: start;">
+                                <div style="width: 32px; height: 32px; border-radius: 50%; background: white; display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden;">
+                                    <img src="/static/avatar.png" alt="JUS Bot" style="width: 100%; height: 100%; object-fit: cover;">
+                                </div>
+                                <div style="background: white; padding: 0.75rem 1rem; border-radius: 12px; border-top-left-radius: 4px; max-width: 70%; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                                    <div style="color: var(--text); line-height: 1.5;">
+                                        Olá! 👋 Posso responder dúvidas sobre <strong>O SEU DOCUMENTO</strong>.<br><br>
+                                        Pergunte sobre:<br>
+                                        • 📅 Prazos mencionados<br>
+                                        • 💰 Valores citados<br>
+                                        • 👥 Partes envolvidas<br>
+                                        • ⚖️ Decisões tomadas<br>
+                                        • 📋 Próximos passos
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Input do Chat -->
+                    <div style="background: white; padding: 1rem; border-top: 1px solid #e0e0e0;">
+                        <div style="display: flex; gap: 0.5rem;">
+                            <input
+                                type="text"
+                                id="chatInput"
+                                placeholder="Digite sua pergunta sobre o documento..."
+                                style="flex: 1; padding: 0.75rem; border: 2px solid #e0e0e0; border-radius: 24px; font-size: 0.95rem; outline: none; transition: all 0.3s;"
+                                onkeypress="if(event.key==='Enter') enviarPerguntaChat()"
+                                onfocus="this.style.borderColor='var(--primary)'"
+                                onblur="this.style.borderColor='#e0e0e0'"
+                            >
+                            <button
+                                onclick="enviarPerguntaChat()"
+                                style="background: var(--primary); color: white; border: none; border-radius: 50%; width: 48px; height: 48px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 20px; transition: all 0.3s; box-shadow: 0 2px 8px rgba(109,41,50,0.3);"
+                                onmouseover="this.style.transform='scale(1.05)'"
+                                onmouseout="this.style.transform='scale(1)'"
+                            >
+                                ➤
+                            </button>
+                        </div>
+                        <div style="margin-top: 0.5rem; font-size: 0.75rem; color: var(--text-muted); text-align: center;">
+                            ⚠️ Respondo apenas sobre informações do seu documento
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Action Buttons -->
                 <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
                     <a href="#" class="button" id="downloadBtn" style="display: none;">
@@ -1940,7 +2346,40 @@
             }
         }
 
+        function limparChat() {
+            // Limpar todas as mensagens antigas do chat
+            const chatMessages = document.getElementById('chatMessages');
+            if (chatMessages) {
+                // Manter apenas a mensagem inicial do bot
+                chatMessages.innerHTML = `
+                    <div class="chat-message-bot">
+                        <div style="display: flex; gap: 0.5rem; align-items: start;">
+                            <div style="width: 32px; height: 32px; border-radius: 50%; background: white; display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden;">
+                                <img src="/static/avatar.png" alt="JUS Bot" style="width: 100%; height: 100%; object-fit: cover;">
+                            </div>
+                            <div style="background: white; padding: 0.75rem 1rem; border-radius: 12px; border-top-left-radius: 4px; max-width: 70%; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                                <div style="color: var(--text); line-height: 1.5; margin-bottom: 0.5rem;">
+                                    <strong>Olá! 👋 Posso responder dúvidas sobre O SEU DOCUMENTO.</strong>
+                                </div>
+                                <div style="color: var(--text-muted); font-size: 0.9rem;">
+                                    Pergunte sobre:<br>
+                                    • 📅 Prazos mencionados<br>
+                                    • 💰 Valores citados<br>
+                                    • 👥 Partes envolvidas<br>
+                                    • ⚖️ Decisões tomadas<br>
+                                    • 📋 Próximos passos
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
         function showResult(data) {
+            // Limpar chat ao processar novo documento
+            limparChat();
+
             if (data.tipo_arquivo) {
                 const processInfo = document.getElementById('processInfo');
                 processInfo.style.display = 'block';
@@ -2005,10 +2444,10 @@
                 showAppeals(data.recursos_cabiveis);
             }
 
-            // NEW: Show suggested questions
-            if (data.perguntas_sugeridas && data.perguntas_sugeridas.length > 0) {
-                showSuggestedQuestions(data.perguntas_sugeridas);
-            }
+            // REMOVIDO: Perguntas Frequentes foram removidas
+
+            // NOVO: Mostrar chat após processamento
+            document.getElementById('chatSection').style.display = 'block';
 
             if (data.caracteres_original) {
                 document.getElementById('downloadBtn').style.display = 'inline-flex';
@@ -2109,6 +2548,7 @@
             const colors = urgenciaColors[urgencia] || urgenciaColors['MÉDIA'];
 
             const tipoTexto = {
+                'mandado': '📨 Mandado',
                 'mandado_citacao': '📨 Mandado de Citação',
                 'mandado_intimacao': '📬 Mandado de Intimação',
                 'mandado_penhora': '🔨 Mandado de Penhora',
@@ -2128,9 +2568,6 @@
                         <div>
                             <div style="font-size: 1.25rem; font-weight: bold; color: ${colors.text};">
                                 ${tipoTexto[tipo] || 'Documento Jurídico'}
-                            </div>
-                            <div style="font-size: 0.875rem; color: var(--text-muted); margin-top: 0.25rem;">
-                                Urgência: <strong style="color: ${colors.text};">${urgencia}</strong>
                             </div>
                         </div>
                     </div>
@@ -2243,6 +2680,46 @@
                 html += '</div>';
             }
 
+            // NOVO: Links de Audiência Online
+            if (dados.links_audiencia && dados.links_audiencia.length > 0) {
+                html += '<div style="background: #e8f5e9; padding: 1rem; border-radius: 6px; border-left: 4px solid #4caf50;">';
+                html += '<strong>🔗 Links de Audiência Online:</strong><br>';
+                dados.links_audiencia.forEach(link => {
+                    html += `• <a href="${link}" target="_blank" style="color: var(--jus-azul); text-decoration: underline;">${link}</a><br>`;
+                });
+                html += '</div>';
+            }
+
+            // NOVO: Telefones de Contato
+            if (dados.telefones && dados.telefones.length > 0) {
+                html += '<div style="background: white; padding: 1rem; border-radius: 6px;">';
+                html += '<strong>📞 Telefones:</strong><br>';
+                dados.telefones.forEach(tel => {
+                    html += `• ${tel}<br>`;
+                });
+                html += '</div>';
+            }
+
+            // NOVO: Emails
+            if (dados.emails && dados.emails.length > 0) {
+                html += '<div style="background: white; padding: 1rem; border-radius: 6px;">';
+                html += '<strong>✉️ Emails:</strong><br>';
+                dados.emails.forEach(email => {
+                    html += `• <a href="mailto:${email}" style="color: var(--jus-azul);">${email}</a><br>`;
+                });
+                html += '</div>';
+            }
+
+            // NOVO: QR Codes
+            if (dados.qr_codes && dados.qr_codes.length > 0) {
+                html += '<div style="background: #fff3e0; padding: 1rem; border-radius: 6px; border-left: 4px solid #ff9800;">';
+                html += '<strong>📱 QR Code:</strong><br>';
+                dados.qr_codes.forEach(qr => {
+                    html += `• ${qr}<br>`;
+                });
+                html += '</div>';
+            }
+
             // Autoridade
             if (dados.autoridade) {
                 html += `
@@ -2259,43 +2736,30 @@
         }
 
         function showAppeals(recursos) {
-            if (!recursos || !recursos.recurso) return;
+            if (!recursos || !recursos.cabe_recurso) return;
 
             const section = document.getElementById('appealsSection');
 
             let html = '<div style="background: var(--info-bg); padding: 1.5rem; border-radius: 8px; border-left: 4px solid var(--jus-azul);">';
-            html += '<h3 style="color: var(--jus-azul); margin-bottom: 1rem;">⚖️ Recursos Cabíveis</h3>';
+            html += '<h3 style="color: var(--jus-azul); margin-bottom: 1rem;">⚖️ Recursos</h3>';
 
+            // Cabe recurso (principal)
             html += `
                 <div style="background: white; padding: 1rem; border-radius: 6px; margin-bottom: 0.5rem;">
-                    <strong>📜 Tipo de recurso:</strong> ${recursos.recurso}
+                    <strong>📜 Cabe recurso:</strong> ${recursos.cabe_recurso}
                 </div>
             `;
 
+            // Prazo (só mostra se encontrado no documento)
             if (recursos.prazo) {
                 html += `
                     <div style="background: white; padding: 1rem; border-radius: 6px; margin-bottom: 0.5rem;">
-                        <strong>⏰ Prazo:</strong> ${recursos.prazo}
+                        <strong>⏰ Prazo mencionado no documento:</strong> ${recursos.prazo}
                     </div>
                 `;
             }
 
-            if (recursos.instancia) {
-                html += `
-                    <div style="background: white; padding: 1rem; border-radius: 6px; margin-bottom: 0.5rem;">
-                        <strong>🏛️ Instância:</strong> ${recursos.instancia}
-                    </div>
-                `;
-            }
-
-            if (recursos.valor_preparo) {
-                html += `
-                    <div style="background: white; padding: 1rem; border-radius: 6px; margin-bottom: 0.5rem;">
-                        <strong>💵 Preparo:</strong> ${recursos.valor_preparo}
-                    </div>
-                `;
-            }
-
+            // Dica
             if (recursos.dica) {
                 html += `
                     <div style="background: #fef7e0; padding: 1rem; border-radius: 6px; margin-top: 1rem;">
@@ -2304,6 +2768,7 @@
                 `;
             }
 
+            // Observação
             if (recursos.observacao) {
                 html += `
                     <div style="background: white; padding: 1rem; border-radius: 6px; margin-top: 1rem;">
@@ -2318,33 +2783,7 @@
             section.style.display = 'block';
         }
 
-        function showSuggestedQuestions(perguntas) {
-            if (!perguntas || perguntas.length === 0) return;
-
-            const section = document.getElementById('suggestedQuestionsSection');
-
-            let html = '<div style="background: var(--success-bg); padding: 1.5rem; border-radius: 8px; border-left: 4px solid var(--secondary);">';
-            html += '<h3 style="color: var(--secondary); margin-bottom: 1rem;">💬 Perguntas Frequentes sobre este Documento</h3>';
-            html += '<div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">';
-
-            perguntas.forEach((pergunta, index) => {
-                html += `
-                    <button onclick="askQuestion('${pergunta.replace(/'/g, "\\'")}')"
-                            style="background: white; border: 2px solid var(--secondary); color: var(--secondary);
-                                   padding: 0.5rem 1rem; border-radius: 20px; cursor: pointer; font-size: 0.875rem;
-                                   transition: all 0.3s ease; font-weight: 500;">
-                        ${pergunta}
-                    </button>
-                `;
-            });
-
-            html += '</div>';
-            html += '<p style="margin-top: 1rem; font-size: 0.875rem; color: var(--text-muted);">Clique em uma pergunta para ver a resposta baseada neste documento</p>';
-            html += '</div>';
-
-            section.innerHTML = html;
-            section.style.display = 'block';
-        }
+        // FUNÇÃO REMOVIDA: showSuggestedQuestions - Perguntas Frequentes foram removidas
 
         function askQuestion(pergunta) {
             // Mostrar loading
@@ -2564,6 +3003,318 @@ P.R.I.`;
                 }
             }
         });
+
+        // ============ FUNÇÕES DO CHAT INTELIGENTE ============
+
+        function toggleChat() {
+            const chatSection = document.getElementById('chatSection');
+            if (chatSection.style.display === 'none') {
+                chatSection.style.display = 'block';
+                chatSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            } else {
+                chatSection.style.display = 'none';
+            }
+        }
+
+        function enviarPerguntaChat() {
+            const input = document.getElementById('chatInput');
+            const pergunta = input.value.trim();
+
+            if (!pergunta) {
+                showToast('Digite uma pergunta primeiro', 'warning');
+                return;
+            }
+
+            // Adicionar mensagem do usuário
+            adicionarMensagemUsuario(pergunta);
+            input.value = '';
+
+            // Mostrar indicador de digitação
+            mostrarDigitando();
+
+            // Enviar para o backend
+            fetch('/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ pergunta: pergunta })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(data => {
+                        throw new Error(data.resposta || 'Erro ao processar pergunta');
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                esconderDigitando();
+                adicionarMensagemBot(data.resposta, data.tipo);
+            })
+            .catch(error => {
+                esconderDigitando();
+                adicionarMensagemBot(
+                    `😔 Desculpe, ocorreu um erro: ${error.message}`,
+                    'erro'
+                );
+                console.error('Erro:', error);
+            });
+        }
+
+        function adicionarMensagemUsuario(texto) {
+            const chatMessages = document.getElementById('chatMessages');
+            const mensagem = document.createElement('div');
+            mensagem.style.cssText = 'display: flex; justify-content: flex-end;';
+            mensagem.innerHTML = `
+                <div style="background: var(--primary); color: white; padding: 0.75rem 1rem; border-radius: 12px; border-top-right-radius: 4px; max-width: 70%; box-shadow: 0 1px 3px rgba(0,0,0,0.2);">
+                    <div style="line-height: 1.5;">${texto}</div>
+                    <div style="font-size: 0.7rem; opacity: 0.8; margin-top: 0.25rem; text-align: right;">
+                        ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                </div>
+            `;
+            chatMessages.appendChild(mensagem);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function adicionarMensagemBot(texto, tipo = 'resposta') {
+            const chatMessages = document.getElementById('chatMessages');
+            const mensagem = document.createElement('div');
+
+            // Cores baseadas no tipo
+            const cores = {
+                'resposta': { bg: 'white', border: '#e0e0e0' },
+                'nao_encontrado': { bg: '#fff9e6', border: '#ffc107' },
+                'redirecionamento_profissional': { bg: '#e8f5e9', border: '#4caf50' },
+                'erro': { bg: '#ffebee', border: '#f44336' }
+            };
+            const cor = cores[tipo] || cores['resposta'];
+
+            mensagem.style.cssText = 'display: flex; gap: 0.5rem; align-items: start;';
+            mensagem.innerHTML = `
+                <div style="width: 32px; height: 32px; border-radius: 50%; background: white; display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden;">
+                    <img src="/static/avatar.png" alt="JUS Bot" style="width: 100%; height: 100%; object-fit: cover;">
+                </div>
+                <div style="background: ${cor.bg}; padding: 0.75rem 1rem; border-radius: 12px; border-top-left-radius: 4px; max-width: 70%; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border: 1px solid ${cor.border};">
+                    <div style="color: var(--text); line-height: 1.5;">${texto}</div>
+                    <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 0.25rem;">
+                        ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                </div>
+            `;
+            chatMessages.appendChild(mensagem);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function mostrarDigitando() {
+            const chatMessages = document.getElementById('chatMessages');
+            const digitando = document.createElement('div');
+            digitando.id = 'typing-indicator';
+            digitando.style.cssText = 'display: flex; gap: 0.5rem; align-items: center;';
+            digitando.innerHTML = `
+                <div style="width: 32px; height: 32px; border-radius: 50%; background: white; display: flex; align-items: center; justify-content: center; overflow: hidden;">
+                    <img src="/static/avatar.png" alt="JUS Bot" style="width: 100%; height: 100%; object-fit: cover;">
+                </div>
+                <div style="background: white; padding: 0.75rem 1rem; border-radius: 12px; border-top-left-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                    <div style="display: flex; gap: 4px; align-items: center;">
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                    </div>
+                </div>
+            `;
+            chatMessages.appendChild(digitando);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+
+            // Adicionar CSS para animação dos pontos
+            if (!document.getElementById('typing-animation-style')) {
+                const style = document.createElement('style');
+                style.id = 'typing-animation-style';
+                style.textContent = `
+                    .typing-dot {
+                        width: 8px;
+                        height: 8px;
+                        border-radius: 50%;
+                        background: var(--primary);
+                        animation: typing 1.4s infinite;
+                    }
+                    .typing-dot:nth-child(2) {
+                        animation-delay: 0.2s;
+                    }
+                    .typing-dot:nth-child(3) {
+                        animation-delay: 0.4s;
+                    }
+                    @keyframes typing {
+                        0%, 60%, 100% { opacity: 0.3; transform: scale(0.8); }
+                        30% { opacity: 1; transform: scale(1); }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+        }
+
+        function esconderDigitando() {
+            const digitando = document.getElementById('typing-indicator');
+            if (digitando) {
+                digitando.remove();
+            }
+        }
+
+        // ===== TERMÔMETRO DE ESTATÍSTICAS =====
+
+        function formatNumber(num) {
+            if (num >= 1000000) {
+                return (num / 1000000).toFixed(1).replace('.0', '') + 'M';
+            } else if (num >= 1000) {
+                return (num / 1000).toFixed(1).replace('.0', '') + 'K';
+            }
+            return num.toString();
+        }
+
+        function getTipoEmoji(tipo) {
+            const emojiMap = {
+                'mandado': '📨',
+                'sentenca': '⚖️',
+                'acordao': '👨‍⚖️',
+                'peticao': '📝',
+                'despacho': '📋',
+                'ata': '📄'
+            };
+            return emojiMap[tipo] || '📄';
+        }
+
+        async function carregarEstatisticas() {
+            try {
+                const response = await fetch('/api/stats');
+                if (!response.ok) {
+                    console.warn('Estatísticas não disponíveis');
+                    return;
+                }
+
+                const stats = await response.json();
+
+                // Verificar se há dados válidos
+                if (stats.total_documentos === 0) {
+                    // Não mostrar termômetro se não houver documentos
+                    return;
+                }
+
+                // Mostrar o termômetro
+                const thermometer = document.getElementById('statsThermometer');
+                thermometer.style.display = 'block';
+
+                // Atualizar gauge circular (total no centro)
+                document.getElementById('gaugeTotal').textContent = formatNumber(stats.total_documentos);
+
+                // Animar círculo de progresso
+                const gaugeProgress = document.getElementById('gaugeProgress');
+                const circumference = 2 * Math.PI * 80; // raio = 80
+                const progress = Math.min(stats.progresso_percentual || 0, 100);
+                const offset = circumference - (progress / 100) * circumference;
+
+                gaugeProgress.style.strokeDashoffset = offset;
+                gaugeProgress.style.transition = 'stroke-dashoffset 1.5s ease-in-out';
+
+                // Milestone atual (embaixo do gauge)
+                if (stats.milestone_atual) {
+                    document.getElementById('gaugeMilestone').textContent =
+                        `${stats.milestone_atual.emoji} ${stats.milestone_atual.nome}`;
+                }
+
+                // Estatísticas compactas à direita
+                document.getElementById('statToday').textContent = stats.documentos_hoje || 0;
+
+                // Tipo mais comum
+                if (stats.tipo_mais_comum) {
+                    const tipoFormatado = stats.tipo_mais_comum.charAt(0).toUpperCase() + stats.tipo_mais_comum.slice(1);
+                    document.getElementById('statMostCommon').textContent = tipoFormatado;
+                } else {
+                    document.getElementById('statMostCommon').textContent = '—';
+                }
+
+                // Próximo milestone
+                if (stats.proximo_milestone) {
+                    document.getElementById('nextMilestoneIcon').textContent = stats.proximo_milestone.emoji;
+                    document.getElementById('nextMilestoneValue').textContent = formatNumber(stats.proximo_milestone.valor);
+                    document.getElementById('nextMilestoneLabel').textContent = stats.proximo_milestone.nome;
+                } else {
+                    document.getElementById('nextMilestoneIcon').textContent = '🏆';
+                    document.getElementById('nextMilestoneValue').textContent = 'MAX';
+                    document.getElementById('nextMilestoneLabel').textContent = 'Alcançado!';
+                }
+
+                // Marcar milestones alcançados (badges)
+                const badges = document.querySelectorAll('.badge-item');
+                const milestones = [
+                    { name: 'bronze', value: 100 },
+                    { name: 'silver', value: 1000 },
+                    { name: 'gold', value: 10000 },
+                    { name: 'diamond', value: 100000 }
+                ];
+
+                milestones.forEach((milestone, index) => {
+                    if (stats.total_documentos >= milestone.value) {
+                        badges[index].classList.add('achieved');
+                    }
+                });
+
+            } catch (error) {
+                console.error('Erro ao carregar estatísticas:', error);
+            }
+        }
+
+        function shareStats(platform) {
+            const url = window.location.origin;
+            const message = `Ajude a democratizar o acesso à justiça! O Entenda Aqui já simplificou milhares de documentos jurídicos complexos em linguagem clara e acessível. 🌡️⚖️`;
+
+            switch(platform) {
+                case 'whatsapp':
+                    window.open(`https://wa.me/?text=${encodeURIComponent(message + ' ' + url)}`, '_blank');
+                    break;
+
+                case 'twitter':
+                    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(message)}&url=${encodeURIComponent(url)}`, '_blank');
+                    break;
+
+                case 'facebook':
+                    window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, '_blank');
+                    break;
+
+                case 'copy':
+                    navigator.clipboard.writeText(url).then(() => {
+                        // Feedback visual
+                        const btn = event.target.closest('.share-btn-small');
+                        const originalHTML = btn.innerHTML;
+                        btn.innerHTML = '<svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>';
+                        btn.style.background = 'var(--secondary)';
+                        btn.style.borderColor = 'var(--secondary)';
+                        btn.style.color = 'white';
+
+                        setTimeout(() => {
+                            btn.innerHTML = originalHTML;
+                            btn.style.background = '';
+                            btn.style.borderColor = '';
+                            btn.style.color = '';
+                        }, 2000);
+                    }).catch(err => {
+                        console.error('Erro ao copiar:', err);
+                        alert('Link: ' + url);
+                    });
+                    break;
+            }
+        }
+
+        // Carregar estatísticas ao carregar a página
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', carregarEstatisticas);
+        } else {
+            carregarEstatisticas();
+        }
+
+        // Atualizar estatísticas a cada 30 segundos
+        setInterval(carregarEstatisticas, 30000);
+
     </script>
 </body>
 </html>
