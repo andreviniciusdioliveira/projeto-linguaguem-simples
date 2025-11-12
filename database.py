@@ -6,7 +6,8 @@ import sqlite3
 import os
 import logging
 from datetime import datetime
-from threading import Lock
+from threading import Lock, Thread, Event
+import time
 
 # Lock para operações thread-safe
 db_lock = Lock()
@@ -193,8 +194,65 @@ def limpar_estatisticas_antigas():
         if deletados > 0:
             logging.info(f"🗑️ LGPD: Removidos {deletados} registros diários antigos")
 
+        return deletados
+
+# Thread de limpeza automática
+cleanup_event = Event()
+cleanup_thread = None
+
+def executar_limpeza_periodica():
+    """
+    Thread que executa limpeza de estatísticas antigas diariamente
+    Roda em background sem impactar a aplicação
+    """
+    while not cleanup_event.is_set():
+        try:
+            # Aguardar 24 horas (ou até ser interrompido)
+            if cleanup_event.wait(timeout=86400):  # 86400 segundos = 24 horas
+                break
+
+            # Executar limpeza
+            logging.info("🧹 Iniciando limpeza automática de estatísticas antigas...")
+            deletados = limpar_estatisticas_antigas()
+
+            if deletados > 0:
+                logging.info(f"✅ Limpeza concluída: {deletados} registros removidos")
+            else:
+                logging.info("✅ Limpeza concluída: nenhum registro antigo encontrado")
+
+        except Exception as e:
+            logging.error(f"❌ Erro na limpeza automática: {e}")
+
+def iniciar_limpeza_automatica():
+    """Inicia thread de limpeza automática em background"""
+    global cleanup_thread
+
+    if cleanup_thread is not None and cleanup_thread.is_alive():
+        logging.info("Thread de limpeza já está rodando")
+        return
+
+    cleanup_thread = Thread(target=executar_limpeza_periodica, daemon=True, name="LGPD-Cleanup")
+    cleanup_thread.start()
+    logging.info("🧹 Thread de limpeza automática iniciada (executa a cada 24h)")
+
+def parar_limpeza_automatica():
+    """Para a thread de limpeza (útil para testes ou shutdown)"""
+    cleanup_event.set()
+    if cleanup_thread is not None:
+        cleanup_thread.join(timeout=2)
+    logging.info("🛑 Thread de limpeza automática parada")
+
 # Inicializar database ao importar módulo
 try:
     init_db()
+
+    # Executar limpeza inicial imediatamente (apenas registros antigos)
+    deletados = limpar_estatisticas_antigas()
+    if deletados > 0:
+        logging.info(f"🧹 Limpeza inicial: {deletados} registros antigos removidos")
+
+    # Iniciar thread de limpeza automática
+    iniciar_limpeza_automatica()
+
 except Exception as e:
     logging.error(f"Erro ao inicializar database: {e}")
