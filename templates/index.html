@@ -1400,487 +1400,192 @@
             }
         }
 
-        /* === TERMÔMETRO V2: NOVOS ESTILOS INOVADORES === */
-        .stats-thermometer-v2 {
-            background: linear-gradient(135deg, #fff 0%, #f8f9fa 100%);
-            border: 2px solid var(--jus-azul);
-            border-radius: 16px;
-            padding: 1.5rem;
+        /* === TERMÔMETRO MINIMALISTA === */
+        .stats-minimal {
+            background: var(--light);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem;
             margin-bottom: 2rem;
-            box-shadow: 0 8px 32px rgba(44, 79, 94, 0.15);
-            position: relative;
-            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
         }
 
-        .particles-canvas {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: 1;
-        }
-
-        .thermo-header {
-            text-align: center;
-            cursor: pointer;
-            user-select: none;
-            margin-bottom: 1rem;
-            transition: all 0.3s ease;
-            position: relative;
-            z-index: 2;
-        }
-
-        .thermo-header:hover {
-            transform: scale(1.02);
-        }
-
-        .thermo-header h3 {
-            font-size: 1.4rem;
-            color: var(--jus-azul);
-            margin: 0;
-            font-weight: 700;
-            display: inline-flex;
+        .stats-header {
+            display: flex;
+            justify-content: space-between;
             align-items: center;
+            margin-bottom: 0.75rem;
+            flex-wrap: wrap;
             gap: 0.5rem;
         }
 
-        .toggle-icon {
-            font-size: 0.9rem;
-            transition: transform 0.3s ease;
-        }
-
-        .thermo-header.collapsed .toggle-icon {
-            transform: rotate(-90deg);
-        }
-
-        .thermo-body {
-            display: grid;
-            grid-template-columns: auto 1fr;
-            gap: 2rem;
-            align-items: start;
-            position: relative;
-            z-index: 2;
-        }
-
-        /* Termômetro Vertical REAL */
-        .thermometer-vertical {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 0;
-        }
-
-        .thermo-bulb {
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, var(--jus-vinho) 0%, var(--jus-azul) 100%);
-            position: relative;
-            cursor: pointer;
-            transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-            box-shadow: 0 4px 20px rgba(109, 41, 50, 0.4), inset 0 -10px 20px rgba(0,0,0,0.2);
-        }
-
-        .thermo-bulb:hover {
-            transform: scale(1.15) rotate(10deg);
-            box-shadow: 0 8px 40px rgba(109, 41, 50, 0.6), inset 0 -10px 20px rgba(0,0,0,0.3);
-        }
-
-        .thermo-bulb:active {
-            transform: scale(0.95);
-        }
-
-        .liquid-bulb {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            border-radius: 50%;
-            background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.3), transparent);
-            animation: liquidBubble 2s ease-in-out infinite;
-        }
-
-        @keyframes liquidBubble {
-            0%, 100% {
-                transform: scale(1);
-            }
-            50% {
-                transform: scale(1.05);
-            }
-        }
-
-        .number-display {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 1.5rem;
-            font-weight: 900;
-            color: white;
-            text-shadow: 0 2px 8px rgba(0,0,0,0.5);
-            z-index: 10;
-        }
-
-        .thermo-tube {
-            width: 30px;
-            height: 200px;
-            background: linear-gradient(to right, rgba(0,0,0,0.1), rgba(255,255,255,0.3), rgba(0,0,0,0.1));
-            border: 2px solid var(--jus-azul);
-            border-top: none;
-            border-radius: 0 0 15px 15px;
-            position: relative;
-            overflow: hidden;
-            box-shadow: inset 0 4px 10px rgba(0,0,0,0.2);
-        }
-
-        .liquid-tube {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            background: linear-gradient(180deg, var(--jus-dourado) 0%, var(--jus-azul) 50%, var(--jus-vinho) 100%);
-            transition: height 2s cubic-bezier(0.4, 0, 0.2, 1);
-            box-shadow: 0 -10px 30px rgba(184, 150, 60, 0.6);
-            animation: liquidFlow 3s ease-in-out infinite;
-        }
-
-        @keyframes liquidFlow {
-            0%, 100% {
-                opacity: 1;
-            }
-            50% {
-                opacity: 0.8;
-            }
-        }
-
-        .milestones-marks {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-        }
-
-        .mark {
-            position: absolute;
-            right: -35px;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            font-size: 0.75rem;
-            color: var(--text-muted);
-            pointer-events: auto;
-            cursor: help;
-            transition: all 0.3s ease;
-        }
-
-        .mark:hover {
-            transform: scale(1.3);
-        }
-
-        .mark-icon {
-            font-size: 1.2rem;
-            filter: grayscale(100%) opacity(0.4);
-            transition: filter 0.3s ease;
-        }
-
-        .mark.reached .mark-icon {
-            filter: grayscale(0%) opacity(1);
-            animation: markGlow 2s ease infinite;
-        }
-
-        @keyframes markGlow {
-            0%, 100% {
-                filter: grayscale(0%) opacity(1) drop-shadow(0 0 5px gold);
-            }
-            50% {
-                filter: grayscale(0%) opacity(1) drop-shadow(0 0 15px gold);
-            }
-        }
-
-        .thermo-top {
-            width: 40px;
-            height: 30px;
-            background: linear-gradient(180deg, transparent, rgba(255,100,50,0.3));
-            border-radius: 20px 20px 0 0;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .heat-effect {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            background: radial-gradient(circle, rgba(255,150,0,0.6), transparent);
-            animation: heatWave 1.5s ease-in-out infinite;
-        }
-
-        @keyframes heatWave {
-            0%, 100% {
-                transform: scale(0.8) translateY(10px);
-                opacity: 0.3;
-            }
-            50% {
-                transform: scale(1.2) translateY(-5px);
-                opacity: 0.7;
-            }
-        }
-
-        /* Cards Estatísticas Interativos */
-        .stats-cards-grid {
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-        }
-
-        .stat-card-v2 {
-            background: linear-gradient(135deg, #fff 0%, #f0f0f0 100%);
-            border: 2px solid var(--border);
-            border-radius: 12px;
-            padding: 1rem;
-            cursor: pointer;
-            transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-            position: relative;
-            overflow: hidden;
-        }
-
-        .stat-card-v2:hover {
-            transform: translateX(10px) scale(1.05) rotate(2deg);
-            border-color: var(--jus-azul);
-            box-shadow: 0 10px 40px rgba(44, 79, 94, 0.3);
-        }
-
-        .stat-card-v2:active {
-            transform: translateX(5px) scale(0.98);
-        }
-
-        .card-glow {
-            position: absolute;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
-            background: radial-gradient(circle, rgba(184, 150, 60, 0.3), transparent 70%);
-            opacity: 0;
-            transition: opacity 0.4s ease;
-        }
-
-        .stat-card-v2:hover .card-glow {
-            opacity: 1;
-            animation: glowPulse 1.5s ease infinite;
-        }
-
-        @keyframes glowPulse {
-            0%, 100% {
-                transform: scale(0.8);
-            }
-            50% {
-                transform: scale(1.2);
-            }
-        }
-
-        .card-icon {
-            font-size: 2rem;
-            display: inline-block;
-            margin-bottom: 0.5rem;
-        }
-
-        .card-icon.rotating {
-            animation: iconBobble 3s ease-in-out infinite;
-        }
-
-        .stat-card-v2:hover .card-icon.rotating {
-            animation: iconSpin 0.8s ease-in-out;
-        }
-
-        @keyframes iconBobble {
-            0%, 100% {
-                transform: translateY(0) rotate(0deg);
-            }
-            50% {
-                transform: translateY(-5px) rotate(5deg);
-            }
-        }
-
-        @keyframes iconSpin {
-            from {
-                transform: rotate(0deg) scale(1);
-            }
-            to {
-                transform: rotate(360deg) scale(1.3);
-            }
-        }
-
-        .card-value {
-            font-size: 1.5rem;
-            font-weight: 900;
+        .stats-header h4 {
+            margin: 0;
+            font-size: 1rem;
             color: var(--jus-azul);
-            margin: 0.5rem 0;
-            transition: all 0.3s ease;
+            font-weight: 700;
         }
 
-        .stat-card-v2:hover .card-value {
-            color: var(--jus-dourado);
-            transform: scale(1.2);
-        }
-
-        .card-label {
-            font-size: 0.85rem;
-            color: var(--text-muted);
-            font-weight: 600;
-        }
-
-        /* Conquistas Desbloqueáveis */
-        .achievements-row {
+        .stats-inline {
             display: flex;
-            justify-content: center;
-            gap: 1.5rem;
-            margin-top: 1.5rem;
-            padding-top: 1.5rem;
-            border-top: 2px solid var(--border);
-        }
-
-        .achievement {
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            border: 3px solid var(--border);
-            background: linear-gradient(135deg, #f0f0f0, #e0e0e0);
-            display: flex;
+            gap: 1rem;
             align-items: center;
-            justify-content: center;
-            position: relative;
-            cursor: pointer;
-            transition: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
         }
 
-        .achievement:hover {
-            transform: scale(1.2) rotate(10deg);
+        .stat-mini {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.15rem;
         }
 
-        .achievement.locked {
-            filter: grayscale(100%);
-            opacity: 0.4;
+        .stat-mini strong {
+            font-size: 1.2rem;
+            color: var(--jus-vinho);
+            font-weight: 800;
+            line-height: 1;
         }
 
-        .achievement.unlocked {
-            filter: grayscale(0%);
-            opacity: 1;
-            border-color: gold;
-            background: linear-gradient(135deg, #ffd700, #ffed4e);
-            animation: achievementUnlock 0.8s ease;
+        .stat-mini span {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
-        @keyframes achievementUnlock {
-            0% {
-                transform: scale(0);
-                opacity: 0;
-            }
-            50% {
-                transform: scale(1.5) rotate(180deg);
-            }
-            100% {
-                transform: scale(1) rotate(360deg);
-                opacity: 1;
-            }
+        .progress-minimal {
+            width: 100%;
+            height: 8px;
+            background: var(--border);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 0.75rem;
         }
 
-        .ach-icon {
-            font-size: 2rem;
-            z-index: 2;
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--jus-vinho), var(--jus-azul));
+            border-radius: 4px;
+            transition: width 0.8s ease;
         }
 
-        .ach-lock {
-            position: absolute;
-            font-size: 1.5rem;
-            z-index: 3;
-        }
-
-        .achievement.unlocked .ach-lock {
-            display: none;
-        }
-
-        .achievement.unlocked::after {
-            content: '✨';
-            position: absolute;
-            top: -10px;
-            right: -10px;
-            font-size: 1.5rem;
-            animation: sparkleRotate 3s linear infinite;
-        }
-
-        @keyframes sparkleRotate {
-            from {
-                transform: rotate(0deg);
-            }
-            to {
-                transform: rotate(360deg);
-            }
-        }
-
-        /* Footer */
-        .thermo-footer {
-            margin-top: 1.5rem;
-            padding-top: 1rem;
-            border-top: 1px solid var(--border);
+        .stats-footer-minimal {
             display: flex;
             justify-content: space-between;
             align-items: center;
             flex-wrap: wrap;
-            gap: 1rem;
+            gap: 0.75rem;
         }
 
-        .social-btns-inline {
+        .badges-minimal {
             display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+
+        .badge-mini {
+            font-size: 1.1rem;
+            cursor: help;
+            transition: all 0.3s ease;
+            opacity: 0.3;
+            filter: grayscale(100%);
+        }
+
+        .badge-mini:not(.locked) {
+            opacity: 1;
+            filter: grayscale(0%);
+            animation: badgePop 0.5s ease;
+        }
+
+        .badge-mini:hover {
+            transform: scale(1.3);
+        }
+
+        @keyframes badgePop {
+            0% {
+                transform: scale(0);
+            }
+            50% {
+                transform: scale(1.4);
+            }
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        .social-minimal {
+            display: flex;
+            align-items: center;
             gap: 0.5rem;
         }
 
-        .social-micro {
-            width: 36px;
-            height: 36px;
-            border: none;
+        .social-icon {
+            width: 32px;
+            height: 32px;
             border-radius: 50%;
+            border: none;
             background: var(--light);
-            font-size: 1.2rem;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-
-        .social-micro:hover {
-            transform: translateY(-3px) rotate(15deg) scale(1.2);
-            box-shadow: 0 6px 20px rgba(0,0,0,0.2);
-        }
-
-        .social-micro:active {
-            transform: scale(0.9);
-        }
-
-        .lgpd-note {
             color: var(--text-muted);
-            font-size: 0.75rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            padding: 0;
+        }
+
+        .social-icon:hover {
+            background: var(--jus-azul);
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .social-icon:active {
+            transform: translateY(0);
+        }
+
+        .social-icon svg {
+            display: block;
         }
 
         /* Responsive */
         @media (max-width: 768px) {
-            .thermo-body {
-                grid-template-columns: 1fr;
-                gap: 1.5rem;
+            .stats-header {
+                flex-direction: column;
+                align-items: flex-start;
             }
 
-            .thermometer-vertical {
-                margin: 0 auto;
+            .stats-inline {
+                width: 100%;
+                justify-content: space-between;
             }
 
-            .achievements-row {
-                gap: 1rem;
+            .stat-mini strong {
+                font-size: 1rem;
             }
 
-            .achievement {
-                width: 50px;
-                height: 50px;
+            .stat-mini span {
+                font-size: 0.65rem;
+            }
+
+            .badges-minimal {
+                gap: 0.4rem;
+            }
+
+            .badge-mini {
+                font-size: 1rem;
+            }
+
+            .social-icon {
+                width: 28px;
+                height: 28px;
+            }
+
+            .social-icon svg {
+                width: 16px;
+                height: 16px;
             }
         }
     </style>
@@ -1933,94 +1638,59 @@
             </div>
         </header>
 
-        <!-- Termômetro de Estatísticas INOVADOR - LGPD Compliant -->
-        <div class="stats-thermometer-v2" id="statsThermometer">
-            <canvas id="particlesCanvas" class="particles-canvas"></canvas>
-
-            <div class="thermo-header" onclick="toggleThermoDetails()">
-                <h3>🌡️ Impacto Social <span class="toggle-icon">▼</span></h3>
+        <!-- Termômetro Minimalista - LGPD Compliant -->
+        <div class="stats-minimal" id="statsThermometer">
+            <div class="stats-header">
+                <h4>Impacto Social</h4>
+                <div class="stats-inline">
+                    <div class="stat-mini">
+                        <strong id="mainTotal">0</strong>
+                        <span>documentos</span>
+                    </div>
+                    <div class="stat-mini">
+                        <strong id="statToday3">0</strong>
+                        <span>hoje</span>
+                    </div>
+                    <div class="stat-mini">
+                        <strong id="statMostCommon3">—</strong>
+                        <span>mais comum</span>
+                    </div>
+                </div>
             </div>
 
-            <div class="thermo-body" id="thermoBody">
-                <!-- Termômetro vertical REAL -->
-                <div class="thermometer-vertical">
-                    <div class="thermo-bulb" onclick="explodeBulb()">
-                        <div class="liquid-bulb" id="liquidBulb"></div>
-                        <div class="number-display" id="mainNumber">0</div>
-                    </div>
-                    <div class="thermo-tube">
-                        <div class="liquid-tube" id="liquidTube" style="height: 0%"></div>
-                        <div class="milestones-marks">
-                            <div class="mark" style="bottom: 20%" data-value="100" title="🥉 Bronze">
-                                <span class="mark-icon">🥉</span>
-                            </div>
-                            <div class="mark" style="bottom: 40%" data-value="1K" title="🥈 Prata">
-                                <span class="mark-icon">🥈</span>
-                            </div>
-                            <div class="mark" style="bottom: 60%" data-value="10K" title="🥇 Ouro">
-                                <span class="mark-icon">🥇</span>
-                            </div>
-                            <div class="mark" style="bottom: 80%" data-value="100K" title="💎 Diamante">
-                                <span class="mark-icon">💎</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="thermo-top">
-                        <div class="heat-effect"></div>
-                    </div>
-                </div>
+            <div class="progress-minimal">
+                <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+            </div>
 
-                <!-- Stats Cards Interativos -->
-                <div class="stats-cards-grid">
-                    <div class="stat-card-v2" onclick="animateCard(this)">
-                        <div class="card-icon rotating">📅</div>
-                        <div class="card-value" id="statToday2">0</div>
-                        <div class="card-label">Hoje</div>
-                        <div class="card-glow"></div>
-                    </div>
-                    <div class="stat-card-v2" onclick="animateCard(this)">
-                        <div class="card-icon rotating">📄</div>
-                        <div class="card-value" id="statMostCommon2">-</div>
-                        <div class="card-label">Mais Comum</div>
-                        <div class="card-glow"></div>
-                    </div>
-                    <div class="stat-card-v2" onclick="animateCard(this)">
-                        <div class="card-icon rotating" id="nextIcon2">🥉</div>
-                        <div class="card-value" id="nextValue2">100</div>
-                        <div class="card-label" id="nextLabel2">Próximo</div>
-                        <div class="card-glow"></div>
-                    </div>
+            <div class="stats-footer-minimal">
+                <div class="badges-minimal">
+                    <span class="badge-mini locked" id="mini-bronze" title="Bronze - 100">🥉</span>
+                    <span class="badge-mini locked" id="mini-silver" title="Prata - 1.000">🥈</span>
+                    <span class="badge-mini locked" id="mini-gold" title="Ouro - 10.000">🥇</span>
+                    <span class="badge-mini locked" id="mini-diamond" title="Diamante - 100.000">💎</span>
                 </div>
-
-                <!-- Conquistas Desbloqueadas -->
-                <div class="achievements-row">
-                    <div class="achievement locked" id="ach-bronze" data-milestone="100" onclick="showAchievement(this)">
-                        <div class="ach-icon">🥉</div>
-                        <div class="ach-lock">🔒</div>
-                    </div>
-                    <div class="achievement locked" id="ach-silver" data-milestone="1000" onclick="showAchievement(this)">
-                        <div class="ach-icon">🥈</div>
-                        <div class="ach-lock">🔒</div>
-                    </div>
-                    <div class="achievement locked" id="ach-gold" data-milestone="10000" onclick="showAchievement(this)">
-                        <div class="ach-icon">🥇</div>
-                        <div class="ach-lock">🔒</div>
-                    </div>
-                    <div class="achievement locked" id="ach-diamond" data-milestone="100000" onclick="showAchievement(this)">
-                        <div class="ach-icon">💎</div>
-                        <div class="ach-lock">🔒</div>
-                    </div>
-                </div>
-
-                <!-- Social + LGPD -->
-                <div class="thermo-footer">
-                    <div class="social-btns-inline">
-                        <button class="social-micro" onclick="shareStats('whatsapp')" title="WhatsApp">💬</button>
-                        <button class="social-micro" onclick="shareStats('twitter')" title="Twitter">🐦</button>
-                        <button class="social-micro" onclick="shareStats('facebook')" title="Facebook">👍</button>
-                        <button class="social-micro" onclick="shareStats('copy')" title="Copiar">📋</button>
-                    </div>
-                    <small class="lgpd-note">🔒 Dados agregados • LGPD</small>
+                <div class="social-minimal">
+                    <button onclick="shareStats('whatsapp')" title="WhatsApp" class="social-icon">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                        </svg>
+                    </button>
+                    <button onclick="shareStats('twitter')" title="Twitter/X" class="social-icon">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                            <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                        </svg>
+                    </button>
+                    <button onclick="shareStats('facebook')" title="Facebook" class="social-icon">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                            <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                        </svg>
+                    </button>
+                    <button onclick="shareStats('copy')" title="Copiar link" class="social-icon">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                            <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
+                        </svg>
+                    </button>
+                    <small style="color: var(--text-muted); font-size: 0.7rem; margin-left: 0.5rem;">🔒 LGPD</small>
                 </div>
             </div>
         </div>
@@ -3763,95 +3433,7 @@ P.R.I.`;
             return tiposMap[tipo] || tipo.charAt(0).toUpperCase() + tipo.slice(1);
         }
 
-        // === FUNÇÕES INTERATIVAS DO TERMÔMETRO V2 ===
-
-        function toggleThermoDetails() {
-            const body = document.getElementById('thermoBody');
-            const header = document.querySelector('.thermo-header');
-            if (body.style.display === 'none') {
-                body.style.display = 'grid';
-                header.classList.remove('collapsed');
-            } else {
-                body.style.display = 'none';
-                header.classList.add('collapsed');
-            }
-        }
-
-        function explodeBulb() {
-            createParticles(event.clientX, event.clientY);
-            const bulb = event.currentTarget;
-            bulb.style.animation = 'none';
-            setTimeout(() => {
-                bulb.style.animation = '';
-            }, 10);
-        }
-
-        function animateCard(card) {
-            card.style.transform = 'scale(1.1) rotate(5deg)';
-            setTimeout(() => {
-                card.style.transform = '';
-            }, 300);
-        }
-
-        function showAchievement(ach) {
-            if (!ach.classList.contains('locked')) {
-                alert(`🏆 Conquista Desbloqueada!\n\n${ach.title || 'Milestone alcançado!'}`);
-                createParticles(event.clientX, event.clientY, 30);
-            }
-        }
-
-        function createParticles(x, y, count = 20) {
-            const canvas = document.getElementById('particlesCanvas');
-            if (!canvas) return;
-
-            const rect = canvas.getBoundingClientRect();
-            const localX = x - rect.left;
-            const localY = y - rect.top;
-
-            for (let i = 0; i < count; i++) {
-                const particle = document.createElement('div');
-                particle.style.cssText = `
-                    position: absolute;
-                    left: ${localX}px;
-                    top: ${localY}px;
-                    width: 8px;
-                    height: 8px;
-                    background: radial-gradient(circle, gold, orange);
-                    border-radius: 50%;
-                    pointer-events: none;
-                    z-index: 1000;
-                `;
-
-                canvas.appendChild(particle);
-
-                const angle = (Math.PI * 2 * i) / count;
-                const velocity = 2 + Math.random() * 3;
-                const vx = Math.cos(angle) * velocity;
-                const vy = Math.sin(angle) * velocity;
-
-                let posX = localX;
-                let posY = localY;
-                let opacity = 1;
-
-                const animate = () => {
-                    posX += vx;
-                    posY += vy;
-                    opacity -= 0.02;
-
-                    particle.style.left = posX + 'px';
-                    particle.style.top = posY + 'px';
-                    particle.style.opacity = opacity;
-
-                    if (opacity > 0) {
-                        requestAnimationFrame(animate);
-                    } else {
-                        particle.remove();
-                    }
-                };
-
-                animate();
-            }
-        }
+        // === FUNÇÕES DO TERMÔMETRO MINIMALISTA ===
 
         async function carregarEstatisticas() {
             try {
@@ -3867,57 +3449,46 @@ P.R.I.`;
                 const thermometer = document.getElementById('statsThermometer');
                 thermometer.style.display = 'block';
 
-                // Atualizar termômetro vertical
+                // Atualizar estatísticas principais
                 const total = stats.total_documentos || 0;
-                animateCounter(document.getElementById('mainNumber'), total, 1500);
+                animateCounter(document.getElementById('mainTotal'), total, 1500);
 
-                // Calcular altura do líquido (0-100%)
-                let liquidHeight = 0;
-                if (total >= 100000) liquidHeight = 100;
-                else if (total >= 10000) liquidHeight = 60 + ((total - 10000) / 90000) * 40;
-                else if (total >= 1000) liquidHeight = 40 + ((total - 1000) / 9000) * 20;
-                else if (total >= 100) liquidHeight = 20 + ((total - 100) / 900) * 20;
-                else if (total > 0) liquidHeight = (total / 100) * 20;
+                document.getElementById('statToday3').textContent = stats.documentos_hoje || 0;
+                document.getElementById('statMostCommon3').textContent = stats.tipo_mais_comum ?
+                    formatarTipoDocumento(stats.tipo_mais_comum) : '—';
 
-                document.getElementById('liquidTube').style.height = liquidHeight + '%';
-
-                // Marcar milestones alcançados
-                document.querySelectorAll('.mark').forEach(mark => {
-                    const value = parseInt(mark.getAttribute('data-value'));
-                    if (total >= value) {
-                        mark.classList.add('reached');
-                    }
-                });
-
-                // Estatísticas cards
-                document.getElementById('statToday2').textContent = stats.documentos_hoje || 0;
-                document.getElementById('statMostCommon2').textContent = stats.tipo_mais_comum ?
-                    formatarTipoDocumento(stats.tipo_mais_comum) : '-';
-
-                // Próximo milestone
-                if (stats.proximo_milestone) {
-                    document.getElementById('nextIcon2').textContent = stats.proximo_milestone.emoji;
-                    document.getElementById('nextValue2').textContent = formatNumber(stats.proximo_milestone.valor);
-                    document.getElementById('nextLabel2').textContent = stats.proximo_milestone.nome;
-                } else {
-                    document.getElementById('nextIcon2').textContent = '🏆';
-                    document.getElementById('nextValue2').textContent = 'MAX';
-                    document.getElementById('nextLabel2').textContent = 'Máximo!';
+                // Calcular progresso para a próxima conquista (0-100%)
+                let progressPercent = 0;
+                if (total >= 100000) {
+                    progressPercent = 100;
+                } else if (total >= 10000) {
+                    progressPercent = 75 + ((total - 10000) / 90000) * 25;
+                } else if (total >= 1000) {
+                    progressPercent = 50 + ((total - 1000) / 9000) * 25;
+                } else if (total >= 100) {
+                    progressPercent = 25 + ((total - 100) / 900) * 25;
+                } else if (total > 0) {
+                    progressPercent = (total / 100) * 25;
                 }
 
-                // Desbloquear conquistas
-                const achievements = [
-                    { id: 'ach-bronze', value: 100 },
-                    { id: 'ach-silver', value: 1000 },
-                    { id: 'ach-gold', value: 10000 },
-                    { id: 'ach-diamond', value: 100000 }
+                document.getElementById('progressFill').style.width = progressPercent + '%';
+
+                // Desbloquear badges de conquistas
+                const badges = [
+                    { id: 'mini-bronze', value: 100 },
+                    { id: 'mini-silver', value: 1000 },
+                    { id: 'mini-gold', value: 10000 },
+                    { id: 'mini-diamond', value: 100000 }
                 ];
 
-                achievements.forEach(ach => {
-                    const elem = document.getElementById(ach.id);
-                    if (total >= ach.value && elem.classList.contains('locked')) {
-                        elem.classList.remove('locked');
-                        elem.classList.add('unlocked');
+                badges.forEach(badge => {
+                    const elem = document.getElementById(badge.id);
+                    if (elem) {
+                        if (total >= badge.value) {
+                            elem.classList.remove('locked');
+                        } else {
+                            elem.classList.add('locked');
+                        }
                     }
                 });
 
