@@ -1021,33 +1021,41 @@
             }
 
             .stats-thermometer {
-                padding: 1.5rem;
+                padding: 1rem;
             }
 
-            .stats-grid {
+            .thermometer-content {
                 grid-template-columns: 1fr;
                 gap: 1rem;
             }
 
-            .share-buttons {
-                flex-wrap: wrap;
+            .gauge-container {
+                width: 140px;
+                height: 140px;
+                margin: 0 auto;
+            }
+
+            .stats-compact {
                 gap: 0.5rem;
             }
 
-            .share-btn {
-                padding: 0.6rem 1rem;
-                font-size: 0.85rem;
+            .milestones-badges {
+                gap: 0.75rem;
+            }
+
+            .badge-item {
+                font-size: 1.5rem;
             }
         }
 
-        /* === Termômetro de Estatísticas === */
+        /* === Termômetro de Estatísticas Compacto === */
         .stats-thermometer {
             background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.9) 100%);
             border: 2px solid var(--border);
-            border-radius: 16px;
-            padding: 2rem;
+            border-radius: 12px;
+            padding: 1rem 1.5rem;
             margin-bottom: 2rem;
-            box-shadow: 0 8px 24px var(--shadow);
+            box-shadow: 0 4px 12px var(--shadow);
             animation: fadeIn 0.6s ease;
         }
 
@@ -1057,188 +1065,138 @@
 
         .thermometer-header {
             text-align: center;
-            margin-bottom: 1.5rem;
+            margin-bottom: 1rem;
         }
 
         .thermometer-header h3 {
-            font-size: 1.5rem;
+            font-size: 1.25rem;
             color: var(--jus-azul);
-            margin-bottom: 0.5rem;
+            margin: 0;
             font-weight: 700;
         }
 
-        .thermometer-subtitle {
-            color: var(--text-muted);
-            font-size: 0.95rem;
-        }
-
-        /* Grid de estatísticas */
-        .stats-grid {
+        .thermometer-content {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            grid-template-columns: auto 1fr;
             gap: 1.5rem;
-            margin-bottom: 2rem;
-        }
-
-        .stat-card {
-            background: var(--light);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 1.25rem;
-            text-align: center;
-            transition: all 0.3s ease;
-            cursor: default;
-        }
-
-        .stat-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 6px 20px var(--shadow);
-            border-color: var(--jus-azul);
-        }
-
-        .stat-value {
-            font-size: 2rem;
-            font-weight: 700;
-            color: var(--jus-azul);
-            margin-bottom: 0.5rem;
-            animation: countUp 1s ease;
-        }
-
-        .stat-label {
-            font-size: 0.85rem;
-            color: var(--text-muted);
-            font-weight: 500;
-        }
-
-        /* Progresso com milestones */
-        .milestone-progress {
-            margin: 2rem 0;
-        }
-
-        .milestone-info {
-            display: flex;
-            justify-content: space-between;
             align-items: center;
-            margin-bottom: 1rem;
-            gap: 1rem;
-            flex-wrap: wrap;
         }
 
-        .current-badge {
-            background: linear-gradient(135deg, var(--jus-vinho) 0%, var(--jus-azul) 100%);
-            color: white;
-            padding: 0.5rem 1rem;
-            border-radius: 20px;
-            font-weight: 600;
-            font-size: 0.9rem;
-            box-shadow: 0 4px 12px rgba(109, 41, 50, 0.3);
-        }
-
-        .next-badge {
-            color: var(--text-muted);
-            font-size: 0.9rem;
-            font-weight: 500;
-        }
-
-        .progress-bar-container {
-            background: var(--border);
-            height: 30px;
-            border-radius: 15px;
-            overflow: hidden;
+        /* Gauge Circular */
+        .gauge-container {
             position: relative;
-            box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+            width: 160px;
+            height: 160px;
         }
 
-        .progress-bar {
-            background: linear-gradient(90deg, var(--jus-vinho) 0%, var(--jus-azul) 50%, var(--jus-dourado) 100%);
-            height: 100%;
-            border-radius: 15px;
-            transition: width 1s ease-in-out;
-            display: flex;
-            align-items: center;
-            justify-content: flex-end;
-            padding-right: 12px;
-            min-width: 60px;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .progress-bar::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
+        .gauge-svg {
             width: 100%;
             height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
-            animation: shimmer 2s infinite;
+            filter: drop-shadow(0 2px 8px rgba(0,0,0,0.1));
         }
 
-        @keyframes shimmer {
-            0% { transform: translateX(-100%); }
-            100% { transform: translateX(100%); }
-        }
-
-        .progress-text {
+        .gauge-milestone {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, var(--jus-vinho) 0%, var(--jus-azul) 100%);
             color: white;
-            font-weight: 700;
-            font-size: 0.85rem;
-            z-index: 1;
-            text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            white-space: nowrap;
+            box-shadow: 0 2px 8px rgba(109, 41, 50, 0.3);
         }
 
-        .milestones-markers {
+        /* Estatísticas compactas */
+        .stats-compact {
             display: flex;
-            justify-content: space-between;
-            margin-top: 0.75rem;
-            padding: 0 0.5rem;
+            flex-direction: column;
+            gap: 0.75rem;
         }
 
-        .marker {
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.5rem;
+            background: var(--light);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .stat-item:hover {
+            transform: translateX(5px);
+            border-color: var(--jus-azul);
+            box-shadow: 0 2px 8px var(--shadow);
+        }
+
+        .stat-icon {
             font-size: 1.5rem;
-            filter: grayscale(100%) opacity(0.4);
+            min-width: 30px;
+            text-align: center;
+        }
+
+        .stat-compact-value {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--jus-azul);
+            line-height: 1;
+        }
+
+        .stat-compact-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            line-height: 1;
+        }
+
+        /* Milestones badges */
+        .milestones-badges {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border);
+        }
+
+        .badge-item {
+            font-size: 1.75rem;
+            filter: grayscale(100%) opacity(0.3);
             transition: all 0.3s ease;
             cursor: pointer;
         }
 
-        .marker:hover {
+        .badge-item:hover {
             filter: grayscale(0%) opacity(1);
-            transform: scale(1.3);
+            transform: scale(1.2);
         }
 
-        .marker.achieved {
+        .badge-item.achieved {
             filter: grayscale(0%) opacity(1);
             animation: bounce 0.6s ease;
         }
 
-        /* Compartilhamento social */
-        .social-share {
-            text-align: center;
-            margin-top: 2rem;
-            padding-top: 1.5rem;
+        /* Compartilhamento social compacto */
+        .social-share-compact {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 1rem;
+            padding-top: 1rem;
             border-top: 1px solid var(--border);
         }
 
-        .share-label {
-            color: var(--text-muted);
-            font-size: 0.9rem;
-            margin-bottom: 1rem;
-            font-weight: 500;
-        }
-
-        .share-buttons {
-            display: flex;
-            gap: 1rem;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .share-btn {
+        .share-btn-small {
             background: var(--light);
-            border: 2px solid var(--border);
+            border: 1px solid var(--border);
             border-radius: 50%;
-            width: 48px;
-            height: 48px;
+            width: 32px;
+            height: 32px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -1247,61 +1205,49 @@
             padding: 0;
         }
 
-        .share-btn:hover {
-            transform: translateY(-3px) scale(1.1);
-            box-shadow: 0 6px 20px var(--shadow);
+        .share-btn-small:hover {
+            transform: translateY(-2px) scale(1.1);
+            box-shadow: 0 4px 12px var(--shadow);
         }
 
-        .share-btn.whatsapp {
+        .share-btn-small.whatsapp {
             color: #25D366;
             border-color: #25D366;
         }
 
-        .share-btn.whatsapp:hover {
+        .share-btn-small.whatsapp:hover {
             background: #25D366;
             color: white;
         }
 
-        .share-btn.twitter {
+        .share-btn-small.twitter {
             color: #1DA1F2;
             border-color: #1DA1F2;
         }
 
-        .share-btn.twitter:hover {
+        .share-btn-small.twitter:hover {
             background: #1DA1F2;
             color: white;
         }
 
-        .share-btn.facebook {
+        .share-btn-small.facebook {
             color: #1877F2;
             border-color: #1877F2;
         }
 
-        .share-btn.facebook:hover {
+        .share-btn-small.facebook:hover {
             background: #1877F2;
             color: white;
         }
 
-        .share-btn.copy {
+        .share-btn-small.copy {
             color: var(--jus-azul);
             border-color: var(--jus-azul);
         }
 
-        .share-btn.copy:hover {
+        .share-btn-small.copy:hover {
             background: var(--jus-azul);
             color: white;
-        }
-
-        .thermometer-footer {
-            text-align: center;
-            margin-top: 1.5rem;
-            padding-top: 1rem;
-            border-top: 1px solid var(--border);
-        }
-
-        .thermometer-footer small {
-            color: var(--text-muted);
-            font-size: 0.8rem;
         }
 
         @keyframes fadeIn {
@@ -1379,66 +1325,90 @@
         <div class="stats-thermometer" id="statsThermometer" style="display: none;">
             <div class="thermometer-header">
                 <h3>🌡️ Termômetro de Impacto Social</h3>
-                <p class="thermometer-subtitle">Documentos simplificados para brasileiros</p>
             </div>
 
-            <!-- Estatísticas principais -->
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-value" id="statTotal">-</div>
-                    <div class="stat-label">Total de documentos</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value" id="statToday">-</div>
-                    <div class="stat-label">Processados hoje</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value" id="statMostCommon">-</div>
-                    <div class="stat-label">Tipo mais comum</div>
-                </div>
-            </div>
+            <div class="thermometer-content">
+                <!-- Gauge Circular -->
+                <div class="gauge-container">
+                    <svg class="gauge-svg" viewBox="0 0 200 200">
+                        <!-- Círculo de fundo -->
+                        <circle cx="100" cy="100" r="80" fill="none" stroke="var(--border)" stroke-width="12" opacity="0.3"/>
 
-            <!-- Barra de progresso com milestones -->
-            <div class="milestone-progress">
-                <div class="milestone-info">
-                    <span id="currentMilestone" class="current-badge">🏁 Começando</span>
-                    <span id="nextMilestone" class="next-badge">🥉 Próximo: Bronze (100)</span>
+                        <!-- Círculo de progresso -->
+                        <circle id="gaugeProgress" cx="100" cy="100" r="80" fill="none"
+                                stroke="url(#gaugeGradient)" stroke-width="12"
+                                stroke-dasharray="502.65" stroke-dashoffset="502.65"
+                                transform="rotate(-90 100 100)"
+                                stroke-linecap="round"/>
+
+                        <!-- Gradiente -->
+                        <defs>
+                            <linearGradient id="gaugeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                                <stop offset="0%" style="stop-color:#6d2932;stop-opacity:1" />
+                                <stop offset="50%" style="stop-color:#2c4f5e;stop-opacity:1" />
+                                <stop offset="100%" style="stop-color:#b8963c;stop-opacity:1" />
+                            </linearGradient>
+                        </defs>
+
+                        <!-- Texto central -->
+                        <text x="100" y="95" text-anchor="middle" font-size="32" font-weight="700" fill="var(--jus-azul)" id="gaugeTotal">0</text>
+                        <text x="100" y="115" text-anchor="middle" font-size="12" fill="var(--text-muted)">documentos</text>
+                    </svg>
+
+                    <!-- Milestone atual -->
+                    <div class="gauge-milestone" id="gaugeMilestone">🏁 Começando</div>
                 </div>
-                <div class="progress-bar-container">
-                    <div class="progress-bar" id="progressBar" style="width: 0%">
-                        <span class="progress-text" id="progressText">0%</span>
+
+                <!-- Estatísticas compactas -->
+                <div class="stats-compact">
+                    <div class="stat-item">
+                        <span class="stat-icon">📅</span>
+                        <div>
+                            <div class="stat-compact-value" id="statToday">-</div>
+                            <div class="stat-compact-label">Hoje</div>
+                        </div>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-icon">📄</span>
+                        <div>
+                            <div class="stat-compact-value" id="statMostCommon">-</div>
+                            <div class="stat-compact-label">Mais comum</div>
+                        </div>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-icon" id="nextMilestoneIcon">🥉</span>
+                        <div>
+                            <div class="stat-compact-value" id="nextMilestoneValue">100</div>
+                            <div class="stat-compact-label" id="nextMilestoneLabel">Próximo</div>
+                        </div>
                     </div>
                 </div>
-                <div class="milestones-markers">
-                    <div class="marker" data-milestone="bronze" title="Bronze - 100 docs">🥉</div>
-                    <div class="marker" data-milestone="silver" title="Prata - 1.000 docs">🥈</div>
-                    <div class="marker" data-milestone="gold" title="Ouro - 10.000 docs">🥇</div>
-                    <div class="marker" data-milestone="diamond" title="Diamante - 100.000 docs">💎</div>
-                </div>
             </div>
 
-            <!-- Compartilhamento social -->
-            <div class="social-share">
-                <p class="share-label">Ajude a democratizar o acesso à justiça:</p>
-                <div class="share-buttons">
-                    <button class="share-btn whatsapp" onclick="shareStats('whatsapp')" title="Compartilhar no WhatsApp">
-                        <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-                    </button>
-                    <button class="share-btn twitter" onclick="shareStats('twitter')" title="Compartilhar no Twitter">
-                        <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z"/></svg>
-                    </button>
-                    <button class="share-btn facebook" onclick="shareStats('facebook')" title="Compartilhar no Facebook">
-                        <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
-                    </button>
-                    <button class="share-btn copy" onclick="shareStats('copy')" title="Copiar link">
-                        <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
-                    </button>
-                </div>
+            <!-- Milestones badges -->
+            <div class="milestones-badges">
+                <div class="badge-item" data-milestone="bronze" title="Bronze - 100 docs">🥉</div>
+                <div class="badge-item" data-milestone="silver" title="Prata - 1.000 docs">🥈</div>
+                <div class="badge-item" data-milestone="gold" title="Ouro - 10.000 docs">🥇</div>
+                <div class="badge-item" data-milestone="diamond" title="Diamante - 100.000 docs">💎</div>
             </div>
 
-            <p class="thermometer-footer">
-                <small>🔒 LGPD: Armazenamos apenas contadores agregados, sem dados dos documentos.</small>
-            </p>
+            <!-- Compartilhamento social compacto -->
+            <div class="social-share-compact">
+                <button class="share-btn-small whatsapp" onclick="shareStats('whatsapp')" title="WhatsApp">
+                    <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                </button>
+                <button class="share-btn-small twitter" onclick="shareStats('twitter')" title="Twitter">
+                    <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z"/></svg>
+                </button>
+                <button class="share-btn-small facebook" onclick="shareStats('facebook')" title="Facebook">
+                    <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+                </button>
+                <button class="share-btn-small copy" onclick="shareStats('copy')" title="Copiar link">
+                    <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+                </button>
+                <span style="margin-left: 0.5rem; font-size: 0.75rem; color: var(--text-muted);">🔒 LGPD</span>
+            </div>
         </div>
 
         <!-- Progress Steps -->
@@ -3234,39 +3204,48 @@ P.R.I.`;
                 const thermometer = document.getElementById('statsThermometer');
                 thermometer.style.display = 'block';
 
-                // Atualizar valores
-                document.getElementById('statTotal').textContent = formatNumber(stats.total_documentos);
+                // Atualizar gauge circular (total no centro)
+                document.getElementById('gaugeTotal').textContent = formatNumber(stats.total_documentos);
+
+                // Animar círculo de progresso
+                const gaugeProgress = document.getElementById('gaugeProgress');
+                const circumference = 2 * Math.PI * 80; // raio = 80
+                const progress = Math.min(stats.progresso_percentual || 0, 100);
+                const offset = circumference - (progress / 100) * circumference;
+
+                gaugeProgress.style.strokeDashoffset = offset;
+                gaugeProgress.style.transition = 'stroke-dashoffset 1.5s ease-in-out';
+
+                // Milestone atual (embaixo do gauge)
+                if (stats.milestone_atual) {
+                    document.getElementById('gaugeMilestone').textContent =
+                        `${stats.milestone_atual.emoji} ${stats.milestone_atual.nome}`;
+                }
+
+                // Estatísticas compactas à direita
                 document.getElementById('statToday').textContent = stats.documentos_hoje || 0;
 
                 // Tipo mais comum
                 if (stats.tipo_mais_comum) {
-                    const emoji = getTipoEmoji(stats.tipo_mais_comum);
                     const tipoFormatado = stats.tipo_mais_comum.charAt(0).toUpperCase() + stats.tipo_mais_comum.slice(1);
-                    document.getElementById('statMostCommon').textContent = `${emoji} ${tipoFormatado}`;
+                    document.getElementById('statMostCommon').textContent = tipoFormatado;
                 } else {
                     document.getElementById('statMostCommon').textContent = '—';
                 }
 
-                // Atualizar milestones
-                if (stats.milestone_atual) {
-                    document.getElementById('currentMilestone').textContent =
-                        `${stats.milestone_atual.emoji} ${stats.milestone_atual.nome}`;
-                }
-
+                // Próximo milestone
                 if (stats.proximo_milestone) {
-                    document.getElementById('nextMilestone').textContent =
-                        `${stats.proximo_milestone.emoji} Próximo: ${stats.proximo_milestone.nome} (${formatNumber(stats.proximo_milestone.valor)})`;
+                    document.getElementById('nextMilestoneIcon').textContent = stats.proximo_milestone.emoji;
+                    document.getElementById('nextMilestoneValue').textContent = formatNumber(stats.proximo_milestone.valor);
+                    document.getElementById('nextMilestoneLabel').textContent = stats.proximo_milestone.nome;
                 } else {
-                    document.getElementById('nextMilestone').textContent = '🏆 Máximo alcançado!';
+                    document.getElementById('nextMilestoneIcon').textContent = '🏆';
+                    document.getElementById('nextMilestoneValue').textContent = 'MAX';
+                    document.getElementById('nextMilestoneLabel').textContent = 'Alcançado!';
                 }
 
-                // Atualizar barra de progresso
-                const progress = Math.min(stats.progresso_percentual || 0, 100);
-                document.getElementById('progressBar').style.width = progress + '%';
-                document.getElementById('progressText').textContent = progress + '%';
-
-                // Marcar milestones alcançados
-                const markers = document.querySelectorAll('.marker');
+                // Marcar milestones alcançados (badges)
+                const badges = document.querySelectorAll('.badge-item');
                 const milestones = [
                     { name: 'bronze', value: 100 },
                     { name: 'silver', value: 1000 },
@@ -3276,7 +3255,7 @@ P.R.I.`;
 
                 milestones.forEach((milestone, index) => {
                     if (stats.total_documentos >= milestone.value) {
-                        markers[index].classList.add('achieved');
+                        badges[index].classList.add('achieved');
                     }
                 });
 
@@ -3305,9 +3284,9 @@ P.R.I.`;
                 case 'copy':
                     navigator.clipboard.writeText(url).then(() => {
                         // Feedback visual
-                        const btn = event.target.closest('.share-btn');
+                        const btn = event.target.closest('.share-btn-small');
                         const originalHTML = btn.innerHTML;
-                        btn.innerHTML = '<svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>';
+                        btn.innerHTML = '<svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>';
                         btn.style.background = 'var(--secondary)';
                         btn.style.borderColor = 'var(--secondary)';
                         btn.style.color = 'white';
