@@ -25,6 +25,7 @@ import base64
 import subprocess
 import numpy as np
 import google.generativeai as genai  # CRÍTICO: Import do Gemini
+import database  # Sistema de estatísticas LGPD-compliant
 
 # Tentativa de importar OpenCV
 try:
@@ -2255,6 +2256,14 @@ def processar():
         # Análise adicional do resultado
         analise = analisar_resultado_judicial(texto_simplificado)
 
+        # Incrementar estatísticas - LGPD compliant (apenas contadores)
+        try:
+            total_docs = database.incrementar_documento(tipo_doc)
+            logging.info(f"📊 Estatísticas atualizadas: Total={total_docs}, Tipo={tipo_doc}")
+        except Exception as e:
+            logging.error(f"📊 ❌ Erro ao incrementar estatísticas: {e}")
+            # Não falhar o processamento se estatísticas falharem
+
         return jsonify({
             "texto": texto_simplificado,
             "tipo_documento": tipo_doc,
@@ -2489,6 +2498,24 @@ Responda em NO MÁXIMO 2-3 FRASES CURTAS E SIMPLES:"""
             "tipo": "erro",
             "referencia": None
         }
+
+@app.route("/api/stats")
+def get_stats():
+    """
+    Endpoint para buscar estatísticas agregadas do sistema
+    LGPD COMPLIANT - Retorna APENAS contadores, sem dados de usuários
+    """
+    try:
+        stats = database.get_estatisticas()
+        return jsonify(stats)
+    except Exception as e:
+        logging.error(f"📊 ❌ Erro ao buscar estatísticas: {e}", exc_info=True)
+        return jsonify({
+            "total_documentos": 0,
+            "documentos_hoje": 0,
+            "por_tipo": {},
+            "erro": "Erro ao carregar estatísticas"
+        }), 500
 
 @app.route("/diagnostico")
 def diagnostico():
