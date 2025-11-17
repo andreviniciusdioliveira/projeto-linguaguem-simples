@@ -398,14 +398,14 @@ Use frases de 10-15 palavras. Seja direto e claro.
 
 **REGRA IMPORTANTE - ESCOLHA O TÍTULO CORRETO:**
 - Se for SENTENÇA, DECISÃO ou DESPACHO → use "**A DECISÃO DO JUIZ**"
-- Se for ACÓRDÃO → use "**A DECISÃO DO DESEMBARGADOR**" ou "**A DECISÃO DO TRIBUNAL**"
+- Se for ACÓRDÃO → use "**A DECISÃO DO DESEMBARGADOR(A)**" ou "**A DECISÃO DO TRIBUNAL**"
 - Se for MANDADO → use "**ORDEM JUDICIAL**"
 
 [Explique em linguagem super simples o que foi decidido]
 
 Use blocos curtos:
-- Sobre [assunto X]: O juiz (ou desembargador) decidiu que...
-- Sobre [assunto Y]: O juiz (ou desembargador) entendeu que...
+- Sobre [assunto X]: O juiz (ou desembargador/a) decidiu que...
+- Sobre [assunto Y]: O juiz (ou desembargador/a) entendeu que...
 
 IMPORTANTE: Explique o PORQUÊ da decisão de forma simples.
 
@@ -417,9 +417,18 @@ IMPORTANTE: Explique o PORQUÊ da decisão de forma simples.
 Se tem justiça gratuita, NÃO diga "você pagará". Diga "você NÃO vai pagar porque tem justiça gratuita".
 
 **Valores mencionados:**
-- Você vai receber: R$ [valor total que vai entrar]
-- Danos morais: R$ [se houver]
-- Danos materiais: R$ [se houver]
+
+**INSTRUÇÕES CRÍTICAS - SEPARE CLARAMENTE:**
+✅ O QUE VOCÊ VAI GANHAR (pedidos DEFERIDOS/PROCEDENTES):
+- Liste APENAS os valores que você VAI receber
+- Exemplo: "Você vai receber R$ 20.000 de danos materiais"
+
+❌ O QUE VOCÊ NÃO VAI GANHAR (pedidos INDEFERIDOS/IMPROCEDENTES):
+- Liste os valores que você NÃO vai receber
+- Exemplo: "Você NÃO vai receber R$ 30.000 de danos morais (pedido negado)"
+
+**FORMATO OBRIGATÓRIO:**
+Separe sempre em duas listas claras: valores que VAI receber e valores que NÃO VAI receber
 
 **Sobre custas e honorários:**
 [APLIQUE A REGRA NÚMERO 1 AQUI!]
@@ -540,24 +549,28 @@ Responda APENAS UMA PALAVRA (sem pontuação): sentenca, acordao, mandado, intim
         # Se nada bateu, fazer fallback com regex - ORDEM CORRETA: mais específico primeiro
         logging.warning(f"⚠️ Tipo não reconhecido pela IA: '{tipo_identificado}' - tentando regex")
 
-        # 1. SENTENÇA (mais prioritário e específico)
+        # 1. ACÓRDÃO (mais específico - palavra clara)
+        if re.search(r'\bACÓRDÃO\b', texto, re.IGNORECASE):
+            logging.info("✅ Tipo identificado por regex: acordao")
+            return "acordao", tipos_info["acordao"]
+
+        # 2. SENTENÇA (específico com indicadores)
         if re.search(r'\bSENTENÇA\b', texto, re.IGNORECASE) and \
            re.search(r'(?:DISPOSITIVO|JULGO\s+(?:PROCEDENTE|IMPROCEDENTE|PARCIALMENTE))', texto, re.IGNORECASE):
             logging.info("✅ Tipo identificado por regex: sentenca")
             return "sentenca", tipos_info["sentenca"]
 
-        # 2. ACÓRDÃO
-        if re.search(r'\bACÓRDÃO\b', texto, re.IGNORECASE):
-            logging.info("✅ Tipo identificado por regex: acordao")
-            return "acordao", tipos_info["acordao"]
-
-        # 3. MANDADO (só se for título principal no INÍCIO)
-        if re.search(r'(?:^|PODER\s+JUDICIÁRIO.*?)MANDADO\s+DE\s+(?:CITAÇÃO|INTIMAÇÃO|PENHORA|BUSCA|PRISÃO)',
-                     texto[:500], re.IGNORECASE | re.DOTALL):
+        # 3. MANDADO (várias formas de detectar)
+        if re.search(r'MANDADO\s+DE\s+(?:CITAÇÃO|INTIMAÇÃO|PENHORA|BUSCA|PRISÃO)',
+                     texto[:1000], re.IGNORECASE):
             logging.info("✅ Tipo identificado por regex: mandado (título)")
             return "mandado", tipos_info["mandado"]
-        if re.search(r'OFICIAL\s+DE\s+JUSTIÇA', texto, re.IGNORECASE) and \
-           re.search(r'CUMPRA-SE', texto, re.IGNORECASE):
+        if (re.search(r'\b(?:INTIMO|CITO|INTIMADO|CITADO)\b', texto, re.IGNORECASE) and
+            re.search(r'(?:audiência|comparecer|prazo|apresentar)', texto, re.IGNORECASE)):
+            logging.info("✅ Tipo identificado por regex: mandado (intimação/citação)")
+            return "mandado", tipos_info["mandado"]
+        if (re.search(r'OFICIAL\s+DE\s+JUSTIÇA', texto, re.IGNORECASE) and
+            re.search(r'CUMPRA-SE', texto, re.IGNORECASE)):
             logging.info("✅ Tipo identificado por regex: mandado (oficial + cumpra-se)")
             return "mandado", tipos_info["mandado"]
 
@@ -566,7 +579,7 @@ Responda APENAS UMA PALAVRA (sem pontuação): sentenca, acordao, mandado, intim
             logging.info("✅ Tipo identificado por regex: intimacao")
             return "intimacao", tipos_info["intimacao"]
 
-        # FALLBACK: documento genérico (não mais "mandado" como padrão)
+        # FALLBACK: documento genérico
         logging.warning(f"⚠️ Nenhum tipo específico reconhecido - usando 'despacho' como padrão")
         return "despacho", tipos_info["despacho"]
 
@@ -574,20 +587,23 @@ Responda APENAS UMA PALAVRA (sem pontuação): sentenca, acordao, mandado, intim
         logging.error(f"❌ ERRO ao identificar tipo com Gemini: {e}", exc_info=True)
         # Fallback para regex em caso de erro - ORDEM CORRETA
 
-        # 1. SENTENÇA (prioritário)
+        # 1. ACÓRDÃO (prioritário - palavra clara)
+        if re.search(r'\bACÓRDÃO\b', texto, re.IGNORECASE):
+            logging.info("⚠️ Fallback regex: acordao")
+            return "acordao", {"urgencia": "MÉDIA", "acao_necessaria": "Analisar decisão do recurso"}
+
+        # 2. SENTENÇA (com indicadores)
         if re.search(r'\bSENTENÇA\b', texto, re.IGNORECASE) and \
            re.search(r'(?:DISPOSITIVO|JULGO\s+(?:PROCEDENTE|IMPROCEDENTE|PARCIALMENTE))', texto, re.IGNORECASE):
             logging.info("⚠️ Fallback regex: sentenca")
             return "sentenca", {"urgencia": "ALTA", "acao_necessaria": "Verificar prazo para recurso"}
 
-        # 2. ACÓRDÃO
-        if re.search(r'\bACÓRDÃO\b', texto, re.IGNORECASE):
-            logging.info("⚠️ Fallback regex: acordao")
-            return "acordao", {"urgencia": "MÉDIA", "acao_necessaria": "Analisar decisão do recurso"}
-
-        # 3. MANDADO (só se título principal)
-        if re.search(r'(?:^|PODER\s+JUDICIÁRIO.*?)MANDADO\s+DE\s+', texto[:500], re.IGNORECASE | re.DOTALL) or \
-           (re.search(r'OFICIAL\s+DE\s+JUSTIÇA', texto, re.IGNORECASE) and re.search(r'CUMPRA-SE', texto, re.IGNORECASE)):
+        # 3. MANDADO (várias formas)
+        if (re.search(r'MANDADO\s+DE\s+', texto[:1000], re.IGNORECASE) or
+            (re.search(r'\b(?:INTIMO|CITO|INTIMADO|CITADO)\b', texto, re.IGNORECASE) and
+             re.search(r'(?:audiência|comparecer)', texto, re.IGNORECASE)) or
+            (re.search(r'OFICIAL\s+DE\s+JUSTIÇA', texto, re.IGNORECASE) and
+             re.search(r'CUMPRA-SE', texto, re.IGNORECASE))):
             logging.info("⚠️ Fallback regex: mandado")
             return "mandado", {"urgencia": "MÁXIMA", "acao_necessaria": "Ler e tomar providências URGENTE"}
 
@@ -785,23 +801,27 @@ TEXTO SIMPLIFICADO (em markdown):"""
         # Detectar tipo básico - ORDEM CORRETA: mais específico primeiro
         tipo = "documento"
 
-        # 1. SENTENÇA (mais específico - precisa ter SENTENÇA + indicadores)
-        if re.search(r'\bSENTENÇA\b', texto, re.IGNORECASE) and \
+        # 1. ACÓRDÃO (mais específico - tem palavra clara)
+        if re.search(r'\bACÓRDÃO\b', texto, re.IGNORECASE):
+            tipo = "acordao"
+
+        # 2. SENTENÇA (precisa ter SENTENÇA + indicadores)
+        elif re.search(r'\bSENTENÇA\b', texto, re.IGNORECASE) and \
            re.search(r'(?:DISPOSITIVO|JULGO\s+(?:PROCEDENTE|IMPROCEDENTE|PARCIALMENTE))', texto, re.IGNORECASE):
             tipo = "sentenca"
 
-        # 2. ACÓRDÃO (específico)
-        elif re.search(r'\bACÓRDÃO\b', texto, re.IGNORECASE):
-            tipo = "acordao"
-
-        # 3. MANDADO (só se for título principal, não menção interna)
-        # Verifica se "MANDADO" aparece no INÍCIO (primeiros 500 chars) como título
-        elif re.search(r'(?:^|PODER\s+JUDICIÁRIO.*?)MANDADO\s+DE\s+(?:CITAÇÃO|INTIMAÇÃO|PENHORA|BUSCA|PRISÃO)',
-                       texto[:500], re.IGNORECASE | re.DOTALL):
+        # 3. MANDADO (título principal OU intimação/citação clara)
+        # Verificar se tem palavras-chave de mandado nos primeiros 1000 chars
+        elif re.search(r'MANDADO\s+DE\s+(?:CITAÇÃO|INTIMAÇÃO|PENHORA|BUSCA|PRISÃO)',
+                       texto[:1000], re.IGNORECASE):
             tipo = "mandado"
-        # Ou se tem "OFICIAL DE JUSTIÇA" e "CUMPRA-SE" (mandado sem título explícito)
-        elif re.search(r'OFICIAL\s+DE\s+JUSTIÇA', texto, re.IGNORECASE) and \
-             re.search(r'CUMPRA-SE', texto, re.IGNORECASE):
+        # OU se tem estrutura típica de intimação/citação
+        elif (re.search(r'\b(?:INTIMO|CITO|INTIMADO|CITADO)\b', texto, re.IGNORECASE) and
+              re.search(r'(?:audiência|comparecer|prazo|apresentar)', texto, re.IGNORECASE)):
+            tipo = "mandado"
+        # OU se tem oficial de justiça + cumpra-se
+        elif (re.search(r'OFICIAL\s+DE\s+JUSTIÇA', texto, re.IGNORECASE) and
+              re.search(r'CUMPRA-SE', texto, re.IGNORECASE)):
             tipo = "mandado"
 
         metadados = {
