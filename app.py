@@ -811,6 +811,180 @@ def identificar_autoridade_hibrida(texto):
     autoridade_gemini = identificar_autoridade_gemini(texto)
     return autoridade_gemini
 
+# ============= IDENTIFICAÇÃO HÍBRIDA DE PARTES (AUTOR/RÉU) =============
+
+def validar_se_parece_nome(texto):
+    """
+    Valida se um texto parece ser um nome de pessoa ou entidade
+    Retorna: (bool, motivo)
+    """
+    if not texto or len(texto.strip()) < 3:
+        return False, "Muito curto"
+
+    texto = texto.strip()
+
+    # Remover pontuação final
+    texto = texto.rstrip('.,;:')
+
+    # Verificar se é muito longo (mais de 80 caracteres provavelmente não é nome)
+    if len(texto) > 80:
+        return False, "Muito longo (> 80 chars)"
+
+    # Verificar se tem muitas palavras (mais de 8 palavras provavelmente é frase)
+    palavras = texto.split()
+    if len(palavras) > 8:
+        return False, f"Muitas palavras ({len(palavras)})"
+
+    # Lista de palavras que indicam que NÃO é um nome
+    palavras_proibidas = [
+        'discorre', 'alega', 'afirma', 'requer', 'pede', 'solicita',
+        'entende', 'considera', 'menciona', 'apresenta', 'sustenta',
+        'defende', 'argumenta', 'contesta', 'impugna', 'sobre',
+        'acerca', 'referente', 'quanto', 'relativamente', 'pertinente',
+        'relativo', 'concernente', 'tocante', 'atinente'
+    ]
+
+    # Verificar se contém palavras proibidas
+    palavras_lower = [p.lower() for p in palavras]
+    for proibida in palavras_proibidas:
+        if proibida in palavras_lower:
+            return False, f"Contém palavra proibida: '{proibida}'"
+
+    # Verificar se começa com letra maiúscula
+    if not texto[0].isupper():
+        return False, "Não começa com maiúscula"
+
+    # Se passou em todas as validações, provavelmente é um nome
+    return True, "Parece ser nome válido"
+
+def identificar_partes_gemini(texto):
+    """
+    Usa Gemini para identificar as partes do processo (autor e réu)
+    """
+
+    # Truncar texto se muito longo (primeiros 3000 caracteres geralmente têm as partes)
+    if len(texto) > 3000:
+        texto_analise = texto[:3000]
+    else:
+        texto_analise = texto
+
+    prompt = f"""Você é um especialista em documentos jurídicos brasileiros.
+
+TAREFA: Identificar as PARTES do processo (autor/requerente e réu/requerido).
+
+REGRAS CRÍTICAS:
+1. Procure no INÍCIO do documento por "Autor:", "Requerente:", "Exequente:", etc.
+2. Procure por "Réu:", "Requerido:", "Executado:", etc.
+3. Extraia APENAS o NOME da pessoa ou empresa, NÃO frases completas
+4. IGNORE texto narrativo como "discorre sobre", "alega que", etc.
+5. Se não encontrar com certeza, responda "Não identificado"
+
+DOCUMENTO:
+{texto_analise}
+
+Responda APENAS no formato JSON:
+{{
+  "autor": "Nome completo do autor",
+  "reu": "Nome completo do réu"
+}}
+
+OU se não encontrar:
+{{
+  "autor": null,
+  "reu": null
+}}
+"""
+
+    try:
+        logging.info("🤖 Usando Gemini para identificar partes...")
+        model = genai.GenerativeModel(GEMINI_MODELS[1]["name"])
+        response = model.generate_content(prompt)
+        resultado = response.text.strip()
+
+        logging.info(f"🤖 Gemini retornou: {resultado}")
+
+        # Tentar parsear JSON
+        import json
+        # Remover markdown se houver
+        if "```json" in resultado:
+            resultado = resultado.split("```json")[1].split("```")[0].strip()
+        elif "```" in resultado:
+            resultado = resultado.split("```")[1].split("```")[0].strip()
+
+        partes = json.loads(resultado)
+
+        return partes.get("autor"), partes.get("reu")
+
+    except Exception as e:
+        logging.error(f"❌ Erro ao identificar partes com Gemini: {e}")
+        return None, None
+
+def identificar_partes_hibrida(texto):
+    """
+    Identifica partes usando abordagem híbrida:
+    1. Tenta regex com validação
+    2. Se regex falhar ou retornar texto suspeito, usa Gemini
+
+    Retorna: (autor, reu)
+    """
+
+    autor_encontrado = None
+    reu_encontrado = None
+    usar_gemini = False
+
+    # ETAPA 1: Tentar regex primeiro
+    autor_patterns = [
+        r'(?:Paciente):\s*([^\n,]{3,80})',  # Habeas Corpus
+        r'(?:Autor|Requerente|Exequente|Reclamante|Impetrante):\s*([^\n,]{3,80})',
+    ]
+
+    reu_patterns = [
+        r'(?:Réu|Requerido|Executado|Reclamado|Impetrado):\s*([^\n,]{3,80})',
+    ]
+
+    # Buscar autor
+    for pattern in autor_patterns:
+        match = re.search(pattern, texto, re.IGNORECASE)
+        if match:
+            candidato = match.group(1).strip()
+            valido, motivo = validar_se_parece_nome(candidato)
+            if valido:
+                autor_encontrado = candidato
+                logging.info(f"✅ Autor identificado por regex: {autor_encontrado}")
+                break
+            else:
+                logging.warning(f"⚠️ Regex capturou texto suspeito para autor: '{candidato}' - Motivo: {motivo}")
+                usar_gemini = True
+                break
+
+    # Buscar réu
+    for pattern in reu_patterns:
+        match = re.search(pattern, texto, re.IGNORECASE)
+        if match:
+            candidato = match.group(1).strip()
+            valido, motivo = validar_se_parece_nome(candidato)
+            if valido:
+                reu_encontrado = candidato
+                logging.info(f"✅ Réu identificado por regex: {reu_encontrado}")
+                break
+            else:
+                logging.warning(f"⚠️ Regex capturou texto suspeito para réu: '{candidato}' - Motivo: {motivo}")
+                usar_gemini = True
+                break
+
+    # ETAPA 2: Se regex falhou ou retornou texto suspeito, usar Gemini
+    if usar_gemini or (not autor_encontrado and not reu_encontrado):
+        logging.info("🤖 Usando Gemini para identificar partes...")
+        autor_gemini, reu_gemini = identificar_partes_gemini(texto)
+
+        # Usar Gemini apenas para as partes que não foram encontradas ou foram suspeitas
+        if not autor_encontrado or usar_gemini:
+            autor_encontrado = autor_gemini
+        if not reu_encontrado or usar_gemini:
+            reu_encontrado = reu_gemini
+
+    return autor_encontrado, reu_encontrado
+
 def extrair_dados_estruturados(texto):
     """Extrai todos os dados importantes do documento"""
     import re
@@ -854,34 +1028,13 @@ def extrair_dados_estruturados(texto):
             dados["numero_processo"] = match.group()
             break
 
-    # Identificar partes com múltiplos padrões
-    # NOVO: Incluindo "Paciente" para Habeas Corpus
-    autor_patterns = [
-        r'(?:Paciente):\s*([^,\n]+)',  # Prioridade para Paciente (Habeas Corpus)
-        r'(?:Autor|Requerente|Exequente|Reclamante|Impetrante):\s*([^,\n]+)',
-        r'([A-ZÀ-Ú][A-Za-zà-ú\s]+)\s*(?:moveu|ajuizou|propôs|requereu)'
-    ]
-
-    reu_patterns = [
-        r'(?:Réu|Requerido|Executado|Reclamado|Impetrado):\s*([^,\n]+)',
-        r'em\s+face\s+de\s+([A-ZÀ-Ú][A-Za-zà-ú\s]+)'
-    ]
+    # Identificar partes usando método HÍBRIDO (Regex + Gemini)
+    # Valida se o texto capturado parece ser nome, usa Gemini se suspeito
+    dados["partes"]["autor"], dados["partes"]["reu"] = identificar_partes_hibrida(texto)
 
     # Detectar se usa termo "paciente" (Habeas Corpus)
     if re.search(r'(?:Paciente):\s*', texto, re.IGNORECASE):
         dados["termo_paciente"] = True
-
-    for pattern in autor_patterns:
-        match = re.search(pattern, texto)
-        if match:
-            dados["partes"]["autor"] = match.group(1).strip()
-            break
-
-    for pattern in reu_patterns:
-        match = re.search(pattern, texto)
-        if match:
-            dados["partes"]["reu"] = match.group(1).strip()
-            break
 
     # Extração detalhada de valores
     # Procurar especificamente no dispositivo
