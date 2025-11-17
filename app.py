@@ -51,6 +51,13 @@ if GEMINI_API_KEY:
 else:
     logging.error("❌ GEMINI_API_KEY não configurada!")
 
+# INICIALIZAR BANCO DE DADOS (estatísticas)
+try:
+    database.init_db()
+    logging.info("✅ Banco de dados de estatísticas inicializado")
+except Exception as e:
+    logging.error(f"❌ Erro ao inicializar banco de dados: {e}")
+
 # MODO DE PERFORMANCE (configurável)
 # True = Ultra-rápido (1 chamada total) | False = Completo (2-6 chamadas)
 MODO_ULTRA_RAPIDO = os.getenv("MODO_ULTRA_RAPIDO", "true").lower() == "true"
@@ -387,12 +394,18 @@ Use frases de 10-15 palavras. Seja direto e claro.
 
 ---
 
-⚖️ **A DECISÃO DO JUIZ (OU DESEMBARGADOR)**
+⚖️ **A DECISÃO DO [AUTORIDADE]**
+
+**REGRA IMPORTANTE - ESCOLHA O TÍTULO CORRETO:**
+- Se for SENTENÇA, DECISÃO ou DESPACHO → use "**A DECISÃO DO JUIZ**"
+- Se for ACÓRDÃO → use "**A DECISÃO DO DESEMBARGADOR**" ou "**A DECISÃO DO TRIBUNAL**"
+- Se for MANDADO → use "**ORDEM JUDICIAL**"
+
 [Explique em linguagem super simples o que foi decidido]
 
 Use blocos curtos:
-- Sobre [assunto X]: O juiz decidiu que...
-- Sobre [assunto Y]: O juiz entendeu que...
+- Sobre [assunto X]: O juiz (ou desembargador) decidiu que...
+- Sobre [assunto Y]: O juiz (ou desembargador) entendeu que...
 
 IMPORTANTE: Explique o PORQUÊ da decisão de forma simples.
 
@@ -413,12 +426,12 @@ Se tem justiça gratuita, NÃO diga "você pagará". Diga "você NÃO vai pagar 
 - Se tem justiça gratuita: "Você NÃO vai pagar custas nem honorários porque tem justiça gratuita"
 - Se não tem: Liste os valores a pagar
 
-**Prazos importantes:**
-- Você tem [X] dias para [fazer algo]
-- Data de audiência: [se houver]
+**Datas importantes:**
+- Data de audiência: [se houver - dia, hora e local]
 
 **Próximos passos:**
 [O que você deve fazer agora? Seja específico e prático]
+[NÃO mencione prazos em dias - apenas ações necessárias]
 
 ---
 
@@ -433,12 +446,12 @@ Se tem justiça gratuita, NÃO diga "você pagará". Diga "você NÃO vai pagar 
 ---
 
 ⚠️ **VOCÊ PODE RECORRER?**
-[Se cabível:]
-- **Sim**, você tem [X] dias para entrar com recurso
-- Recomendação: [Procure advogado / Vá na Defensoria Pública]
 
-[Se não cabível:]
-- Não cabe recurso desta decisão
+**INSTRUÇÕES CRÍTICAS - NÃO MENCIONE PRAZOS ESPECÍFICOS:**
+- Se cabe recurso: diga apenas "**Sim**, você pode recorrer desta decisão"
+- Se não cabe: diga "**Não**, não cabe recurso desta decisão"
+- NUNCA escreva "você tem X dias" ou mencione prazos
+- Sempre recomende: "Procure um advogado ou a Defensoria Pública para analisar"
 
 ---
 
