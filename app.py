@@ -1283,18 +1283,20 @@ def extrair_dados_estruturados(texto):
     if valor_causa_match:
         dados["valores"]["valor_causa"] = valor_causa_match.group(1)
 
-    # Calcular total se possível
-    total = 0
-    for key in ["danos_morais", "danos_materiais", "lucros_cessantes"]:
-        if dados["valores"][key]:
-            valor_str = dados["valores"][key].replace(".", "").replace(",", ".")
-            try:
-                total += float(valor_str)
-            except:
-                pass
-
-    if total > 0:
-        dados["valores"]["total"] = f"R$ {total:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    # NOTA: Cálculo de total desabilitado porque os campos individuais foram removidos
+    # O total só faz sentido se tivermos os valores individuais, mas eles foram comentados
+    # porque regex não diferencia valores deferidos vs indeferidos
+    # total = 0
+    # for key in ["danos_morais", "danos_materiais", "lucros_cessantes"]:
+    #     if dados["valores"][key]:
+    #         valor_str = dados["valores"][key].replace(".", "").replace(",", ".")
+    #         try:
+    #             total += float(valor_str)
+    #         except:
+    #             pass
+    #
+    # if total > 0:
+    #     dados["valores"]["total"] = f"R$ {total:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
     # Extrair prazos
     prazo_patterns = [
