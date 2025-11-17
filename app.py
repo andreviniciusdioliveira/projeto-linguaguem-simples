@@ -686,7 +686,110 @@ def simplificar_termos_tecnicos(texto):
 
     return texto_simplificado
 
-# ============= PRÉ-PROCESSAMENTO: DETECTAR JUSTIÇA GRATUITA =============
+# ============= PRÉ-PROCESSAMENTO CONSOLIDADO (1 CHAMADA GEMINI) =============
+
+def preprocessar_documento_completo(texto):
+    """
+    Usa Gemini para fazer TODAS as análises pré-processamento em UMA única chamada
+    Reduz de 4-5 chamadas para apenas 1 chamada
+
+    Retorna: dict com {
+        "tem_justica_gratuita": bool,
+        "trecho_justica": str,
+        "tipo_documento": str,
+        "autoridade": str ou None,
+        "autor": str ou None,
+        "reu": str ou None
+    }
+    """
+    # Truncar texto se muito longo
+    if len(texto) > 15000:
+        # Pegar início + final (onde estão as info importantes)
+        texto_analise = texto[:7500] + "\n...\n" + texto[-7500:]
+    else:
+        texto_analise = texto
+
+    prompt = f"""Você é um especialista em análise de documentos jurídicos brasileiros.
+
+FAÇA AS SEGUINTES ANÁLISES DO DOCUMENTO (responda em JSON):
+
+1. JUSTIÇA GRATUITA: Procure por:
+   - "beneficiário da assistência judiciária gratuita"
+   - "Suspendo a exigibilidade"
+   - "art. 98, §3º, CPC"
+
+2. TIPO DE DOCUMENTO: Identifique se é:
+   - Sentença, Acórdão, Decisão, Despacho, Mandado, Intimação, etc.
+
+3. AUTORIDADE: Quem ASSINOU (não citações):
+   - Procure "Documento eletrônico assinado por" ou assinatura no final
+   - Formato: "Cargo: Nome"
+
+4. PARTES DO PROCESSO:
+   - Autor/Requerente (quem entrou com processo)
+   - Réu/Requerido (quem está sendo processado)
+   - IGNORE frases narrativas como "discorre sobre", "alega que"
+
+RESPONDA EM JSON (APENAS O JSON, SEM EXPLICAÇÕES):
+{{
+  "tem_justica_gratuita": true ou false,
+  "trecho_justica": "trecho encontrado ou vazio",
+  "tipo_documento": "tipo identificado",
+  "autoridade": "Cargo: Nome ou null",
+  "autor": "Nome do autor ou null",
+  "reu": "Nome do réu ou null"
+}}
+
+TEXTO DO DOCUMENTO:
+{texto_analise}
+
+JSON:"""
+
+    try:
+        import google.generativeai as genai
+        import json
+
+        # Usar modelo mais rápido
+        model = genai.GenerativeModel(GEMINI_MODELS[0]["name"])
+
+        response = model.generate_content(
+            prompt,
+            generation_config={
+                "temperature": 0.1,
+                "max_output_tokens": 500
+            }
+        )
+
+        resultado_texto = response.text.strip()
+
+        # Extrair JSON da resposta (pode vir com ```json ou não)
+        if "```json" in resultado_texto:
+            resultado_texto = resultado_texto.split("```json")[1].split("```")[0].strip()
+        elif "```" in resultado_texto:
+            resultado_texto = resultado_texto.split("```")[1].split("```")[0].strip()
+
+        resultado = json.loads(resultado_texto)
+
+        logging.info(f"✅ Pré-processamento consolidado completo")
+        logging.info(f"   Justiça gratuita: {resultado.get('tem_justica_gratuita', False)}")
+        logging.info(f"   Tipo: {resultado.get('tipo_documento', 'desconhecido')}")
+        logging.info(f"   Autoridade: {resultado.get('autoridade', 'não identificada')}")
+
+        return resultado
+
+    except Exception as e:
+        logging.warning(f"⚠️ Erro no pré-processamento consolidado: {e}")
+        # Retornar valores padrão em caso de erro
+        return {
+            "tem_justica_gratuita": False,
+            "trecho_justica": "",
+            "tipo_documento": "documento",
+            "autoridade": None,
+            "autor": None,
+            "reu": None
+        }
+
+# ============= FUNÇÕES ANTIGAS (MANTER PARA FALLBACK) =============
 
 def detectar_justica_gratuita(texto):
     """
@@ -912,7 +1015,9 @@ def extrair_dados_estruturados(texto):
             break
 
     # Identificar partes usando Gemini 100% (IA direta, sem regex)
-    dados["partes"]["autor"], dados["partes"]["reu"] = identificar_partes(texto)
+    # NOTA: Esta chamada é feita pelo pré-processamento consolidado agora
+    # dados["partes"]["autor"], dados["partes"]["reu"] = identificar_partes(texto)
+    # Os dados serão preenchidos pelo pré-processamento consolidado
 
     # Detectar se usa termo "paciente" (Habeas Corpus)
     if re.search(r'(?:Paciente):\s*', texto, re.IGNORECASE):
@@ -1000,7 +1105,9 @@ def extrair_dados_estruturados(texto):
         dados["decisao"] = "ACORDO HOMOLOGADO"
 
     # Identificar autoridade usando Gemini 100% (IA direta, sem regex)
-    dados["autoridade"] = identificar_autoridade(texto)
+    # NOTA: Esta chamada é feita pelo pré-processamento consolidado agora
+    # dados["autoridade"] = identificar_autoridade(texto)
+    # Os dados serão preenchidos pelo pré-processamento consolidado
 
     # Extrair audiências
     audiencia_patterns = [
@@ -2471,26 +2578,43 @@ def processar():
         if len(texto_original) < 10:
             return jsonify({"erro": "Arquivo não contém texto suficiente para processar"}), 400
 
-        # NOVA: Identificar tipo de documento
-        tipo_doc, info_doc = identificar_tipo_documento(texto_original)
-        logging.info(f"Tipo de documento identificado: {tipo_doc} - Urgência: {info_doc['urgencia']}")
+        # PRÉ-PROCESSAMENTO CONSOLIDADO (1 chamada Gemini para tudo)
+        logging.info("🔍 Pré-processamento consolidado com Gemini (economiza API calls)...")
+        preprocessamento = preprocessar_documento_completo(texto_original)
 
-        # NOVA: Extrair dados estruturados
+        # Extrair informações do pré-processamento
+        tem_justica_gratuita = preprocessamento.get("tem_justica_gratuita", False)
+        trecho_justica = preprocessamento.get("trecho_justica", "")
+        tipo_doc_pre = preprocessamento.get("tipo_documento", "documento")
+
+        # Usar tipo do pré-processamento (já foi detectado)
+        tipo_doc = tipo_doc_pre if tipo_doc_pre and tipo_doc_pre != "documento" else "documento"
+
+        # Analisar tipo de documento para determinar urgência
+        _, info_doc = identificar_tipo_documento(texto_original)
+        logging.info(f"Tipo de documento: {tipo_doc} - Urgência: {info_doc['urgencia']}")
+
+        # Extrair dados estruturados
         dados_estruturados = extrair_dados_estruturados(texto_original)
+
+        # Usar dados do pré-processamento para autoridade e partes
+        if preprocessamento.get("autoridade"):
+            dados_estruturados["autoridade"] = preprocessamento["autoridade"]
+        if preprocessamento.get("autor"):
+            dados_estruturados["partes"]["autor"] = preprocessamento["autor"]
+        if preprocessamento.get("reu"):
+            dados_estruturados["partes"]["reu"] = preprocessamento["reu"]
+
         logging.info(f"Dados extraídos - Processo: {dados_estruturados['numero_processo']}, Decisão: {dados_estruturados['decisao']}")
 
-        # NOVO: Detectar perspectiva automaticamente se usuário marcou "não sei"
+        # Detectar perspectiva automaticamente se usuário marcou "não sei"
         if perspectiva == "nao_informado":
             logging.info("Detectando perspectiva automaticamente com IA...")
             perspectiva = detectar_perspectiva_automatica(texto_original, dados_estruturados)
             logging.info(f"Perspectiva detectada: {perspectiva}")
 
-        # NOVA: Analisar recursos cabíveis
+        # Analisar recursos cabíveis
         recursos_info = analisar_recursos_cabiveis(tipo_doc, texto_original)
-
-        # PRÉ-PROCESSAMENTO: Detectar justiça gratuita com Gemini
-        logging.info("🔍 Detectando justiça gratuita...")
-        tem_justica_gratuita, trecho_justica = detectar_justica_gratuita(texto_original)
 
         # Adaptar prompt com informações do tipo de documento
         prompt_adaptado = PROMPT_SIMPLIFICACAO_MELHORADO
