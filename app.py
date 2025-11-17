@@ -660,6 +660,157 @@ def simplificar_termos_tecnicos(texto):
 
     return texto_simplificado
 
+# ============= IDENTIFICAÇÃO HÍBRIDA DE AUTORIDADE (REGEX + GEMINI) =============
+
+# Estatísticas de uso do método híbrido
+autoridade_stats = {
+    "regex_alta_confianca": 0,
+    "regex_media_validado": 0,
+    "gemini_fallback": 0,
+    "gemini_discordou_regex": 0
+}
+
+def identificar_autoridade_regex(texto):
+    """
+    Versão melhorada do regex com nível de confiança
+    Retorna: (autoridade, confianca)
+    confianca: "alta", "media", "baixa"
+    """
+
+    # Remover citações primeiro
+    texto_limpo = remover_citacoes_jurisprudencia(texto)
+
+    # ALTA CONFIANÇA: Assinatura eletrônica
+    assinatura_patterns = [
+        r'(?:Documento eletrônico assinado por|Assinado digitalmente por|Assinado eletronicamente por)\s+([A-ZÀ-Ú][A-Za-zà-ú\s]+?)(?:,\s*Juiz|,\s*Juíza|,\s*Desembargador|,\s*Desembargadora)',
+    ]
+
+    for pattern in assinatura_patterns:
+        match = re.search(pattern, texto_limpo)
+        if match:
+            nome = match.group(1).strip()
+            cargo = "Juiz(a)" if "Juiz" in texto_limpo[match.start():match.end()] else "Desembargador(a)"
+            return f"{cargo}: {nome}", "alta"
+
+    # MÉDIA CONFIANÇA: Busca no final do documento
+    final_doc = texto_limpo[-2000:]
+
+    # Tentar encontrar juiz
+    juiz_match = re.search(r'(?:Juiz|Juíza)(?:\s+de\s+Direito)?:\s*([A-ZÀ-Ú][A-Za-zà-ú\s]+)', final_doc)
+    if juiz_match:
+        nome = juiz_match.group(1).strip()
+        # Verificar se há múltiplas menções ao mesmo nome
+        mencoes = len(re.findall(re.escape(nome), texto_limpo))
+        if mencoes == 1:
+            return f"Juiz(a): {nome}", "media"  # Pode ser citação única
+        else:
+            return f"Juiz(a): {nome}", "alta"   # Múltiplas menções = provavelmente correto
+
+    # Tentar encontrar desembargador no final
+    desembargador_match = re.search(r'(?:Desembargador|Desembargadora|Relator|Relatora):\s*([A-ZÀ-Ú][A-Za-zà-ú\s]+)', final_doc)
+    if desembargador_match:
+        nome = desembargador_match.group(1).strip()
+        mencoes = len(re.findall(re.escape(nome), texto_limpo))
+        if mencoes == 1:
+            return f"Desembargador(a): {nome}", "media"
+        else:
+            return f"Desembargador(a): {nome}", "alta"
+
+    # BAIXA CONFIANÇA: Não encontrou
+    return None, "baixa"
+
+def identificar_autoridade_gemini(texto, candidato_regex=None):
+    """
+    Usa Gemini para identificar autoridade com inteligência contextual
+    """
+
+    # Truncar texto se muito longo (usar início e fim)
+    if len(texto) > 5000:
+        texto_analise = texto[:2500] + "\n...\n" + texto[-2500:]
+    else:
+        texto_analise = texto
+
+    prompt = f"""Você é um especialista em documentos jurídicos brasileiros.
+
+TAREFA: Identificar quem ASSINOU este documento (Juiz, Juíza, Desembargador ou Desembargadora).
+
+REGRAS CRÍTICAS:
+1. Procure por assinatura eletrônica: "Documento eletrônico assinado por..."
+2. Se não tiver assinatura eletrônica, procure no FINAL do documento
+3. IGNORE nomes mencionados em:
+   - Citações de jurisprudência (TJ-XX, STJ, STF)
+   - Ementas de outros casos
+   - Precedentes citados
+   - Relatores de OUTROS processos
+4. O nome correto está onde diz "Juiz:", "Juíza:", "Desembargador:" no FINAL
+5. Se não encontrar com certeza, responda: "Não identificado"
+
+{f"CANDIDATO ENCONTRADO POR REGEX: {candidato_regex}" if candidato_regex else ""}
+
+DOCUMENTO:
+{texto_analise}
+
+Responda APENAS no formato:
+Cargo: Nome Completo
+
+Exemplo: "Juiz: JOÃO DA SILVA"
+Ou: "Não identificado"
+"""
+
+    try:
+        logging.info("🤖 Usando Gemini para identificar autoridade...")
+        model = genai.GenerativeModel(GEMINI_MODELS[1]["name"])
+        response = model.generate_content(prompt)
+        resultado = response.text.strip()
+
+        logging.info(f"🤖 Gemini identificou autoridade: {resultado}")
+
+        # Validar se Gemini concorda com regex
+        if candidato_regex and candidato_regex in resultado:
+            logging.info(f"✅ Gemini confirmou resultado do regex!")
+            autoridade_stats["regex_media_validado"] += 1
+        elif candidato_regex:
+            logging.warning(f"⚠️ Gemini discordou do regex! Regex: {candidato_regex}, Gemini: {resultado}")
+            autoridade_stats["gemini_discordou_regex"] += 1
+        else:
+            autoridade_stats["gemini_fallback"] += 1
+
+        return resultado if resultado != "Não identificado" else None
+
+    except Exception as e:
+        logging.error(f"❌ Erro ao identificar autoridade com Gemini: {e}")
+        return candidato_regex  # Fallback para regex se Gemini falhar
+
+def identificar_autoridade_hibrida(texto):
+    """
+    Identifica autoridade usando abordagem híbrida:
+    1. Tenta regex (rápido e gratuito)
+    2. Valida com Gemini se houver dúvida
+    3. Usa Gemini se regex falhar completamente
+
+    Retorna: string com "Cargo: Nome" ou None
+    """
+
+    # ETAPA 1: Tentar regex primeiro (rápido e gratuito)
+    autoridade_regex, confianca = identificar_autoridade_regex(texto)
+
+    # ETAPA 2: Se confiança alta, retornar direto (economiza API)
+    if confianca == "alta":
+        logging.info(f"✅ Autoridade identificada por regex (alta confiança): {autoridade_regex}")
+        autoridade_stats["regex_alta_confianca"] += 1
+        return autoridade_regex
+
+    # ETAPA 3: Se confiança média, validar com Gemini (segurança)
+    if confianca == "media":
+        logging.info(f"⚠️ Confiança média no regex ({autoridade_regex}). Validando com Gemini...")
+        autoridade_gemini = identificar_autoridade_gemini(texto, candidato_regex=autoridade_regex)
+        return autoridade_gemini
+
+    # ETAPA 4: Se regex falhou completamente, usar Gemini (última tentativa)
+    logging.info(f"❌ Regex falhou. Usando Gemini como fallback...")
+    autoridade_gemini = identificar_autoridade_gemini(texto)
+    return autoridade_gemini
+
 def extrair_dados_estruturados(texto):
     """Extrai todos os dados importantes do documento"""
     import re
@@ -813,25 +964,9 @@ def extrair_dados_estruturados(texto):
     elif re.search(r'homologo.*?acordo', texto, re.IGNORECASE):
         dados["decisao"] = "ACORDO HOMOLOGADO"
 
-    # Identificar autoridade (evitando jurisprudência)
-    # Primeiro, procurar assinatura eletrônica (mais confiável)
-    assinatura_match = re.search(
-        r'(?:Documento eletrônico assinado por|Assinado digitalmente por|Assinado eletronicamente por)\s+([A-ZÀ-Ú][A-Za-zà-ú\s]+?)(?:,\s*Juiz|,\s*Juíza|,\s*Desembargador)',
-        texto
-    )
-    if assinatura_match:
-        dados["autoridade"] = f"Juiz(a): {assinatura_match.group(1).strip()}"
-    else:
-        # Procurar no final do documento (geralmente onde está a assinatura)
-        final_doc = texto[-2000:]  # Últimos 2000 caracteres
-        juiz_match = re.search(r'(?:Juiz|Juíza)(?:\s+de\s+Direito)?:\s*([A-ZÀ-Ú][A-Za-zà-ú\s]+)', final_doc)
-        if juiz_match:
-            dados["autoridade"] = f"Juiz(a): {juiz_match.group(1).strip()}"
-        else:
-            # Tentar encontrar desembargador no final do documento
-            desembargador_match = re.search(r'(?:Desembargador|Relator):\s*([A-ZÀ-Ú][A-Za-zà-ú\s]+)', final_doc)
-            if desembargador_match:
-                dados["autoridade"] = f"Desembargador(a): {desembargador_match.group(1).strip()}"
+    # Identificar autoridade usando método HÍBRIDO (Regex + Gemini)
+    # Tenta regex primeiro (rápido), valida com Gemini se necessário (inteligente)
+    dados["autoridade"] = identificar_autoridade_hibrida(texto)
 
     # Extrair audiências
     audiencia_patterns = [
@@ -2859,6 +2994,13 @@ def serve_static(filename):
 @app.route("/health")
 def health():
     """Endpoint de health check para o Render"""
+    # Calcular economia de API calls
+    total_identificacoes = sum(autoridade_stats.values())
+    economia_percentual = 0
+    if total_identificacoes > 0:
+        nao_usaram_gemini = autoridade_stats["regex_alta_confianca"]
+        economia_percentual = round((nao_usaram_gemini / total_identificacoes) * 100, 1)
+
     return jsonify({
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
@@ -2869,7 +3011,15 @@ def health():
         "tesseract_version": TESSERACT_VERSION,
         "tesseract_langs": TESSERACT_LANGS,
         "opencv_available": CV2_AVAILABLE,
-        "supported_formats": list(ALLOWED_EXTENSIONS)
+        "supported_formats": list(ALLOWED_EXTENSIONS),
+        "autoridade_hibrida_stats": {
+            "total_identificacoes": total_identificacoes,
+            "regex_alta_confianca": autoridade_stats["regex_alta_confianca"],
+            "regex_media_validado": autoridade_stats["regex_media_validado"],
+            "gemini_fallback": autoridade_stats["gemini_fallback"],
+            "gemini_discordou_regex": autoridade_stats["gemini_discordou_regex"],
+            "economia_api_percentual": economia_percentual
+        }
     })
 
 @app.errorhandler(404)
