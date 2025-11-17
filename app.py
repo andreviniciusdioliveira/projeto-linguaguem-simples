@@ -660,71 +660,15 @@ def simplificar_termos_tecnicos(texto):
 
     return texto_simplificado
 
-# ============= IDENTIFICAÇÃO HÍBRIDA DE AUTORIDADE (REGEX + GEMINI) =============
+# ============= IDENTIFICAÇÃO COM GEMINI (100% IA) =============
+# Abordagem simplificada: usa apenas Gemini para máxima precisão
 
-# Estatísticas de uso do método híbrido
-autoridade_stats = {
-    "regex_alta_confianca": 0,
-    "regex_media_validado": 0,
-    "gemini_fallback": 0,
-    "gemini_discordou_regex": 0
-}
-
-def identificar_autoridade_regex(texto):
+def identificar_autoridade(texto):
     """
-    Versão melhorada do regex com nível de confiança
-    Retorna: (autoridade, confianca)
-    confianca: "alta", "media", "baixa"
+    Usa Gemini para identificar quem assinou o documento
+    Retorna: string com "Cargo: Nome" ou None
     """
-
-    # Remover citações primeiro
-    texto_limpo = remover_citacoes_jurisprudencia(texto)
-
-    # ALTA CONFIANÇA: Assinatura eletrônica
-    assinatura_patterns = [
-        r'(?:Documento eletrônico assinado por|Assinado digitalmente por|Assinado eletronicamente por)\s+([A-ZÀ-Ú][A-Za-zà-ú\s]+?)(?:,\s*Juiz|,\s*Juíza|,\s*Desembargador|,\s*Desembargadora)',
-    ]
-
-    for pattern in assinatura_patterns:
-        match = re.search(pattern, texto_limpo)
-        if match:
-            nome = match.group(1).strip()
-            cargo = "Juiz(a)" if "Juiz" in texto_limpo[match.start():match.end()] else "Desembargador(a)"
-            return f"{cargo}: {nome}", "alta"
-
-    # MÉDIA CONFIANÇA: Busca no final do documento
-    final_doc = texto_limpo[-2000:]
-
-    # Tentar encontrar juiz
-    juiz_match = re.search(r'(?:Juiz|Juíza)(?:\s+de\s+Direito)?:\s*([A-ZÀ-Ú][A-Za-zà-ú\s]+)', final_doc)
-    if juiz_match:
-        nome = juiz_match.group(1).strip()
-        # Verificar se há múltiplas menções ao mesmo nome
-        mencoes = len(re.findall(re.escape(nome), texto_limpo))
-        if mencoes == 1:
-            return f"Juiz(a): {nome}", "media"  # Pode ser citação única
-        else:
-            return f"Juiz(a): {nome}", "alta"   # Múltiplas menções = provavelmente correto
-
-    # Tentar encontrar desembargador no final
-    desembargador_match = re.search(r'(?:Desembargador|Desembargadora|Relator|Relatora):\s*([A-ZÀ-Ú][A-Za-zà-ú\s]+)', final_doc)
-    if desembargador_match:
-        nome = desembargador_match.group(1).strip()
-        mencoes = len(re.findall(re.escape(nome), texto_limpo))
-        if mencoes == 1:
-            return f"Desembargador(a): {nome}", "media"
-        else:
-            return f"Desembargador(a): {nome}", "alta"
-
-    # BAIXA CONFIANÇA: Não encontrou
-    return None, "baixa"
-
-def identificar_autoridade_gemini(texto, candidato_regex=None):
-    """
-    Usa Gemini para identificar autoridade com inteligência contextual
-    """
-
-    # Truncar texto se muito longo (usar início e fim)
+    # Truncar texto se muito longo (usar início e fim onde geralmente estão assinaturas)
     if len(texto) > 5000:
         texto_analise = texto[:2500] + "\n...\n" + texto[-2500:]
     else:
@@ -745,8 +689,6 @@ REGRAS CRÍTICAS:
 4. O nome correto está onde diz "Juiz:", "Juíza:", "Desembargador:" no FINAL
 5. Se não encontrar com certeza, responda: "Não identificado"
 
-{f"CANDIDATO ENCONTRADO POR REGEX: {candidato_regex}" if candidato_regex else ""}
-
 DOCUMENTO:
 {texto_analise}
 
@@ -764,104 +706,17 @@ Ou: "Não identificado"
         resultado = response.text.strip()
 
         logging.info(f"🤖 Gemini identificou autoridade: {resultado}")
-
-        # Validar se Gemini concorda com regex
-        if candidato_regex and candidato_regex in resultado:
-            logging.info(f"✅ Gemini confirmou resultado do regex!")
-            autoridade_stats["regex_media_validado"] += 1
-        elif candidato_regex:
-            logging.warning(f"⚠️ Gemini discordou do regex! Regex: {candidato_regex}, Gemini: {resultado}")
-            autoridade_stats["gemini_discordou_regex"] += 1
-        else:
-            autoridade_stats["gemini_fallback"] += 1
-
         return resultado if resultado != "Não identificado" else None
 
     except Exception as e:
         logging.error(f"❌ Erro ao identificar autoridade com Gemini: {e}")
-        return candidato_regex  # Fallback para regex se Gemini falhar
+        return None
 
-def identificar_autoridade_hibrida(texto):
-    """
-    Identifica autoridade usando abordagem híbrida:
-    1. Tenta regex (rápido e gratuito)
-    2. Valida com Gemini se houver dúvida
-    3. Usa Gemini se regex falhar completamente
-
-    Retorna: string com "Cargo: Nome" ou None
-    """
-
-    # ETAPA 1: Tentar regex primeiro (rápido e gratuito)
-    autoridade_regex, confianca = identificar_autoridade_regex(texto)
-
-    # ETAPA 2: Se confiança alta, retornar direto (economiza API)
-    if confianca == "alta":
-        logging.info(f"✅ Autoridade identificada por regex (alta confiança): {autoridade_regex}")
-        autoridade_stats["regex_alta_confianca"] += 1
-        return autoridade_regex
-
-    # ETAPA 3: Se confiança média, validar com Gemini (segurança)
-    if confianca == "media":
-        logging.info(f"⚠️ Confiança média no regex ({autoridade_regex}). Validando com Gemini...")
-        autoridade_gemini = identificar_autoridade_gemini(texto, candidato_regex=autoridade_regex)
-        return autoridade_gemini
-
-    # ETAPA 4: Se regex falhou completamente, usar Gemini (última tentativa)
-    logging.info(f"❌ Regex falhou. Usando Gemini como fallback...")
-    autoridade_gemini = identificar_autoridade_gemini(texto)
-    return autoridade_gemini
-
-# ============= IDENTIFICAÇÃO HÍBRIDA DE PARTES (AUTOR/RÉU) =============
-
-def validar_se_parece_nome(texto):
-    """
-    Valida se um texto parece ser um nome de pessoa ou entidade
-    Retorna: (bool, motivo)
-    """
-    if not texto or len(texto.strip()) < 3:
-        return False, "Muito curto"
-
-    texto = texto.strip()
-
-    # Remover pontuação final
-    texto = texto.rstrip('.,;:')
-
-    # Verificar se é muito longo (mais de 80 caracteres provavelmente não é nome)
-    if len(texto) > 80:
-        return False, "Muito longo (> 80 chars)"
-
-    # Verificar se tem muitas palavras (mais de 8 palavras provavelmente é frase)
-    palavras = texto.split()
-    if len(palavras) > 8:
-        return False, f"Muitas palavras ({len(palavras)})"
-
-    # Lista de palavras que indicam que NÃO é um nome
-    palavras_proibidas = [
-        'discorre', 'alega', 'afirma', 'requer', 'pede', 'solicita',
-        'entende', 'considera', 'menciona', 'apresenta', 'sustenta',
-        'defende', 'argumenta', 'contesta', 'impugna', 'sobre',
-        'acerca', 'referente', 'quanto', 'relativamente', 'pertinente',
-        'relativo', 'concernente', 'tocante', 'atinente'
-    ]
-
-    # Verificar se contém palavras proibidas
-    palavras_lower = [p.lower() for p in palavras]
-    for proibida in palavras_proibidas:
-        if proibida in palavras_lower:
-            return False, f"Contém palavra proibida: '{proibida}'"
-
-    # Verificar se começa com letra maiúscula
-    if not texto[0].isupper():
-        return False, "Não começa com maiúscula"
-
-    # Se passou em todas as validações, provavelmente é um nome
-    return True, "Parece ser nome válido"
-
-def identificar_partes_gemini(texto):
+def identificar_partes(texto):
     """
     Usa Gemini para identificar as partes do processo (autor e réu)
+    Retorna: (autor, reu)
     """
-
     # Truncar texto se muito longo (primeiros 3000 caracteres geralmente têm as partes)
     if len(texto) > 3000:
         texto_analise = texto[:3000]
@@ -873,11 +728,11 @@ def identificar_partes_gemini(texto):
 TAREFA: Identificar as PARTES do processo (autor/requerente e réu/requerido).
 
 REGRAS CRÍTICAS:
-1. Procure no INÍCIO do documento por "Autor:", "Requerente:", "Exequente:", etc.
-2. Procure por "Réu:", "Requerido:", "Executado:", etc.
+1. Procure no INÍCIO do documento por "Autor:", "Requerente:", "Exequente:", "Paciente:", etc.
+2. Procure por "Réu:", "Requerido:", "Executado:", "Impetrado:", etc.
 3. Extraia APENAS o NOME da pessoa ou empresa, NÃO frases completas
-4. IGNORE texto narrativo como "discorre sobre", "alega que", etc.
-5. Se não encontrar com certeza, responda "Não identificado"
+4. IGNORE texto narrativo como "discorre sobre", "alega que", "entende pertinente", etc.
+5. Se não encontrar com certeza, responda null
 
 DOCUMENTO:
 {texto_analise}
@@ -901,7 +756,7 @@ OU se não encontrar:
         response = model.generate_content(prompt)
         resultado = response.text.strip()
 
-        logging.info(f"🤖 Gemini retornou: {resultado}")
+        logging.info(f"🤖 Gemini retornou partes: {resultado}")
 
         # Tentar parsear JSON
         import json
@@ -912,78 +767,11 @@ OU se não encontrar:
             resultado = resultado.split("```")[1].split("```")[0].strip()
 
         partes = json.loads(resultado)
-
         return partes.get("autor"), partes.get("reu")
 
     except Exception as e:
         logging.error(f"❌ Erro ao identificar partes com Gemini: {e}")
         return None, None
-
-def identificar_partes_hibrida(texto):
-    """
-    Identifica partes usando abordagem híbrida:
-    1. Tenta regex com validação
-    2. Se regex falhar ou retornar texto suspeito, usa Gemini
-
-    Retorna: (autor, reu)
-    """
-
-    autor_encontrado = None
-    reu_encontrado = None
-    usar_gemini = False
-
-    # ETAPA 1: Tentar regex primeiro
-    autor_patterns = [
-        r'(?:Paciente):\s*([^\n,]{3,80})',  # Habeas Corpus
-        r'(?:Autor|Requerente|Exequente|Reclamante|Impetrante):\s*([^\n,]{3,80})',
-    ]
-
-    reu_patterns = [
-        r'(?:Réu|Requerido|Executado|Reclamado|Impetrado):\s*([^\n,]{3,80})',
-    ]
-
-    # Buscar autor
-    for pattern in autor_patterns:
-        match = re.search(pattern, texto, re.IGNORECASE)
-        if match:
-            candidato = match.group(1).strip()
-            valido, motivo = validar_se_parece_nome(candidato)
-            if valido:
-                autor_encontrado = candidato
-                logging.info(f"✅ Autor identificado por regex: {autor_encontrado}")
-                break
-            else:
-                logging.warning(f"⚠️ Regex capturou texto suspeito para autor: '{candidato}' - Motivo: {motivo}")
-                usar_gemini = True
-                break
-
-    # Buscar réu
-    for pattern in reu_patterns:
-        match = re.search(pattern, texto, re.IGNORECASE)
-        if match:
-            candidato = match.group(1).strip()
-            valido, motivo = validar_se_parece_nome(candidato)
-            if valido:
-                reu_encontrado = candidato
-                logging.info(f"✅ Réu identificado por regex: {reu_encontrado}")
-                break
-            else:
-                logging.warning(f"⚠️ Regex capturou texto suspeito para réu: '{candidato}' - Motivo: {motivo}")
-                usar_gemini = True
-                break
-
-    # ETAPA 2: Se regex falhou ou retornou texto suspeito, usar Gemini
-    if usar_gemini or (not autor_encontrado and not reu_encontrado):
-        logging.info("🤖 Usando Gemini para identificar partes...")
-        autor_gemini, reu_gemini = identificar_partes_gemini(texto)
-
-        # Usar Gemini apenas para as partes que não foram encontradas ou foram suspeitas
-        if not autor_encontrado or usar_gemini:
-            autor_encontrado = autor_gemini
-        if not reu_encontrado or usar_gemini:
-            reu_encontrado = reu_gemini
-
-    return autor_encontrado, reu_encontrado
 
 def extrair_dados_estruturados(texto):
     """Extrai todos os dados importantes do documento"""
@@ -1028,9 +816,8 @@ def extrair_dados_estruturados(texto):
             dados["numero_processo"] = match.group()
             break
 
-    # Identificar partes usando método HÍBRIDO (Regex + Gemini)
-    # Valida se o texto capturado parece ser nome, usa Gemini se suspeito
-    dados["partes"]["autor"], dados["partes"]["reu"] = identificar_partes_hibrida(texto)
+    # Identificar partes usando Gemini 100% (IA direta, sem regex)
+    dados["partes"]["autor"], dados["partes"]["reu"] = identificar_partes(texto)
 
     # Detectar se usa termo "paciente" (Habeas Corpus)
     if re.search(r'(?:Paciente):\s*', texto, re.IGNORECASE):
@@ -1117,9 +904,8 @@ def extrair_dados_estruturados(texto):
     elif re.search(r'homologo.*?acordo', texto, re.IGNORECASE):
         dados["decisao"] = "ACORDO HOMOLOGADO"
 
-    # Identificar autoridade usando método HÍBRIDO (Regex + Gemini)
-    # Tenta regex primeiro (rápido), valida com Gemini se necessário (inteligente)
-    dados["autoridade"] = identificar_autoridade_hibrida(texto)
+    # Identificar autoridade usando Gemini 100% (IA direta, sem regex)
+    dados["autoridade"] = identificar_autoridade(texto)
 
     # Extrair audiências
     audiencia_patterns = [
@@ -3147,13 +2933,6 @@ def serve_static(filename):
 @app.route("/health")
 def health():
     """Endpoint de health check para o Render"""
-    # Calcular economia de API calls
-    total_identificacoes = sum(autoridade_stats.values())
-    economia_percentual = 0
-    if total_identificacoes > 0:
-        nao_usaram_gemini = autoridade_stats["regex_alta_confianca"]
-        economia_percentual = round((nao_usaram_gemini / total_identificacoes) * 100, 1)
-
     return jsonify({
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
@@ -3164,15 +2943,7 @@ def health():
         "tesseract_version": TESSERACT_VERSION,
         "tesseract_langs": TESSERACT_LANGS,
         "opencv_available": CV2_AVAILABLE,
-        "supported_formats": list(ALLOWED_EXTENSIONS),
-        "autoridade_hibrida_stats": {
-            "total_identificacoes": total_identificacoes,
-            "regex_alta_confianca": autoridade_stats["regex_alta_confianca"],
-            "regex_media_validado": autoridade_stats["regex_media_validado"],
-            "gemini_fallback": autoridade_stats["gemini_fallback"],
-            "gemini_discordou_regex": autoridade_stats["gemini_discordou_regex"],
-            "economia_api_percentual": economia_percentual
-        }
+        "supported_formats": list(ALLOWED_EXTENSIONS)
     })
 
 @app.errorhandler(404)
