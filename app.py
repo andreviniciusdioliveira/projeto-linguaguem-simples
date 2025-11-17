@@ -490,6 +490,15 @@ Separe sempre em duas listas claras: valores que VAI receber e valores que NÃO 
 
 ⚠️ **VOCÊ PODE RECORRER?**
 
+🚨 ATENÇÃO: INSTRUÇÃO ESPECIAL PARA MANDADOS E INTIMAÇÕES 🚨
+**SE FOR MANDADO OU INTIMAÇÃO:**
+- **OMITA COMPLETAMENTE** esta seção inteira
+- **NÃO escreva** nada sobre recurso
+- Vá direto para o rodapé com a dica final
+
+**SE FOR SENTENÇA, ACÓRDÃO OU DECISÃO:**
+- Siga as instruções abaixo normalmente
+
 **INSTRUÇÕES CRÍTICAS - NÃO MENCIONE PRAZOS ESPECÍFICOS:**
 - Se cabe recurso: diga apenas "**Sim**, você pode recorrer desta decisão"
 - Se não cabe: diga "**Não**, não cabe recurso desta decisão"
@@ -695,7 +704,7 @@ def analisar_recursos_cabiveis(tipo_doc, texto):
         "sentenca": {
             "cabe_recurso": "Sim",
             "prazo": prazo_encontrado,  # Só mostra se encontrado no documento
-            "dica": "Sem advogado ou Defensor Público? Procure Juizado!" if eh_juizado else "Procure advogado ou Defensoria Pública"
+            "dica": "Procure advogado ou Defensoria Pública"
         },
         "acordao": {
             "cabe_recurso": "Sim (procure seu advogado ou defensor público)",
@@ -711,6 +720,14 @@ def analisar_recursos_cabiveis(tipo_doc, texto):
             "cabe_recurso": "Não",
             "observacao": "Despacho não comporta recurso",
             "dica": "Apenas cumpra o determinado ou aguarde próxima movimentação"
+        },
+        "mandado": {
+            "cabe_recurso": None,  # Mandados não têm seção de recurso
+            "dica": None
+        },
+        "intimacao": {
+            "cabe_recurso": None,  # Intimações não têm seção de recurso
+            "dica": None
         }
     }
 
