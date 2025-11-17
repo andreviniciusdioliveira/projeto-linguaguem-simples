@@ -308,9 +308,37 @@ PROMPT_SIMPLIFICACAO_MELHORADO = """**VOCÊ É UM ASSISTENTE QUE EXPLICA DOCUMEN
 **INSTRUÇÕES CRÍTICAS:**
 1. NUNCA invente informações - use APENAS o que está no documento
 2. Fale como se estivesse explicando para um amigo
-3. Use "você" para o autor/requerente e "a outra parte" para o réu
-4. EVITE totalmente jargão jurídico no texto principal
-5. Se for MANDADO, seja URGENTE e direto na ação necessária
+3. EVITE totalmente jargão jurídico no texto principal
+4. Se for MANDADO, seja URGENTE e direto na ação necessária
+
+**🎯 PERSONALIZAÇÃO POR PERSPECTIVA (MUITO IMPORTANTE!):**
+
+Você receberá a PERSPECTIVA DO USUÁRIO que pode ser:
+- **"autor"** = Quem ENTROU com o processo (está processando alguém)
+- **"reu"** = Quem ESTÁ SENDO processado (se defendendo)
+- **"nao_informado"** = Não sabe ou não quer informar
+
+**ADAPTE A LINGUAGEM:**
+
+Se perspectiva = "autor":
+- Use "VOCÊ" para o autor/requerente/exequente/apelante
+- Use "A OUTRA PARTE" ou "o réu" ou o nome da pessoa para o réu/executado
+- Exemplo: "Você entrou com este processo contra [nome]"
+- Exemplo: "Você vai receber R$ 10.000"
+- Exemplo: "Você ganhou!"
+
+Se perspectiva = "reu":
+- Use "VOCÊ" para o réu/requerido/executado/apelado
+- Use "A OUTRA PARTE" ou "o autor" ou o nome da pessoa para o autor/requerente
+- Exemplo: "A outra parte entrou com processo contra você"
+- Exemplo: "Você terá que pagar R$ 10.000"
+- Exemplo: "Infelizmente, você perdeu"
+
+Se perspectiva = "nao_informado":
+- Use nomes reais das partes ou termos neutros
+- Não use "você" para nenhuma das partes
+- Exemplo: "João entrou com processo contra Maria"
+- Exemplo: "O autor vai receber R$ 10.000"
 
 **ESTRUTURA DA EXPLICAÇÃO:**
 
@@ -2372,42 +2400,32 @@ def processar():
         prompt_adaptado += f"\nPERSPECTIVA DO USUÁRIO: {perspectiva}"
         prompt_adaptado += f"\n\nTEXTO ORIGINAL:\n{texto_original}"
 
-        # Simplificar com Gemini usando prompt melhorado
+        # Simplificar com Gemini usando prompt melhorado (já inclui perspectiva personalizada)
         texto_simplificado, erro = simplificar_com_gemini(prompt_adaptado)
 
         if erro:
             return jsonify({"erro": erro}), 500
 
-        # Criar cópia dos dados para adaptação de perspectiva
-        import copy
-        dados_adaptados = copy.deepcopy(dados_estruturados)
-
-        # Adaptar texto E dados baseado na perspectiva do usuário
-        if perspectiva == "autor":
-            texto_simplificado = adaptar_perspectiva_autor(texto_simplificado, dados_adaptados)
-        elif perspectiva == "reu":
-            texto_simplificado = adaptar_perspectiva_reu(texto_simplificado, dados_adaptados)
-
-        # NOVO: Simplificar termos técnicos das partes para linguagem acessível
-        texto_simplificado = simplificar_termos_tecnicos(texto_simplificado)
-        logging.info("✅ Termos técnicos simplificados (exequente, executado, etc.)")
+        # Gemini já adaptou para a perspectiva do usuário no prompt
+        # Não precisamos mais de adaptação pós-processamento
+        logging.info(f"✅ Texto simplificado e personalizado para perspectiva: {perspectiva}")
 
         # NOVO: Adicionar explicação do termo "paciente" se for Habeas Corpus
-        if dados_adaptados.get("termo_paciente"):
+        if dados_estruturados.get("termo_paciente"):
             explicacao_paciente = "\n\n📚 **Explicação:** No Habeas Corpus, \"paciente\" é o termo jurídico usado para identificar a pessoa que está presa ou ameaçada de prisão e em favor de quem o habeas corpus foi impetrado. É similar ao termo \"autor\" em outras ações."
             texto_simplificado += explicacao_paciente
 
-        # NOVA: Preparar contexto para chat (DEPOIS da adaptação de perspectiva, COM DADOS ADAPTADOS)
-        contexto_chat = gerar_chat_contextual(texto_original, dados_adaptados)
+        # NOVA: Preparar contexto para chat
+        contexto_chat = gerar_chat_contextual(texto_original, dados_estruturados)
         contexto_chat["perspectiva"] = perspectiva  # Salvar perspectiva no contexto
 
-        # Preparar metadados para o PDF (COM DADOS ADAPTADOS)
+        # Preparar metadados para o PDF
         metadados_geracao = {
             "modelo": results_cache.get(hashlib.md5(texto_original.encode()).hexdigest(), {}).get("modelo", "Gemini"),
             "tipo": metadados.get("tipo", file_extension),
             "tipo_documento": tipo_doc,
             "urgencia": info_doc["urgencia"],
-            "dados": dados_adaptados,  # USAR DADOS ADAPTADOS
+            "dados": dados_estruturados,
             "recursos": recursos_info
         }
 
@@ -2458,7 +2476,7 @@ def processar():
             "tipo_documento": tipo_doc,
             "urgencia": info_doc["urgencia"],
             "acao_necessaria": info_doc["acao_necessaria"],
-            "dados_extraidos": dados_adaptados,  # RETORNAR DADOS ADAPTADOS, NÃO OS ORIGINAIS
+            "dados_extraidos": dados_estruturados,
             "recursos_cabiveis": recursos_info,
             "perguntas_sugeridas": contexto_chat["perguntas_sugeridas"],
             "caracteres_original": len(texto_original),
