@@ -390,6 +390,11 @@ Se perspectiva = "nao_informado":
 
 Use frases de 10-15 palavras. Seja direto e claro.
 
+**SE FOR MANDADO COM AUDIÊNCIA:**
+- NÃO use frases genéricas como "Essa audiência é para instruir e julgar o seu caso"
+- Seja ESPECÍFICO: "Você precisa comparecer nesta audiência porque [razão específica do documento]"
+- Se o documento não especificar o motivo, diga apenas: "Você foi intimado para comparecer"
+
 ---
 
 ⚖️ **A DECISÃO DO [AUTORIDADE]**
@@ -410,6 +415,18 @@ IMPORTANTE: Explique o PORQUÊ da decisão de forma simples.
 ---
 
 💰 **VALORES E O QUE VOCÊ PRECISA FAZER**
+
+🚨 ATENÇÃO: INSTRUÇÕES ESPECIAIS PARA MANDADOS 🚨
+
+**SE FOR MANDADO DE INTIMAÇÃO/CITAÇÃO SIMPLES (apenas para comparecer, sem decisão sobre valores):**
+- **OMITA COMPLETAMENTE** a seção "O QUE VOCÊ VAI GANHAR/NÃO VAI GANHAR"
+- **NÃO escreva** "Não há informações sobre valores a serem recebidos"
+- **NÃO escreva** "Você pagará as custas processuais" (isso só se houver decisão)
+- Vá DIRETO para "Datas importantes" e "Próximos passos"
+- Foque APENAS na ação urgente que a pessoa precisa fazer
+
+**SE FOR SENTENÇA, ACÓRDÃO OU DECISÃO (tem julgamento de mérito):**
+- Siga as instruções abaixo normalmente
 
 🚨 LEMBRE-SE DA REGRA NÚMERO 1 (lá no topo)! 🚨
 Se tem justiça gratuita, NÃO diga "você pagará". Diga "você NÃO vai pagar porque tem justiça gratuita".
@@ -434,11 +451,12 @@ Separe sempre em duas listas claras: valores que VAI receber e valores que NÃO 
 - Se não tem: Liste os valores a pagar
 
 **Datas importantes:**
-- Data de audiência: [se houver - dia, hora e local]
+- Data de audiência: [se houver - dia, hora, local E LINK se for online]
 
 **Próximos passos:**
-[O que você deve fazer agora? Seja específico e prático]
+[O que você deve fazer agora? Seja ESPECÍFICO e PRÁTICO]
 [NÃO mencione prazos em dias - apenas ações necessárias]
+[Se for mandado com audiência, diga EXATAMENTE como participar e o que levar]
 
 ---
 
@@ -846,17 +864,30 @@ TEXTO SIMPLIFICADO (em markdown):"""
         # Detectar tipo básico - ORDEM CORRETA e DEFINITIVA
         tipo = "documento"
 
-        # PRIORIDADE 1: ACÓRDÃO (tem palavra "ACÓRDÃO" - muito específico)
-        if re.search(r'\bACÓRDÃO\b', texto, re.IGNORECASE):
-            tipo = "acordao"
-            logging.info("📋 Tipo detectado: ACÓRDÃO (palavra encontrada)")
-
-        # PRIORIDADE 2: SENTENÇA (tem "SENTENÇA" + "JULGO" - decisão judicial)
-        # IMPORTANTE: Verificar sentença ANTES de mandado para evitar confusão
-        elif re.search(r'\bSENTENÇA\b', texto, re.IGNORECASE) and \
+        # PRIORIDADE 1: SENTENÇA (verificar PRIMEIRO para evitar confusão com citações de acórdãos)
+        # Sentença tem "JULGO" ou "SENTENÇA" + dispositivo
+        if re.search(r'\bSENTENÇA\b', texto, re.IGNORECASE) and \
            re.search(r'(?:DISPOSITIVO|JULGO\s+(?:PROCEDENTE|IMPROCEDENTE|PARCIALMENTE))', texto, re.IGNORECASE):
             tipo = "sentenca"
-            logging.info("📋 Tipo detectado: SENTENÇA (palavra + JULGO)")
+            logging.info("📋 Tipo detectado: SENTENÇA (palavra + JULGO/DISPOSITIVO)")
+
+        # Detectar JULGO sem palavra SENTENÇA (também é sentença)
+        elif re.search(r'\bJULGO\s+(?:PROCEDENTE|IMPROCEDENTE|PARCIALMENTE)', texto, re.IGNORECASE):
+            tipo = "sentenca"
+            logging.info("📋 Tipo detectado: SENTENÇA (tem JULGO)")
+
+        # PRIORIDADE 2: ACÓRDÃO (só detectar se tiver "ACORDAM" e NÃO tiver "JULGO")
+        # IMPORTANTE: Buscar só no início (primeiros 2000 chars) para evitar citações de jurisprudência
+        elif (re.search(r'\bACORDAM\b', texto[:2000], re.IGNORECASE) or
+              (re.search(r'\bACÓRDÃO\b', texto[:2000], re.IGNORECASE) and
+               re.search(r'(?:TURMA|CÂMARA|DESEMBARGADOR)', texto[:2000], re.IGNORECASE))):
+            # Verificar se NÃO é uma sentença citando acórdão
+            if not re.search(r'\bJULGO\b', texto[:3000], re.IGNORECASE):
+                tipo = "acordao"
+                logging.info("📋 Tipo detectado: ACÓRDÃO (ACORDAM ou contexto de tribunal)")
+            else:
+                tipo = "sentenca"
+                logging.info("📋 Tipo detectado: SENTENÇA (tem JULGO, não é acórdão apesar de citar)")
 
         # PRIORIDADE 3: MANDADO (várias formas de detectar)
         # Verificar APENAS se NÃO for sentença nem acórdão
