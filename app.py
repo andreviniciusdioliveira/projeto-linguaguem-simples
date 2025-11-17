@@ -331,6 +331,11 @@ No texto principal (NUNCA use estes termos sem simplificar):
 - "Cerceamento de defesa" → "você foi impedido de se defender corretamente"
 - "Deferido" → "aprovado" ou "aceito"
 - "Indeferido" → "negado" ou "recusado"
+- "Instâncias inferiores" → "o juiz de primeiro grau ainda precisa analisar"
+- "Primeira instância" → "o juiz de primeiro grau" ou "o primeiro julgamento"
+- "Segunda instância" → "o tribunal de segundo grau" ou "o recurso"
+- "Trânsito em julgado" → "quando a decisão não pode mais ser mudada"
+- "Honorários advocatícios" → "o valor que o advogado vai receber"
 
 **INSTRUÇÕES CRÍTICAS:**
 1. NUNCA invente informações - use APENAS o que está no documento
@@ -433,9 +438,22 @@ Se tem justiça gratuita, NÃO diga "você pagará". Diga "você NÃO vai pagar 
 
 **Valores mencionados:**
 
+🚨 REGRA CRÍTICA SOBRE VALORES 🚨
+**SEMPRE mencione os valores PRINCIPAIS primeiro** (indenizações, danos morais, danos materiais, etc.)
+**NÃO comece pelos honorários** - eles são secundários!
+
+Exemplo CORRETO:
+"✅ Você vai receber R$ 30.000 de indenização por danos morais"
+(E depois, se houver): "Honorários: 15% sobre o valor"
+
+Exemplo ERRADO:
+"Honorários: 15%"
+(E só depois mencionar a indenização)
+
 **INSTRUÇÕES CRÍTICAS - SEPARE CLARAMENTE:**
 ✅ O QUE VOCÊ VAI GANHAR (pedidos DEFERIDOS/PROCEDENTES):
 - Liste APENAS os valores que você VAI receber
+- SEMPRE comece pelos valores PRINCIPAIS (indenizações, danos)
 - Exemplo: "Você vai receber R$ 20.000 de danos materiais"
 
 ❌ O QUE VOCÊ NÃO VAI GANHAR (pedidos INDEFERIDOS/IMPROCEDENTES):
@@ -1292,30 +1310,27 @@ def extrair_dados_estruturados(texto):
 
     texto_busca = dispositivo_match.group(0) if dispositivo_match else texto
 
-    # NOTA: Extração de valores individuais desabilitada - regex não diferencia deferidos vs indeferidos
-    # O Gemini faz essa separação corretamente na simplificação
-    # # Danos morais
-    # danos_morais_patterns = [
-    #     r'danos?\s+morais?.*?R\$\s*([\d\.,]+)',
-    #     r'indenização.*?moral.*?R\$\s*([\d\.,]+)',
-    #     r'R\$\s*([\d\.,]+).*?danos?\s+morais?'
-    # ]
-    # for pattern in danos_morais_patterns:
-    #     match = re.search(pattern, texto_busca, re.IGNORECASE | re.DOTALL)
-    #     if match:
-    #         dados["valores"]["danos_morais"] = match.group(1)
-    #         break
-    #
-    # # Danos materiais
-    # danos_materiais_patterns = [
-    #     r'danos?\s+materiais?.*?R\$\s*([\d\.,]+)',
-    #     r'danos?\s+emergentes?.*?R\$\s*([\d\.,]+)'
-    # ]
-    # for pattern in danos_materiais_patterns:
-    #     match = re.search(pattern, texto_busca, re.IGNORECASE | re.DOTALL)
-    #     if match:
-    #         dados["valores"]["danos_materiais"] = match.group(1)
-    #         break
+    # EXTRAÇÃO BÁSICA: Pegar maior valor em R$ mencionado no dispositivo
+    # NOTA: Não diferencia deferidos vs indeferidos, mas pelo menos mostra algo no resumo
+    # O Gemini faz a separação correta na simplificação detalhada
+    valores_encontrados = re.findall(r'R\$\s*([\d\.]+,\d{2})', texto_busca, re.IGNORECASE)
+
+    if valores_encontrados:
+        # Converter para float e pegar o maior valor
+        maior_valor = 0
+        maior_valor_str = ""
+        for valor_str in valores_encontrados:
+            try:
+                valor_num = float(valor_str.replace(".", "").replace(",", "."))
+                if valor_num > maior_valor:
+                    maior_valor = valor_num
+                    maior_valor_str = valor_str
+            except:
+                pass
+
+        if maior_valor > 0:
+            dados["valores"]["total"] = f"R$ {maior_valor_str}"
+            logging.info(f"💰 Maior valor encontrado no dispositivo: R$ {maior_valor_str}")
 
     # Honorários
     honorarios_match = re.search(r'honorários.*?(\d+)\s*%', texto, re.IGNORECASE)
