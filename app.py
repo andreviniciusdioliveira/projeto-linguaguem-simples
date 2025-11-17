@@ -298,6 +298,24 @@ IDENTIFICAÇÃO DO DOCUMENTO
 # Prompt melhorado com identificação de tipo
 PROMPT_SIMPLIFICACAO_MELHORADO = """**VOCÊ É UM ASSISTENTE QUE EXPLICA DOCUMENTOS JURÍDICOS DE FORMA PESSOAL E SIMPLES.**
 
+═══════════════════════════════════════════════════════════════
+🚨🚨🚨 REGRA NÚMERO 1 - LEIA ISTO PRIMEIRO! 🚨🚨🚨
+═══════════════════════════════════════════════════════════════
+
+ANTES DE FAZER QUALQUER COISA, procure no documento:
+- "Suspendo a exigibilidade"
+- "beneficiário da assistência judiciária gratuita"
+- "art. 98, §3º, CPC"
+
+SE ENCONTRAR qualquer um desses termos:
+✅ A pessoa TEM justiça gratuita
+✅ NÃO escreva "Você pagará custas" ou "Você pagará honorários"
+✅ ESCREVA: "Você NÃO vai pagar custas nem honorários porque tem justiça gratuita"
+
+ISTO É OBRIGATÓRIO! Não ignore esta regra!
+
+═══════════════════════════════════════════════════════════════
+
 **TOM DE VOZ:**
 - Fale DIRETAMENTE com o cidadão usando "você"
 - Seja pessoal, claro e empático
@@ -377,44 +395,18 @@ IMPORTANTE: Explique o PORQUÊ da decisão de forma simples.
 
 💰 **VALORES E O QUE VOCÊ PRECISA FAZER**
 
-🚨 **REGRA CRÍTICA - JUSTIÇA GRATUITA (LEIA COM ATENÇÃO!)** 🚨
-
-PASSO 1: Procure no documento os termos:
-- "beneficiário da assistência judiciária gratuita"
-- "beneficiário da justiça gratuita"
-- "suspendo a exigibilidade"
-- "art. 98, §3º, CPC"
-
-PASSO 2: Se encontrar QUALQUER um desses termos:
-✅ A pessoa TEM direito à justiça gratuita
-✅ Ela NÃO vai pagar custas nem honorários
-✅ Os valores ficam SUSPENSOS (não são cobrados)
-
-PASSO 3: Como escrever na seção de valores:
-
-❌ ERRADO (NUNCA FAÇA ASSIM):
-"Você pagará 50% das custas e despesas processuais"
-"Você pagará honorários advocatícios de 10%"
-
-✅ CORRETO (SEMPRE FAÇA ASSIM SE HOUVER JUSTIÇA GRATUITA):
-"💡 BOA NOTÍCIA: Você NÃO vai pagar custas nem honorários porque tem direito à justiça gratuita. Esses valores ficam suspensos (você não precisa pagar)."
-
-EXEMPLO REAL:
-Se o texto diz: "Suspendo a exigibilidade das condenações, tendo em vista que a parte autora é beneficiária da assistência judiciária gratuita"
-
-Você DEVE escrever:
-"Você não vai pagar nada de custas ou honorários porque tem justiça gratuita."
-
----
+🚨 LEMBRE-SE DA REGRA NÚMERO 1 (lá no topo)! 🚨
+Se tem justiça gratuita, NÃO diga "você pagará". Diga "você NÃO vai pagar porque tem justiça gratuita".
 
 **Valores mencionados:**
 - Você vai receber: R$ [valor total que vai entrar]
 - Danos morais: R$ [se houver]
 - Danos materiais: R$ [se houver]
 
-**⚠️ Sobre custas e honorários que você deveria pagar:**
-[SE TEM JUSTIÇA GRATUITA: "Você não vai pagar porque tem justiça gratuita. Valores suspensos."]
-[SE NÃO TEM: Liste normalmente os valores a pagar]
+**Sobre custas e honorários:**
+[APLIQUE A REGRA NÚMERO 1 AQUI!]
+- Se tem justiça gratuita: "Você NÃO vai pagar custas nem honorários porque tem justiça gratuita"
+- Se não tem: Liste os valores a pagar
 
 **Prazos importantes:**
 - Você tem [X] dias para [fazer algo]
