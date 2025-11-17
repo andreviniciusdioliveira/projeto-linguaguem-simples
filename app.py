@@ -377,9 +377,23 @@ IMPORTANTE: Explique o PORQUÊ da decisão de forma simples.
 
 💰 **VALORES E O QUE VOCÊ PRECISA FAZER**
 
+**🔍 ATENÇÃO ESPECIAL - JUSTIÇA GRATUITA:**
+ANTES de listar valores a pagar, verifique se o documento menciona:
+- "Beneficiário(a) da justiça gratuita"
+- "Assistência judiciária gratuita"
+- "Gratuidade da justiça"
+- "Custas e honorários suspensos"
+
+**SE HOUVER JUSTIÇA GRATUITA:**
+- NÃO liste custas ou honorários como "você vai pagar"
+- Explique claramente: "Você não vai pagar custas nem honorários porque tem direito à justiça gratuita. Esses valores ficam suspensos."
+
+**SE NÃO HOUVER JUSTIÇA GRATUITA:**
+- Liste normalmente todos os valores a pagar
+
 **Valores mencionados:**
 - Você vai receber: R$ [valor total que vai entrar]
-- Você vai pagar: R$ [valor total que vai sair]
+- Você vai pagar: R$ [valor total que vai sair - ATENÇÃO À JUSTIÇA GRATUITA]
 - Danos morais: R$ [se houver]
 - Honorários do advogado: [percentual] sobre [base]
 
@@ -2858,8 +2872,21 @@ def diagnostico_api():
 
 @app.route("/estatisticas")
 def estatisticas():
-    """Retorna estatísticas de uso dos modelos"""
+    """Retorna estatísticas de uso e documentos processados (termômetro)"""
+    # Pegar estatísticas do database (termômetro - persiste entre deploys)
+    stats_db = database.get_estatisticas()
+
     return jsonify({
+        "documentos": {
+            "total": stats_db['total_documentos'],
+            "hoje": stats_db['documentos_hoje'],
+            "por_tipo": stats_db['por_tipo'],
+            "tipo_mais_comum": stats_db['tipo_mais_comum'],
+            "milestone_atual": stats_db['milestone_atual'],
+            "proximo_milestone": stats_db['proximo_milestone'],
+            "progresso_percentual": stats_db['progresso_percentual'],
+            "data_inicio": stats_db['data_inicio']
+        },
         "modelos": model_usage_stats,
         "cache_size": len(results_cache),
         "tesseract_disponivel": TESSERACT_AVAILABLE,
