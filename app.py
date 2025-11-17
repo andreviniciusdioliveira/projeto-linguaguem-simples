@@ -322,6 +322,42 @@ PROMPT_SIMPLIFICACAO_MELHORADO = """**VOCÊ É UM ASSISTENTE QUE EXPLICA DOCUMEN
 - Seja direto mas gentil
 - Mostre que você entende o impacto emocional da situação
 
+---
+
+🚨🚨🚨 **REGRA CRÍTICA ANTI-ALUCINAÇÃO** 🚨🚨🚨
+
+**NUNCA NUNCA NUNCA invente informações que NÃO estão no documento!**
+
+❌ **NÃO FAÇA:**
+- Inventar valores que não estão explícitos no texto
+- Deduzir datas que não foram mencionadas
+- Criar prazos que não aparecem no documento
+- Supor nomes de partes que não estão escritos
+- Inventar decisões ou consequências não mencionadas
+
+✅ **FAÇA:**
+- Use APENAS informações que você pode CITAR diretamente do documento
+- Se algo NÃO está no documento, diga: "O documento não menciona [isso]"
+- Se tiver dúvida, seja vago: "O documento indica que..." (não "O valor é...")
+- Prefira dizer "não há informação" a inventar
+- Quando em dúvida, OMITA a informação - não invente!
+
+**EXEMPLOS:**
+
+❌ ERRADO (alucinação):
+"Você vai receber R$ 10.000,00" (quando o documento não menciona valor)
+"O prazo é de 15 dias" (quando o documento não especifica prazo)
+"A audiência será no dia 15 de março" (quando não há data confirmada)
+
+✅ CORRETO (factual):
+"O documento não menciona valores específicos"
+"Não há prazo especificado no documento"
+"O documento menciona audiência, mas não informa a data ainda"
+
+**SE NÃO ESTÁ NO DOCUMENTO, NÃO EXISTE!**
+
+---
+
 **SIMPLIFICAÇÃO OBRIGATÓRIA DE TERMOS TÉCNICOS:**
 No texto principal (NUNCA use estes termos sem simplificar):
 - "PARCIALMENTE PROCEDENTE" → "Você ganhou PARTE do que pediu"
@@ -421,6 +457,10 @@ IMPORTANTE: Explique o PORQUÊ da decisão de forma simples.
 
 💰 **VALORES E O QUE VOCÊ PRECISA FAZER**
 
+🚨🚨🚨 **REGRA ANTI-ALUCINAÇÃO PARA VALORES** 🚨🚨🚨
+**NUNCA invente valores!** Se o documento NÃO menciona valor específico em R$, NÃO escreva valores!
+Diga: "O documento não especifica o valor" ou "Valores não foram informados neste documento"
+
 🚨 ATENÇÃO: INSTRUÇÕES ESPECIAIS PARA MANDADOS 🚨
 
 **SE FOR MANDADO DE INTIMAÇÃO/CITAÇÃO SIMPLES (apenas para comparecer, sem decisão sobre valores):**
@@ -441,6 +481,7 @@ Se tem justiça gratuita, NÃO diga "você pagará". Diga "você NÃO vai pagar 
 🚨 REGRA CRÍTICA SOBRE VALORES 🚨
 **SEMPRE mencione os valores PRINCIPAIS primeiro** (indenizações, danos morais, danos materiais, etc.)
 **NÃO comece pelos honorários** - eles são secundários!
+**SE NÃO HÁ VALOR NO DOCUMENTO, NÃO INVENTE!** Diga "valores não especificados"
 
 Exemplo CORRETO:
 "✅ Você vai receber R$ 30.000 de indenização por danos morais"
@@ -488,25 +529,6 @@ Separe sempre em duas listas claras: valores que VAI receber e valores que NÃO 
 
 ---
 
-⚠️ **VOCÊ PODE RECORRER?**
-
-🚨 ATENÇÃO: INSTRUÇÃO ESPECIAL PARA MANDADOS E INTIMAÇÕES 🚨
-**SE FOR MANDADO OU INTIMAÇÃO:**
-- **OMITA COMPLETAMENTE** esta seção inteira
-- **NÃO escreva** nada sobre recurso
-- Vá direto para o rodapé com a dica final
-
-**SE FOR SENTENÇA, ACÓRDÃO OU DECISÃO:**
-- Siga as instruções abaixo normalmente
-
-**INSTRUÇÕES CRÍTICAS - NÃO MENCIONE PRAZOS ESPECÍFICOS:**
-- Se cabe recurso: diga apenas "**Sim**, você pode recorrer desta decisão"
-- Se não cabe: diga "**Não**, não cabe recurso desta decisão"
-- NUNCA escreva "você tem X dias" ou mencione prazos
-- Sempre recomende: "Procure um advogado ou a Defensoria Pública para analisar"
-
----
-
 *💡 Dica: Este resumo não substitui orientação de um advogado. Em caso de dúvida, procure a Defensoria Pública (gratuita) ou um advogado.*
 
 ---
@@ -533,13 +555,18 @@ def identificar_tipo_documento(texto):
 
 ORDEM DE PRIORIDADE (verifique nesta ordem!):
 
-1. ACÓRDÃO (verificar PRIMEIRO):
-   - Tem "ACÓRDÃO" no título/início? → "acordao"
-   - Tem "TURMA JULGADORA"? → "acordao"
+1. ACÓRDÃO (verificar PRIMEIRO - use MARCADORES ESTRUTURAIS):
+   - Tem "ACÓRDÃO" no cabeçalho (primeiros 500 caracteres)? → "acordao"
+   - Tem "VISTOS, RELATADOS E DISCUTIDOS"? → "acordao"
+   - Tem "RELATOR(A):" ou "RELATORA:" seguido de nome de desembargador? → "acordao"
+   - Tem "Acordam os Desembargadores" ou "Acordam os Membros"? → "acordao"
+   - Tem estrutura colegial (CÂMARA + TURMA + múltiplos desembargadores)? → "acordao"
+   - IMPORTANTE: Acórdãos podem CITAR sentenças que contêm "JULGO" - não confunda citação com o documento principal!
 
 2. SENTENÇA (verificar SEGUNDO):
    - Tem "SENTENÇA" E "JULGO"? → "sentenca"
-   - Tem assinatura de Juiz? → "sentenca"
+   - Tem assinatura de UM ÚNICO Juiz (não desembargador)? → "sentenca"
+   - Tem "DISPOSITIVO" com decisão individual? → "sentenca"
 
 3. MANDADO (verificar POR ÚLTIMO):
    - Tem "MANDADO DE CITAÇÃO/INTIMAÇÃO/PENHORA"? → "mandado"
@@ -616,9 +643,20 @@ Responda APENAS UMA PALAVRA: sentenca, acordao, mandado, intimacao ou despacho""
         # Se nada bateu, fazer fallback com regex - ORDEM CORRETA: mais específico primeiro
         logging.warning(f"⚠️ Tipo não reconhecido pela IA: '{tipo_identificado}' - tentando regex")
 
-        # 1. ACÓRDÃO (mais específico - palavra clara)
-        if re.search(r'\bACÓRDÃO\b', texto, re.IGNORECASE):
-            logging.info("✅ Tipo identificado por regex: acordao")
+        # 1. ACÓRDÃO (mais específico - buscar marcadores estruturais)
+        # Verificar ACÓRDÃO no cabeçalho (primeiros 500 chars) + marcadores estruturais
+        cabecalho = texto[:500]
+        inicio = texto[:2000]
+
+        tem_acordao_titulo = bool(re.search(r'\bACÓRDÃO\b', cabecalho, re.IGNORECASE))
+        tem_relator = bool(re.search(r'\bRELATOR[A]?\s*:', inicio, re.IGNORECASE))
+        tem_vistos_relatados = bool(re.search(r'VISTOS,\s*RELATADOS\s*E\s*DISCUTIDOS', inicio, re.IGNORECASE))
+        tem_acordam = bool(re.search(r'ACORDAM\s+(?:OS|AS)\s+(?:DESEMBARGADOR|MEMBROS)', inicio, re.IGNORECASE))
+        tem_estrutura_colegial = bool(re.search(r'(?:CÂMARA|TURMA)', cabecalho, re.IGNORECASE))
+
+        # Se tem ACÓRDÃO no título + pelo menos 1 marcador estrutural → é acórdão
+        if tem_acordao_titulo and (tem_relator or tem_vistos_relatados or tem_acordam or tem_estrutura_colegial):
+            logging.info("✅ Tipo identificado por regex: acordao (marcadores estruturais)")
             return "acordao", tipos_info["acordao"]
 
         # 2. SENTENÇA (específico com indicadores)
@@ -654,9 +692,18 @@ Responda APENAS UMA PALAVRA: sentenca, acordao, mandado, intimacao ou despacho""
         logging.error(f"❌ ERRO ao identificar tipo com Gemini: {e}", exc_info=True)
         # Fallback para regex em caso de erro - ORDEM CORRETA
 
-        # 1. ACÓRDÃO (prioritário - palavra clara)
-        if re.search(r'\bACÓRDÃO\b', texto, re.IGNORECASE):
-            logging.info("⚠️ Fallback regex: acordao")
+        # 1. ACÓRDÃO (prioritário - buscar marcadores estruturais)
+        cabecalho = texto[:500]
+        inicio = texto[:2000]
+
+        tem_acordao_titulo = bool(re.search(r'\bACÓRDÃO\b', cabecalho, re.IGNORECASE))
+        tem_relator = bool(re.search(r'\bRELATOR[A]?\s*:', inicio, re.IGNORECASE))
+        tem_vistos_relatados = bool(re.search(r'VISTOS,\s*RELATADOS\s*E\s*DISCUTIDOS', inicio, re.IGNORECASE))
+        tem_acordam = bool(re.search(r'ACORDAM\s+(?:OS|AS)\s+(?:DESEMBARGADOR|MEMBROS)', inicio, re.IGNORECASE))
+        tem_estrutura_colegial = bool(re.search(r'(?:CÂMARA|TURMA)', cabecalho, re.IGNORECASE))
+
+        if tem_acordao_titulo and (tem_relator or tem_vistos_relatados or tem_acordam or tem_estrutura_colegial):
+            logging.info("⚠️ Fallback regex: acordao (marcadores estruturais)")
             return "acordao", {"urgencia": "MÉDIA", "acao_necessaria": "Analisar decisão do recurso"}
 
         # 2. SENTENÇA (com indicadores)
@@ -889,7 +936,7 @@ TEXTO SIMPLIFICADO (em markdown):"""
         response = model.generate_content(
             prompt,
             generation_config={
-                "temperature": 0.4,
+                "temperature": 0.2,  # Reduzido de 0.4 para diminuir alucinações
                 "max_output_tokens": 2000
             }
         )
@@ -2458,7 +2505,7 @@ def simplificar_com_gemini(texto, max_retries=1):  # REDUZIDO para 1 retry
                     }
                 ],
                 "generationConfig": {
-                    "temperature": 0.4,
+                    "temperature": 0.2,  # Reduzido de 0.4 para diminuir alucinações
                     "maxOutputTokens": max_output_tokens,
                     "topP": 0.85,
                     "topK": 20
