@@ -310,24 +310,6 @@ IDENTIFICAÇÃO DO DOCUMENTO
 # Prompt melhorado com identificação de tipo
 PROMPT_SIMPLIFICACAO_MELHORADO = """**VOCÊ É UM ASSISTENTE QUE EXPLICA DOCUMENTOS JURÍDICOS DE FORMA PESSOAL E SIMPLES.**
 
-═══════════════════════════════════════════════════════════════
-🚨🚨🚨 REGRA NÚMERO 1 - LEIA ISTO PRIMEIRO! 🚨🚨🚨
-═══════════════════════════════════════════════════════════════
-
-ANTES DE FAZER QUALQUER COISA, procure no documento:
-- "Suspendo a exigibilidade"
-- "beneficiário da assistência judiciária gratuita"
-- "art. 98, §3º, CPC"
-
-SE ENCONTRAR qualquer um desses termos:
-✅ A pessoa TEM justiça gratuita
-✅ NÃO escreva "Você pagará custas" ou "Você pagará honorários"
-✅ ESCREVA: "Você NÃO vai pagar custas nem honorários porque tem justiça gratuita"
-
-ISTO É OBRIGATÓRIO! Não ignore esta regra!
-
-═══════════════════════════════════════════════════════════════
-
 **TOM DE VOZ:**
 - Fale DIRETAMENTE com o cidadão usando "você"
 - Seja pessoal, claro e empático
@@ -335,11 +317,22 @@ ISTO É OBRIGATÓRIO! Não ignore esta regra!
 - Use linguagem de conversa, não de documento oficial
 - Seja direto: evite rodeios e formalidades
 
+**SIMPLIFICAÇÃO OBRIGATÓRIA DE TERMOS TÉCNICOS:**
+No texto principal (NUNCA use estes termos sem simplificar):
+- "PARCIALMENTE PROCEDENTE" → "Você ganhou PARTE do que pediu"
+- "PROCEDENTE" → "Você ganhou"
+- "IMPROCEDENTE" → "Você perdeu" ou "Seu pedido foi negado"
+- "Habeas Corpus" → "um pedido urgente para garantir sua liberdade" ou "para corrigir uma ilegalidade"
+- "Cerceamento de defesa" → "você foi impedido de se defender corretamente"
+- "Deferido" → "aprovado" ou "aceito"
+- "Indeferido" → "negado" ou "recusado"
+
 **INSTRUÇÕES CRÍTICAS:**
 1. NUNCA invente informações - use APENAS o que está no documento
 2. Fale como se estivesse explicando para um amigo
 3. EVITE totalmente jargão jurídico no texto principal
 4. Se for MANDADO, seja URGENTE e direto na ação necessária
+5. Simplifique TODOS os termos técnicos na explicação principal
 
 **🎯 PERSONALIZAÇÃO POR PERSPECTIVA (MUITO IMPORTANTE!):**
 
@@ -845,31 +838,38 @@ TEXTO SIMPLIFICADO (em markdown):"""
 
         texto_simplificado = response.text.strip()
 
-        # Detectar tipo básico - ORDEM CORRETA: mais específico primeiro
+        # Detectar tipo básico - ORDEM CORRETA: MANDADO primeiro (mais específico)
         tipo = "documento"
 
-        # 1. ACÓRDÃO (mais específico - tem palavra clara)
-        if re.search(r'\bACÓRDÃO\b', texto, re.IGNORECASE):
-            tipo = "acordao"
-
-        # 2. SENTENÇA (precisa ter SENTENÇA + indicadores)
-        elif re.search(r'\bSENTENÇA\b', texto, re.IGNORECASE) and \
-           re.search(r'(?:DISPOSITIVO|JULGO\s+(?:PROCEDENTE|IMPROCEDENTE|PARCIALMENTE))', texto, re.IGNORECASE):
-            tipo = "sentenca"
-
-        # 3. MANDADO (título principal OU intimação/citação clara)
-        # Verificar se tem palavras-chave de mandado nos primeiros 1000 chars
-        elif re.search(r'MANDADO\s+DE\s+(?:CITAÇÃO|INTIMAÇÃO|PENHORA|BUSCA|PRISÃO)',
-                       texto[:1000], re.IGNORECASE):
+        # PRIORIDADE 1: MANDADO (verificar PRIMEIRO - tem características muito específicas)
+        # Mandado explícito no título
+        if re.search(r'MANDADO\s+DE\s+(?:CITAÇÃO|INTIMAÇÃO|PENHORA|BUSCA|PRISÃO)',
+                     texto[:1000], re.IGNORECASE):
             tipo = "mandado"
-        # OU se tem estrutura típica de intimação/citação
+            logging.info("📋 Tipo detectado: MANDADO (título explícito)")
+
+        # Intimação/citação com audiência (típico de mandado de intimação)
         elif (re.search(r'\b(?:INTIMO|CITO|INTIMADO|CITADO)\b', texto, re.IGNORECASE) and
-              re.search(r'(?:audiência|comparecer|prazo|apresentar)', texto, re.IGNORECASE)):
+              re.search(r'(?:audiência|teleaudiência|videoconferência|comparecer)', texto, re.IGNORECASE)):
             tipo = "mandado"
-        # OU se tem oficial de justiça + cumpra-se
+            logging.info("📋 Tipo detectado: MANDADO (intimação + audiência)")
+
+        # Oficial de justiça + cumpra-se
         elif (re.search(r'OFICIAL\s+DE\s+JUSTIÇA', texto, re.IGNORECASE) and
               re.search(r'CUMPRA-SE', texto, re.IGNORECASE)):
             tipo = "mandado"
+            logging.info("📋 Tipo detectado: MANDADO (oficial + cumpra-se)")
+
+        # PRIORIDADE 2: ACÓRDÃO (verificar DEPOIS de mandado)
+        elif re.search(r'\bACÓRDÃO\b', texto, re.IGNORECASE):
+            tipo = "acordao"
+            logging.info("📋 Tipo detectado: ACÓRDÃO")
+
+        # PRIORIDADE 3: SENTENÇA (verificar POR ÚLTIMO entre os principais)
+        elif re.search(r'\bSENTENÇA\b', texto, re.IGNORECASE) and \
+           re.search(r'(?:DISPOSITIVO|JULGO\s+(?:PROCEDENTE|IMPROCEDENTE|PARCIALMENTE))', texto, re.IGNORECASE):
+            tipo = "sentenca"
+            logging.info("📋 Tipo detectado: SENTENÇA")
 
         # Mapear tipo para informações de urgência (evita chamada extra ao Gemini)
         tipos_info = {
