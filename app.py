@@ -51,6 +51,11 @@ if GEMINI_API_KEY:
 else:
     logging.error("❌ GEMINI_API_KEY não configurada!")
 
+# MODO DE PERFORMANCE (configurável)
+# True = Ultra-rápido (1 chamada total) | False = Completo (2-6 chamadas)
+MODO_ULTRA_RAPIDO = os.getenv("MODO_ULTRA_RAPIDO", "true").lower() == "true"
+logging.info(f"⚡ Modo ultra-rápido: {'ATIVADO' if MODO_ULTRA_RAPIDO else 'DESATIVADO'}")
+
 # Modelos Gemini ATUALIZADOS - Setembro 2025
 GEMINI_MODELS = [
     {
@@ -685,6 +690,89 @@ def simplificar_termos_tecnicos(texto):
         texto_simplificado = re.sub(padrao, substituicao, texto_simplificado)
 
     return texto_simplificado
+
+# ============= PROCESSAMENTO ULTRA-RÁPIDO (1 CHAMADA TOTAL) =============
+
+def processar_e_simplificar_tudo_de_uma_vez(texto, perspectiva="nao_informado"):
+    """
+    OTIMIZAÇÃO MÁXIMA: Faz TUDO em UMA única chamada Gemini
+    - Detecta justiça gratuita
+    - Identifica tipo, autoridade, partes
+    - JÁ SIMPLIFICA o texto
+
+    Retorna: (texto_simplificado, metadados_dict)
+    """
+    # Truncar texto se muito longo
+    if len(texto) > 15000:
+        texto_analise = texto[:7500] + "\n...\n" + texto[-7500:]
+    else:
+        texto_analise = texto
+
+    # Mapear perspectiva para linguagem do prompt
+    if perspectiva == "autor":
+        instrucao_perspectiva = 'Use "VOCÊ" para o autor/requerente e "a outra parte" para o réu'
+    elif perspectiva == "reu":
+        instrucao_perspectiva = 'Use "VOCÊ" para o réu/requerido e "a outra parte" para o autor'
+    else:
+        instrucao_perspectiva = 'Use os nomes reais das partes, não use "você"'
+
+    prompt = f"""{PROMPT_SIMPLIFICACAO_MELHORADO}
+
+PERSPECTIVA DO USUÁRIO: {perspectiva}
+{instrucao_perspectiva}
+
+ATENÇÃO: Antes de simplificar, analise se tem "Suspendo a exigibilidade" ou "beneficiário da assistência judiciária gratuita" ou "art. 98, §3º, CPC".
+Se tiver, a pessoa TEM justiça gratuita e NÃO vai pagar custas nem honorários!
+
+TEXTO ORIGINAL:
+{texto_analise}
+
+TEXTO SIMPLIFICADO (em markdown):"""
+
+    try:
+        import google.generativeai as genai
+
+        # Usar modelo mais rápido
+        model = genai.GenerativeModel(GEMINI_MODELS[0]["name"])
+
+        response = model.generate_content(
+            prompt,
+            generation_config={
+                "temperature": 0.4,
+                "max_output_tokens": 2000
+            }
+        )
+
+        texto_simplificado = response.text.strip()
+
+        # Extrair metadados básicos do texto original (regex rápido)
+        import re
+        tem_justica = bool(re.search(r'suspendo.*?exigibilidade|beneficiári[ao].*?assistência.*?judiciária.*?gratuita|art\.\s*98.*?§\s*3', texto, re.IGNORECASE))
+
+        # Detectar tipo básico
+        tipo = "documento"
+        if re.search(r'\bMANDADO\b', texto, re.IGNORECASE):
+            tipo = "mandado"
+        elif re.search(r'\bSENTENÇA\b.*?\bDISPOSITIVO\b', texto, re.IGNORECASE | re.DOTALL):
+            tipo = "sentenca"
+        elif re.search(r'\bACÓRDÃO\b', texto, re.IGNORECASE):
+            tipo = "acordao"
+
+        metadados = {
+            "tem_justica_gratuita": tem_justica,
+            "tipo_documento": tipo,
+            "modelo": GEMINI_MODELS[0]["name"]
+        }
+
+        logging.info(f"✅ Processamento ultra-rápido completo em 1 chamada!")
+        logging.info(f"   Justiça gratuita: {tem_justica}")
+        logging.info(f"   Tipo: {tipo}")
+
+        return texto_simplificado, metadados
+
+    except Exception as e:
+        logging.error(f"❌ Erro no processamento ultra-rápido: {e}")
+        raise
 
 # ============= PRÉ-PROCESSAMENTO CONSOLIDADO (1 CHAMADA GEMINI) =============
 
@@ -2578,82 +2666,87 @@ def processar():
         if len(texto_original) < 10:
             return jsonify({"erro": "Arquivo não contém texto suficiente para processar"}), 400
 
-        # PRÉ-PROCESSAMENTO CONSOLIDADO (1 chamada Gemini para tudo)
-        logging.info("🔍 Pré-processamento consolidado com Gemini (economiza API calls)...")
-        preprocessamento = preprocessar_documento_completo(texto_original)
+        # MODO ULTRA-RÁPIDO: 1 chamada total (análise + simplificação)
+        if MODO_ULTRA_RAPIDO:
+            logging.info("⚡ MODO ULTRA-RÁPIDO: Processando tudo em 1 chamada Gemini...")
+            texto_simplificado, metadados_rapido = processar_e_simplificar_tudo_de_uma_vez(texto_original, perspectiva)
 
-        # Extrair informações do pré-processamento
-        tem_justica_gratuita = preprocessamento.get("tem_justica_gratuita", False)
-        trecho_justica = preprocessamento.get("trecho_justica", "")
-        tipo_doc_pre = preprocessamento.get("tipo_documento", "documento")
+            # Extrair dados estruturados (regex - rápido, sem Gemini)
+            dados_estruturados = extrair_dados_estruturados(texto_original)
 
-        # Usar tipo do pré-processamento (já foi detectado)
-        tipo_doc = tipo_doc_pre if tipo_doc_pre and tipo_doc_pre != "documento" else "documento"
+            # Tipo do documento
+            tipo_doc = metadados_rapido.get("tipo_documento", "documento")
+            _, info_doc = identificar_tipo_documento(texto_original)  # Só para pegar urgência
 
-        # Analisar tipo de documento para determinar urgência
-        _, info_doc = identificar_tipo_documento(texto_original)
-        logging.info(f"Tipo de documento: {tipo_doc} - Urgência: {info_doc['urgencia']}")
+            # Recursos cabíveis
+            recursos_info = analisar_recursos_cabiveis(tipo_doc, texto_original)
 
-        # Extrair dados estruturados
-        dados_estruturados = extrair_dados_estruturados(texto_original)
+            # Contexto chat
+            contexto_chat = gerar_chat_contextual(texto_original, dados_estruturados)
+            contexto_chat["perspectiva"] = perspectiva
 
-        # Usar dados do pré-processamento para autoridade e partes
-        if preprocessamento.get("autoridade"):
-            dados_estruturados["autoridade"] = preprocessamento["autoridade"]
-        if preprocessamento.get("autor"):
-            dados_estruturados["partes"]["autor"] = preprocessamento["autor"]
-        if preprocessamento.get("reu"):
-            dados_estruturados["partes"]["reu"] = preprocessamento["reu"]
+            logging.info("✅ Processamento ultra-rápido concluído!")
 
-        logging.info(f"Dados extraídos - Processo: {dados_estruturados['numero_processo']}, Decisão: {dados_estruturados['decisao']}")
-
-        # Detectar perspectiva automaticamente se usuário marcou "não sei"
-        if perspectiva == "nao_informado":
-            logging.info("Detectando perspectiva automaticamente com IA...")
-            perspectiva = detectar_perspectiva_automatica(texto_original, dados_estruturados)
-            logging.info(f"Perspectiva detectada: {perspectiva}")
-
-        # Analisar recursos cabíveis
-        recursos_info = analisar_recursos_cabiveis(tipo_doc, texto_original)
-
-        # Adaptar prompt com informações do tipo de documento
-        prompt_adaptado = PROMPT_SIMPLIFICACAO_MELHORADO
-        prompt_adaptado += f"\n\nTIPO IDENTIFICADO: {tipo_doc}"
-        prompt_adaptado += f"\nPERSPECTIVA DO USUÁRIO: {perspectiva}"
-
-        # CRITICAL: Se detectou justiça gratuita, adicionar aviso EXPLÍCITO no prompt
-        if tem_justica_gratuita:
-            prompt_adaptado += f"\n\n🚨🚨🚨 INFORMAÇÃO CRÍTICA DETECTADA 🚨🚨🚨"
-            prompt_adaptado += f"\nEste documento CONFIRMA que a pessoa tem JUSTIÇA GRATUITA."
-            prompt_adaptado += f"\nTrecho encontrado: \"{trecho_justica[:200]}...\""
-            prompt_adaptado += f"\n\nPORTANTO:"
-            prompt_adaptado += f"\n✅ NÃO escreva 'Você pagará custas' ou 'Você pagará honorários'"
-            prompt_adaptado += f"\n✅ ESCREVA: 'Você NÃO vai pagar custas nem honorários porque tem justiça gratuita'"
-            prompt_adaptado += f"\n🚨🚨🚨 FIM DA INFORMAÇÃO CRÍTICA 🚨🚨🚨\n"
-            logging.info("✅ Aviso de justiça gratuita adicionado ao prompt")
+        # MODO COMPLETO: Múltiplas chamadas (mais preciso)
         else:
-            logging.info("ℹ️ Justiça gratuita não detectada - processamento normal")
+            logging.info("🔍 MODO COMPLETO: Pré-processamento consolidado com Gemini...")
+            preprocessamento = preprocessar_documento_completo(texto_original)
 
-        prompt_adaptado += f"\n\nTEXTO ORIGINAL:\n{texto_original}"
+            # Extrair informações do pré-processamento
+            tem_justica_gratuita = preprocessamento.get("tem_justica_gratuita", False)
+            trecho_justica = preprocessamento.get("trecho_justica", "")
+            tipo_doc_pre = preprocessamento.get("tipo_documento", "documento")
 
-        # Simplificar com Gemini usando prompt melhorado (já inclui perspectiva personalizada)
-        texto_simplificado, erro = simplificar_com_gemini(prompt_adaptado)
+            # Usar tipo do pré-processamento
+            tipo_doc = tipo_doc_pre if tipo_doc_pre and tipo_doc_pre != "documento" else "documento"
+            _, info_doc = identificar_tipo_documento(texto_original)
+            logging.info(f"Tipo de documento: {tipo_doc} - Urgência: {info_doc['urgencia']}")
 
-        if erro:
-            return jsonify({"erro": erro}), 500
+            # Extrair dados estruturados
+            dados_estruturados = extrair_dados_estruturados(texto_original)
 
-        # Gemini já adaptou para a perspectiva do usuário no prompt
-        # Não precisamos mais de adaptação pós-processamento
-        logging.info(f"✅ Texto simplificado e personalizado para perspectiva: {perspectiva}")
+            # Usar dados do pré-processamento
+            if preprocessamento.get("autoridade"):
+                dados_estruturados["autoridade"] = preprocessamento["autoridade"]
+            if preprocessamento.get("autor"):
+                dados_estruturados["partes"]["autor"] = preprocessamento["autor"]
+            if preprocessamento.get("reu"):
+                dados_estruturados["partes"]["reu"] = preprocessamento["reu"]
 
-        # NOVO: Adicionar explicação do termo "paciente" se for Habeas Corpus
-        if dados_estruturados.get("termo_paciente"):
-            explicacao_paciente = "\n\n📚 **Explicação:** No Habeas Corpus, \"paciente\" é o termo jurídico usado para identificar a pessoa que está presa ou ameaçada de prisão e em favor de quem o habeas corpus foi impetrado. É similar ao termo \"autor\" em outras ações."
-            texto_simplificado += explicacao_paciente
+            logging.info(f"Dados extraídos - Processo: {dados_estruturados['numero_processo']}")
 
-        # NOVA: Preparar contexto para chat
-        contexto_chat = gerar_chat_contextual(texto_original, dados_estruturados)
-        contexto_chat["perspectiva"] = perspectiva  # Salvar perspectiva no contexto
+            # Detectar perspectiva automaticamente se necessário
+            if perspectiva == "nao_informado":
+                perspectiva = detectar_perspectiva_automatica(texto_original, dados_estruturados)
+                logging.info(f"Perspectiva detectada: {perspectiva}")
+
+            # Recursos cabíveis
+            recursos_info = analisar_recursos_cabiveis(tipo_doc, texto_original)
+
+            # Prompt adaptado
+            prompt_adaptado = PROMPT_SIMPLIFICACAO_MELHORADO
+            prompt_adaptado += f"\n\nTIPO IDENTIFICADO: {tipo_doc}"
+            prompt_adaptado += f"\nPERSPECTIVA DO USUÁRIO: {perspectiva}"
+
+            # Aviso de justiça gratuita se detectado
+            if tem_justica_gratuita:
+                prompt_adaptado += f"\n\n🚨 JUSTIÇA GRATUITA CONFIRMADA 🚨"
+                prompt_adaptado += f"\nTrecho: \"{trecho_justica[:200]}\""
+                prompt_adaptado += f"\nNÃO escreva 'Você pagará custas'"
+                logging.info("✅ Aviso de justiça gratuita adicionado")
+
+            prompt_adaptado += f"\n\nTEXTO ORIGINAL:\n{texto_original}"
+
+            # Simplificar
+            texto_simplificado, erro = simplificar_com_gemini(prompt_adaptado)
+            if erro:
+                return jsonify({"erro": erro}), 500
+
+            logging.info(f"✅ Texto simplificado (modo completo)")
+
+            # Contexto chat
+            contexto_chat = gerar_chat_contextual(texto_original, dados_estruturados)
+            contexto_chat["perspectiva"] = perspectiva
 
         # Preparar metadados para o PDF
         metadados_geracao = {
@@ -2721,7 +2814,8 @@ def processar():
             "metadados": metadados,
             "analise": analise,
             "modelo_usado": metadados_geracao.get("modelo", "Gemini"),
-            "tipo_arquivo": file_extension
+            "tipo_arquivo": file_extension,
+            "pdf_download_url": f"/download_pdf?path={os.path.basename(pdf_path)}&filename={pdf_filename}"  # URL direta para download
         })
 
     except Exception as e:
@@ -3118,17 +3212,25 @@ def estatisticas():
 
 @app.route("/download_pdf")
 def download_pdf():
-    """Download do PDF com verificação de sessão"""
+    """Download do PDF com verificação de sessão ou query params"""
     logging.info("📥 Tentando baixar PDF...")
 
-    pdf_path = session.get('pdf_path')
-    pdf_filename = session.get('pdf_filename', 'documento_simplificado.pdf')
+    # Tentar pegar da query string primeiro (fallback se sessão não funcionar)
+    pdf_basename = request.args.get('path')
+    pdf_filename = request.args.get('filename', 'documento_simplificado.pdf')
 
-    logging.info(f"📥 PDF path na sessão: {pdf_path}")
-    logging.info(f"📥 PDF filename na sessão: {pdf_filename}")
+    if pdf_basename:
+        # Reconstruir caminho completo de forma segura
+        pdf_path = os.path.join(TEMP_DIR, os.path.basename(pdf_basename))  # Sanitizar nome
+        logging.info(f"📥 PDF path da query string: {pdf_path}")
+    else:
+        # Fallback: tentar da sessão
+        pdf_path = session.get('pdf_path')
+        pdf_filename = session.get('pdf_filename', 'documento_simplificado.pdf')
+        logging.info(f"📥 PDF path da sessão: {pdf_path}")
 
     if not pdf_path:
-        logging.error("📥 ❌ PDF path não encontrado na sessão")
+        logging.error("📥 ❌ PDF path não encontrado")
         return jsonify({"erro": "PDF não encontrado. Por favor, processe um documento primeiro"}), 404
 
     if not os.path.exists(pdf_path):
