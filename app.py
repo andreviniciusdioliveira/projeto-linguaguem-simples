@@ -943,33 +943,35 @@ TEXTO SIMPLIFICADO (em markdown):"""
 
         texto_simplificado = response.text.strip()
 
-        # Detectar tipo básico - ORDEM CORRETA e DEFINITIVA
+        # Detectar tipo básico - ORDEM CORRETA: ACÓRDÃO PRIMEIRO
         tipo = "documento"
 
-        # PRIORIDADE 1: SENTENÇA (verificar PRIMEIRO para evitar confusão com citações de acórdãos)
-        # Sentença tem "JULGO" ou "SENTENÇA" + dispositivo
-        if re.search(r'\bSENTENÇA\b', texto, re.IGNORECASE) and \
-           re.search(r'(?:DISPOSITIVO|JULGO\s+(?:PROCEDENTE|IMPROCEDENTE|PARCIALMENTE))', texto, re.IGNORECASE):
-            tipo = "sentenca"
-            logging.info("📋 Tipo detectado: SENTENÇA (palavra + JULGO/DISPOSITIVO)")
+        # Definir seções do documento para análise
+        cabecalho = texto[:500]
+        inicio = texto[:2000]
 
-        # Detectar JULGO sem palavra SENTENÇA (também é sentença)
+        # PRIORIDADE 1: ACÓRDÃO (verificar PRIMEIRO - marcadores estruturais)
+        tem_acordao_titulo = bool(re.search(r'\bACÓRDÃO\b', cabecalho, re.IGNORECASE))
+        tem_relator = bool(re.search(r'\bRELATOR[A]?\s*:', inicio, re.IGNORECASE))
+        tem_vistos_relatados = bool(re.search(r'VISTOS,\s*RELATADOS\s*E\s*DISCUTIDOS', inicio, re.IGNORECASE))
+        tem_acordam = bool(re.search(r'ACORDAM\s+(?:OS|AS)\s+(?:DESEMBARGADOR|MEMBROS)', inicio, re.IGNORECASE))
+        tem_estrutura_colegial = bool(re.search(r'(?:CÂMARA|TURMA)', cabecalho, re.IGNORECASE))
+
+        # Se tem ACÓRDÃO no cabeçalho + marcador estrutural → É ACÓRDÃO (não importa se cita "JULGO")
+        if tem_acordao_titulo and (tem_relator or tem_vistos_relatados or tem_acordam or tem_estrutura_colegial):
+            tipo = "acordao"
+            logging.info("📋 Tipo detectado: ACÓRDÃO (marcadores estruturais: título + relator/vistos/acordam/colegial)")
+
+        # PRIORIDADE 2: SENTENÇA (verificar SEGUNDO - apenas se NÃO for acórdão)
+        elif re.search(r'\bSENTENÇA\b', texto, re.IGNORECASE) and \
+             re.search(r'(?:DISPOSITIVO|JULGO\s+(?:PROCEDENTE|IMPROCEDENTE|PARCIALMENTE))', texto, re.IGNORECASE):
+            tipo = "sentenca"
+            logging.info("📋 Tipo detectado: SENTENÇA (palavra SENTENÇA + JULGO/DISPOSITIVO)")
+
+        # Detectar JULGO sem palavra SENTENÇA (também é sentença, mas só se não for acórdão)
         elif re.search(r'\bJULGO\s+(?:PROCEDENTE|IMPROCEDENTE|PARCIALMENTE)', texto, re.IGNORECASE):
             tipo = "sentenca"
             logging.info("📋 Tipo detectado: SENTENÇA (tem JULGO)")
-
-        # PRIORIDADE 2: ACÓRDÃO (só detectar se tiver "ACORDAM" e NÃO tiver "JULGO")
-        # IMPORTANTE: Buscar só no início (primeiros 2000 chars) para evitar citações de jurisprudência
-        elif (re.search(r'\bACORDAM\b', texto[:2000], re.IGNORECASE) or
-              (re.search(r'\bACÓRDÃO\b', texto[:2000], re.IGNORECASE) and
-               re.search(r'(?:TURMA|CÂMARA|DESEMBARGADOR)', texto[:2000], re.IGNORECASE))):
-            # Verificar se NÃO é uma sentença citando acórdão
-            if not re.search(r'\bJULGO\b', texto[:3000], re.IGNORECASE):
-                tipo = "acordao"
-                logging.info("📋 Tipo detectado: ACÓRDÃO (ACORDAM ou contexto de tribunal)")
-            else:
-                tipo = "sentenca"
-                logging.info("📋 Tipo detectado: SENTENÇA (tem JULGO, não é acórdão apesar de citar)")
 
         # PRIORIDADE 3: MANDADO (várias formas de detectar)
         # Verificar APENAS se NÃO for sentença nem acórdão
@@ -1058,8 +1060,28 @@ FAÇA AS SEGUINTES ANÁLISES DO DOCUMENTO (responda em JSON):
    - "Suspendo a exigibilidade"
    - "art. 98, §3º, CPC"
 
-2. TIPO DE DOCUMENTO: Identifique se é:
-   - Sentença, Acórdão, Decisão, Despacho, Mandado, Intimação, etc.
+2. TIPO DE DOCUMENTO: CRÍTICO - SIGA ESTA ORDEM EXATA:
+
+   a) É ACÓRDÃO se tiver MARCADORES ESTRUTURAIS (verificar PRIMEIRO):
+      - "ACÓRDÃO" no cabeçalho (primeiros 500 caracteres) E
+      - Pelo menos 1 destes marcadores:
+        * "VISTOS, RELATADOS E DISCUTIDOS"
+        * "RELATOR(A):" seguido de desembargador
+        * "Acordam os Desembargadores" ou "Acordam os Membros"
+        * Estrutura colegial: CÂMARA ou TURMA no início
+      - IMPORTANTE: Acórdão pode CITAR sentenças com "JULGO" - não confunda!
+
+   b) É SENTENÇA se (verificar SEGUNDO):
+      - Tem "SENTENÇA" E ("JULGO" ou "DISPOSITIVO") E
+      - Assinado por UM ÚNICO juiz (não desembargador) E
+      - NÃO tem estrutura de acórdão acima
+
+   c) É MANDADO se (verificar POR ÚLTIMO):
+      - "MANDADO DE CITAÇÃO/INTIMAÇÃO/PENHORA" OU
+      - "INTIMO/CITO" + audiência/comparecimento OU
+      - "OFICIAL DE JUSTIÇA" + "CUMPRA-SE"
+
+   d) Outros: Decisão, Despacho, Intimação simples
 
 3. AUTORIDADE: Quem ASSINOU (não citações):
    - Procure "Documento eletrônico assinado por" ou assinatura no final
@@ -1074,11 +1096,19 @@ RESPONDA EM JSON (APENAS O JSON, SEM EXPLICAÇÕES):
 {{
   "tem_justica_gratuita": true ou false,
   "trecho_justica": "trecho encontrado ou vazio",
-  "tipo_documento": "tipo identificado",
+  "tipo_documento": "acordao OU sentenca OU mandado OU decisao OU despacho OU intimacao",
   "autoridade": "Cargo: Nome ou null",
   "autor": "Nome do autor ou null",
   "reu": "Nome do réu ou null"
 }}
+
+IMPORTANTE: Para tipo_documento, use EXATAMENTE uma dessas palavras em minúsculo:
+- "acordao" (se for acórdão com marcadores estruturais da regra 2a acima)
+- "sentenca" (se for sentença individual de juiz da regra 2b)
+- "mandado" (se for mandado/citação/intimação da regra 2c)
+- "decisao" (se for decisão interlocutória)
+- "despacho" (se for despacho simples)
+- "intimacao" (se for intimação sem ordem de comparecimento)
 
 TEXTO DO DOCUMENTO:
 {texto_analise}
