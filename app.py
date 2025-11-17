@@ -686,6 +686,75 @@ def simplificar_termos_tecnicos(texto):
 
     return texto_simplificado
 
+# ============= PRÉ-PROCESSAMENTO: DETECTAR JUSTIÇA GRATUITA =============
+
+def detectar_justica_gratuita(texto):
+    """
+    Usa Gemini para detectar se o documento menciona justiça gratuita
+    CRITICAL: Esta detecção acontece ANTES da simplificação
+    Retorna: (tem_justica_gratuita: bool, trecho_encontrado: str)
+    """
+    # Truncar texto se muito longo (focar no dispositivo/final)
+    if len(texto) > 8000:
+        # Pegar final do documento onde normalmente está o dispositivo
+        texto_analise = texto[-8000:]
+    else:
+        texto_analise = texto
+
+    prompt = f"""Você é um especialista em análise de documentos jurídicos.
+
+TAREFA ÚNICA E SIMPLES: Verificar se este documento menciona que alguém tem JUSTIÇA GRATUITA.
+
+Procure por:
+- "beneficiário da assistência judiciária gratuita"
+- "beneficiária da assistência judiciária gratuita"
+- "Suspendo a exigibilidade"
+- "art. 98, §3º, CPC"
+- "gratuidade da justiça"
+
+Se encontrar QUALQUER um desses termos, responda APENAS:
+SIM - [copie aqui o trecho exato que encontrou]
+
+Se NÃO encontrar nenhum desses termos, responda APENAS:
+NÃO
+
+TEXTO DO DOCUMENTO:
+{texto_analise}
+
+SUA RESPOSTA (SIM ou NÃO):"""
+
+    try:
+        import google.generativeai as genai
+
+        # Usar modelo mais rápido e barato para esta tarefa simples
+        model = genai.GenerativeModel(GEMINI_MODELS[0]["name"])  # Primeiro da lista (mais rápido)
+
+        response = model.generate_content(
+            prompt,
+            generation_config={
+                "temperature": 0.1,  # Muito baixa - queremos resposta objetiva
+                "max_output_tokens": 200  # Resposta curta
+            }
+        )
+
+        resultado = response.text.strip()
+
+        # Parsear resposta
+        if resultado.upper().startswith("SIM"):
+            # Extrair trecho se houver
+            partes = resultado.split("-", 1)
+            trecho = partes[1].strip() if len(partes) > 1 else ""
+            logging.info(f"✅ Justiça gratuita DETECTADA: {trecho[:100]}...")
+            return True, trecho
+        else:
+            logging.info("❌ Justiça gratuita NÃO detectada")
+            return False, ""
+
+    except Exception as e:
+        logging.warning(f"⚠️ Erro ao detectar justiça gratuita: {e}")
+        # Em caso de erro, não assumir nada
+        return False, ""
+
 # ============= IDENTIFICAÇÃO COM GEMINI (100% IA) =============
 # Abordagem simplificada: usa apenas Gemini para máxima precisão
 
@@ -2419,10 +2488,28 @@ def processar():
         # NOVA: Analisar recursos cabíveis
         recursos_info = analisar_recursos_cabiveis(tipo_doc, texto_original)
 
+        # PRÉ-PROCESSAMENTO: Detectar justiça gratuita com Gemini
+        logging.info("🔍 Detectando justiça gratuita...")
+        tem_justica_gratuita, trecho_justica = detectar_justica_gratuita(texto_original)
+
         # Adaptar prompt com informações do tipo de documento
         prompt_adaptado = PROMPT_SIMPLIFICACAO_MELHORADO
         prompt_adaptado += f"\n\nTIPO IDENTIFICADO: {tipo_doc}"
         prompt_adaptado += f"\nPERSPECTIVA DO USUÁRIO: {perspectiva}"
+
+        # CRITICAL: Se detectou justiça gratuita, adicionar aviso EXPLÍCITO no prompt
+        if tem_justica_gratuita:
+            prompt_adaptado += f"\n\n🚨🚨🚨 INFORMAÇÃO CRÍTICA DETECTADA 🚨🚨🚨"
+            prompt_adaptado += f"\nEste documento CONFIRMA que a pessoa tem JUSTIÇA GRATUITA."
+            prompt_adaptado += f"\nTrecho encontrado: \"{trecho_justica[:200]}...\""
+            prompt_adaptado += f"\n\nPORTANTO:"
+            prompt_adaptado += f"\n✅ NÃO escreva 'Você pagará custas' ou 'Você pagará honorários'"
+            prompt_adaptado += f"\n✅ ESCREVA: 'Você NÃO vai pagar custas nem honorários porque tem justiça gratuita'"
+            prompt_adaptado += f"\n🚨🚨🚨 FIM DA INFORMAÇÃO CRÍTICA 🚨🚨🚨\n"
+            logging.info("✅ Aviso de justiça gratuita adicionado ao prompt")
+        else:
+            logging.info("ℹ️ Justiça gratuita não detectada - processamento normal")
+
         prompt_adaptado += f"\n\nTEXTO ORIGINAL:\n{texto_original}"
 
         # Simplificar com Gemini usando prompt melhorado (já inclui perspectiva personalizada)
