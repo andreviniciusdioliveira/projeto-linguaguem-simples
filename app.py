@@ -377,25 +377,44 @@ IMPORTANTE: Explique o PORQUÊ da decisão de forma simples.
 
 💰 **VALORES E O QUE VOCÊ PRECISA FAZER**
 
-**🔍 ATENÇÃO ESPECIAL - JUSTIÇA GRATUITA:**
-ANTES de listar valores a pagar, verifique se o documento menciona:
-- "Beneficiário(a) da justiça gratuita"
-- "Assistência judiciária gratuita"
-- "Gratuidade da justiça"
-- "Custas e honorários suspensos"
+🚨 **REGRA CRÍTICA - JUSTIÇA GRATUITA (LEIA COM ATENÇÃO!)** 🚨
 
-**SE HOUVER JUSTIÇA GRATUITA:**
-- NÃO liste custas ou honorários como "você vai pagar"
-- Explique claramente: "Você não vai pagar custas nem honorários porque tem direito à justiça gratuita. Esses valores ficam suspensos."
+PASSO 1: Procure no documento os termos:
+- "beneficiário da assistência judiciária gratuita"
+- "beneficiário da justiça gratuita"
+- "suspendo a exigibilidade"
+- "art. 98, §3º, CPC"
 
-**SE NÃO HOUVER JUSTIÇA GRATUITA:**
-- Liste normalmente todos os valores a pagar
+PASSO 2: Se encontrar QUALQUER um desses termos:
+✅ A pessoa TEM direito à justiça gratuita
+✅ Ela NÃO vai pagar custas nem honorários
+✅ Os valores ficam SUSPENSOS (não são cobrados)
+
+PASSO 3: Como escrever na seção de valores:
+
+❌ ERRADO (NUNCA FAÇA ASSIM):
+"Você pagará 50% das custas e despesas processuais"
+"Você pagará honorários advocatícios de 10%"
+
+✅ CORRETO (SEMPRE FAÇA ASSIM SE HOUVER JUSTIÇA GRATUITA):
+"💡 BOA NOTÍCIA: Você NÃO vai pagar custas nem honorários porque tem direito à justiça gratuita. Esses valores ficam suspensos (você não precisa pagar)."
+
+EXEMPLO REAL:
+Se o texto diz: "Suspendo a exigibilidade das condenações, tendo em vista que a parte autora é beneficiária da assistência judiciária gratuita"
+
+Você DEVE escrever:
+"Você não vai pagar nada de custas ou honorários porque tem justiça gratuita."
+
+---
 
 **Valores mencionados:**
 - Você vai receber: R$ [valor total que vai entrar]
-- Você vai pagar: R$ [valor total que vai sair - ATENÇÃO À JUSTIÇA GRATUITA]
 - Danos morais: R$ [se houver]
-- Honorários do advogado: [percentual] sobre [base]
+- Danos materiais: R$ [se houver]
+
+**⚠️ Sobre custas e honorários que você deveria pagar:**
+[SE TEM JUSTIÇA GRATUITA: "Você não vai pagar porque tem justiça gratuita. Valores suspensos."]
+[SE NÃO TEM: Liste normalmente os valores a pagar]
 
 **Prazos importantes:**
 - Você tem [X] dias para [fazer algo]
