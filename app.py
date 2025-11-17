@@ -322,12 +322,13 @@ PROMPT_SIMPLIFICACAO_MELHORADO = """**VOCÊ É UM ASSISTENTE QUE EXPLICA DOCUMEN
 - Seja direto mas gentil
 - Mostre que você entende o impacto emocional da situação
 
-**SIMPLIFICAÇÃO OBRIGATÓRIA DE TERMOS:**
-No texto principal, SEMPRE substitua:
+**SIMPLIFICAÇÃO OBRIGATÓRIA DE TERMOS TÉCNICOS:**
+No texto principal (NUNCA use estes termos sem simplificar):
 - "PARCIALMENTE PROCEDENTE" → "Você ganhou PARTE do que pediu"
 - "PROCEDENTE" → "Você ganhou"
 - "IMPROCEDENTE" → "Você perdeu" ou "Seu pedido foi negado"
-- "Habeas Corpus" → "um pedido urgente para garantir liberdade"
+- "Habeas Corpus" → "um pedido urgente para garantir sua liberdade" ou "para corrigir uma ilegalidade"
+- "Cerceamento de defesa" → "você foi impedido de se defender corretamente"
 - "Deferido" → "aprovado" ou "aceito"
 - "Indeferido" → "negado" ou "recusado"
 
@@ -1295,18 +1296,20 @@ def extrair_dados_estruturados(texto):
     if valor_causa_match:
         dados["valores"]["valor_causa"] = valor_causa_match.group(1)
 
-    # Calcular total se possível
-    total = 0
-    for key in ["danos_morais", "danos_materiais", "lucros_cessantes"]:
-        if dados["valores"][key]:
-            valor_str = dados["valores"][key].replace(".", "").replace(",", ".")
-            try:
-                total += float(valor_str)
-            except:
-                pass
-
-    if total > 0:
-        dados["valores"]["total"] = f"R$ {total:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    # NOTA: Cálculo de total desabilitado porque os campos individuais foram removidos
+    # O total só faz sentido se tivermos os valores individuais, mas eles foram comentados
+    # porque regex não diferencia valores deferidos vs indeferidos
+    # total = 0
+    # for key in ["danos_morais", "danos_materiais", "lucros_cessantes"]:
+    #     if dados["valores"][key]:
+    #         valor_str = dados["valores"][key].replace(".", "").replace(",", ".")
+    #         try:
+    #             total += float(valor_str)
+    #         except:
+    #             pass
+    #
+    # if total > 0:
+    #     dados["valores"]["total"] = f"R$ {total:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
     # Extrair prazos
     prazo_patterns = [
