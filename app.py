@@ -499,15 +499,20 @@ ORDEM DE PRIORIDADE (verifique nesta ordem!):
    - Tem assinatura de Juiz? → "sentenca"
 
 3. MANDADO (verificar POR ÚLTIMO):
-   - Tem "MANDADO DE CITAÇÃO/INTIMAÇÃO" no TÍTULO? → "mandado"
+   - Tem "MANDADO DE CITAÇÃO/INTIMAÇÃO/PENHORA"? → "mandado"
+   - Tem "INTIMO" ou "CITO" + link de audiência? → "mandado"
    - Tem "OFICIAL DE JUSTIÇA" E "CUMPRA-SE"? → "mandado"
+   - Tem dados de audiência (data/hora/link)? → "mandado"
    - IGNORE "mandado de segurança" dentro de sentenças
 
 4. OUTROS:
-   - Tem "INTIMAÇÃO"? → "intimacao"
+   - Tem "INTIMAÇÃO" simples (SEM audiência)? → "intimacao"
    - Tem "DESPACHO"? → "despacho"
 
-CRÍTICO: ACÓRDÃO tem PRIORIDADE sobre SENTENÇA. SENTENÇA tem PRIORIDADE sobre MANDADO.
+CRÍTICO:
+- ACÓRDÃO tem PRIORIDADE sobre SENTENÇA. SENTENÇA tem PRIORIDADE sobre MANDADO.
+- Se tem AUDIÊNCIA marcada (data/hora/link) + INTIMO/CITO → É MANDADO, não intimação!
+- MANDADO é mais urgente que INTIMAÇÃO simples.
 
 Documento:
 {texto_analise}
@@ -537,6 +542,17 @@ Responda APENAS UMA PALAVRA: sentenca, acordao, mandado, intimacao ou despacho""
             "decisao_interlocutoria": {"urgencia": "ALTA", "acao_necessaria": "Cumprir ou recorrer via agravo"},
             "despacho": {"urgencia": "MÉDIA", "acao_necessaria": "Aguardar ou manifestar se necessário"}
         }
+
+        # VERIFICAÇÃO ESPECIAL: "intimacao" pode ser na verdade "mandado"
+        # Se Gemini disse "intimacao" mas tem características de mandado, corrigir
+        if tipo_identificado == "intimacao":
+            # Verificar se tem características de MANDADO (audiência marcada, links, etc)
+            tem_intimo_cito = bool(re.search(r'\b(?:INTIMO|CITO|INTIMADO|CITADO)\b', texto, re.IGNORECASE))
+            tem_audiencia = bool(re.search(r'(?:audiência|comparecer|link.*audiência|data.*hora|reunião.*online)', texto, re.IGNORECASE))
+
+            if tem_intimo_cito and tem_audiencia:
+                logging.warning(f"⚠️ Gemini disse 'intimacao' mas tem INTIMO+AUDIÊNCIA → Corrigindo para MANDADO")
+                tipo_identificado = "mandado"
 
         # Tentar match exato primeiro
         if tipo_identificado in tipos_info:
@@ -765,6 +781,34 @@ def processar_e_simplificar_tudo_de_uma_vez(texto, perspectiva="nao_informado"):
     else:
         texto_analise = texto
 
+    # DETECTAR JUSTIÇA GRATUITA **ANTES** DE ENVIAR PARA O GEMINI
+    import re
+    tem_justica_gratuita = bool(re.search(
+        r'suspendo.*?exigibilidade|beneficiári[ao].*?assistência.*?judiciária.*?gratuita|art\.\s*98.*?§\s*3',
+        texto,
+        re.IGNORECASE
+    ))
+
+    # Mensagem clara para o Gemini (não pedir para ele "procurar")
+    if tem_justica_gratuita:
+        aviso_justica = """
+🚨🚨🚨 INFORMAÇÃO CONFIRMADA: JUSTIÇA GRATUITA 🚨🚨🚨
+ESTE DOCUMENTO CONTÉM justiça gratuita confirmada por análise prévia.
+Na seção de custas e honorários, você DEVE escrever:
+"Você NÃO vai pagar custas nem honorários porque tem justiça gratuita."
+"""
+    else:
+        aviso_justica = """
+⚠️ INFORMAÇÃO CONFIRMADA: SEM JUSTIÇA GRATUITA ⚠️
+ESTE DOCUMENTO NÃO MENCIONA justiça gratuita.
+Na seção de custas e honorários, você DEVE escrever:
+- Se o documento mencionar custas: "Você pagará as custas processuais"
+- Se o documento mencionar honorários: "Você pagará honorários de X%"
+- Se NÃO mencionar nada: "Não há informação sobre custas e honorários neste documento"
+
+NUNCA escreva sobre justiça gratuita se não foi detectada!
+"""
+
     # Mapear perspectiva para linguagem do prompt
     if perspectiva == "autor":
         instrucao_perspectiva = 'Use "VOCÊ" para o autor/requerente e "a outra parte" para o réu'
@@ -778,8 +822,7 @@ def processar_e_simplificar_tudo_de_uma_vez(texto, perspectiva="nao_informado"):
 PERSPECTIVA DO USUÁRIO: {perspectiva}
 {instrucao_perspectiva}
 
-ATENÇÃO: Antes de simplificar, analise se tem "Suspendo a exigibilidade" ou "beneficiário da assistência judiciária gratuita" ou "art. 98, §3º, CPC".
-Se tiver, a pessoa TEM justiça gratuita e NÃO vai pagar custas nem honorários!
+{aviso_justica}
 
 TEXTO ORIGINAL:
 {texto_analise}
@@ -801,10 +844,6 @@ TEXTO SIMPLIFICADO (em markdown):"""
         )
 
         texto_simplificado = response.text.strip()
-
-        # Extrair metadados básicos do texto original (regex rápido)
-        import re
-        tem_justica = bool(re.search(r'suspendo.*?exigibilidade|beneficiári[ao].*?assistência.*?judiciária.*?gratuita|art\.\s*98.*?§\s*3', texto, re.IGNORECASE))
 
         # Detectar tipo básico - ORDEM CORRETA: mais específico primeiro
         tipo = "documento"
@@ -832,14 +871,27 @@ TEXTO SIMPLIFICADO (em markdown):"""
               re.search(r'CUMPRA-SE', texto, re.IGNORECASE)):
             tipo = "mandado"
 
+        # Mapear tipo para informações de urgência (evita chamada extra ao Gemini)
+        tipos_info = {
+            "sentenca": {"urgencia": "ALTA", "acao_necessaria": "Verificar prazo para recurso"},
+            "acordao": {"urgencia": "MÉDIA", "acao_necessaria": "Analisar decisão do recurso"},
+            "mandado": {"urgencia": "MÁXIMA", "acao_necessaria": "Comparecer/Contestar URGENTE"},
+            "intimacao": {"urgencia": "ALTA", "acao_necessaria": "Tomar ciência e verificar prazos"},
+            "despacho": {"urgencia": "MÉDIA", "acao_necessaria": "Aguardar ou manifestar se necessário"}
+        }
+
+        info_urgencia = tipos_info.get(tipo, {"urgencia": "MÉDIA", "acao_necessaria": "Verificar documento"})
+
         metadados = {
-            "tem_justica_gratuita": tem_justica,
+            "tem_justica_gratuita": tem_justica_gratuita,
             "tipo_documento": tipo,
+            "urgencia": info_urgencia["urgencia"],
+            "acao_necessaria": info_urgencia["acao_necessaria"],
             "modelo": GEMINI_MODELS[0]["name"]
         }
 
         logging.info(f"✅ Processamento ultra-rápido completo em 1 chamada!")
-        logging.info(f"   Justiça gratuita: {tem_justica}")
+        logging.info(f"   Justiça gratuita: {tem_justica_gratuita}")
         logging.info(f"   Tipo: {tipo}")
 
         return texto_simplificado, metadados
@@ -1142,9 +1194,11 @@ def extrair_dados_estruturados(texto):
         "numero_processo": None,
         "partes": {"autor": None, "reu": None},
         "valores": {
-            "danos_morais": None,
-            "danos_materiais": None,
-            "lucros_cessantes": None,
+            # NOTA: Valores individuais NÃO são mostrados porque regex não diferencia
+            # se foram deferidos ou indeferidos. O Gemini faz essa separação na simplificação.
+            # "danos_morais": None,
+            # "danos_materiais": None,
+            # "lucros_cessantes": None,
             "valor_causa": None,
             "honorarios": None,
             "custas": None,
@@ -1194,30 +1248,30 @@ def extrair_dados_estruturados(texto):
 
     texto_busca = dispositivo_match.group(0) if dispositivo_match else texto
 
-    # Danos morais
-    danos_morais_patterns = [
-        r'danos?\s+morais?.*?R\$\s*([\d\.,]+)',
-        r'indenização.*?moral.*?R\$\s*([\d\.,]+)',
-        r'R\$\s*([\d\.,]+).*?danos?\s+morais?'
-    ]
-
-    for pattern in danos_morais_patterns:
-        match = re.search(pattern, texto_busca, re.IGNORECASE | re.DOTALL)
-        if match:
-            dados["valores"]["danos_morais"] = match.group(1)
-            break
-
-    # Danos materiais
-    danos_materiais_patterns = [
-        r'danos?\s+materiais?.*?R\$\s*([\d\.,]+)',
-        r'danos?\s+emergentes?.*?R\$\s*([\d\.,]+)'
-    ]
-
-    for pattern in danos_materiais_patterns:
-        match = re.search(pattern, texto_busca, re.IGNORECASE | re.DOTALL)
-        if match:
-            dados["valores"]["danos_materiais"] = match.group(1)
-            break
+    # NOTA: Extração de valores individuais desabilitada - regex não diferencia deferidos vs indeferidos
+    # O Gemini faz essa separação corretamente na simplificação
+    # # Danos morais
+    # danos_morais_patterns = [
+    #     r'danos?\s+morais?.*?R\$\s*([\d\.,]+)',
+    #     r'indenização.*?moral.*?R\$\s*([\d\.,]+)',
+    #     r'R\$\s*([\d\.,]+).*?danos?\s+morais?'
+    # ]
+    # for pattern in danos_morais_patterns:
+    #     match = re.search(pattern, texto_busca, re.IGNORECASE | re.DOTALL)
+    #     if match:
+    #         dados["valores"]["danos_morais"] = match.group(1)
+    #         break
+    #
+    # # Danos materiais
+    # danos_materiais_patterns = [
+    #     r'danos?\s+materiais?.*?R\$\s*([\d\.,]+)',
+    #     r'danos?\s+emergentes?.*?R\$\s*([\d\.,]+)'
+    # ]
+    # for pattern in danos_materiais_patterns:
+    #     match = re.search(pattern, texto_busca, re.IGNORECASE | re.DOTALL)
+    #     if match:
+    #         dados["valores"]["danos_materiais"] = match.group(1)
+    #         break
 
     # Honorários
     honorarios_match = re.search(r'honorários.*?(\d+)\s*%', texto, re.IGNORECASE)
@@ -2748,9 +2802,12 @@ def processar():
             # Extrair dados estruturados (regex - rápido, sem Gemini)
             dados_estruturados = extrair_dados_estruturados(texto_original)
 
-            # Tipo do documento
+            # Tipo do documento e informações de urgência (já vem dos metadados, sem chamada extra!)
             tipo_doc = metadados_rapido.get("tipo_documento", "documento")
-            _, info_doc = identificar_tipo_documento(texto_original)  # Só para pegar urgência
+            info_doc = {
+                "urgencia": metadados_rapido.get("urgencia", "MÉDIA"),
+                "acao_necessaria": metadados_rapido.get("acao_necessaria", "Verificar documento")
+            }
 
             # Recursos cabíveis
             recursos_info = analisar_recursos_cabiveis(tipo_doc, texto_original)
