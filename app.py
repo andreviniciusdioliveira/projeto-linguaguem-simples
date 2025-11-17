@@ -488,23 +488,31 @@ def identificar_tipo_documento(texto):
 
     prompt = f"""Analise este documento jurídico brasileiro e identifique o tipo EXATO.
 
-REGRAS CRÍTICAS:
-1. Se o documento tem as palavras "MANDADO" ou "OFICIAL DE JUSTIÇA" ou "CUMPRA-SE" → responda "mandado"
-2. Se tem "SENTENÇA" E "JULGO PROCEDENTE/IMPROCEDENTE" → responda "sentenca"
-3. Se tem "SENTENÇA" E "DISPOSITIVO" E assinatura de Juiz → responda "sentenca"
-4. Se tem "ACÓRDÃO" ou "TURMA JULGADORA" → responda "acordao"
-5. Se tem apenas "INTIMAÇÃO" SEM mandado → responda "intimacao"
-6. Se tem "DESPACHO" → responda "despacho"
+ORDEM DE PRIORIDADE (verifique nesta ordem!):
 
-ATENÇÃO ESPECIAL:
-- IGNORE citações de jurisprudência (TJ-XX, STJ, STF) - elas NÃO definem o tipo do documento
-- Nomes após "Relator:" em citações de OUTROS casos NÃO são deste processo
-- Procure pelas palavras-chave no INÍCIO do documento atual, não em citações
+1. ACÓRDÃO (verificar PRIMEIRO):
+   - Tem "ACÓRDÃO" no título/início? → "acordao"
+   - Tem "TURMA JULGADORA"? → "acordao"
+
+2. SENTENÇA (verificar SEGUNDO):
+   - Tem "SENTENÇA" E "JULGO"? → "sentenca"
+   - Tem assinatura de Juiz? → "sentenca"
+
+3. MANDADO (verificar POR ÚLTIMO):
+   - Tem "MANDADO DE CITAÇÃO/INTIMAÇÃO" no TÍTULO? → "mandado"
+   - Tem "OFICIAL DE JUSTIÇA" E "CUMPRA-SE"? → "mandado"
+   - IGNORE "mandado de segurança" dentro de sentenças
+
+4. OUTROS:
+   - Tem "INTIMAÇÃO"? → "intimacao"
+   - Tem "DESPACHO"? → "despacho"
+
+CRÍTICO: ACÓRDÃO tem PRIORIDADE sobre SENTENÇA. SENTENÇA tem PRIORIDADE sobre MANDADO.
 
 Documento:
 {texto_analise}
 
-Responda APENAS UMA PALAVRA (sem pontuação): sentenca, acordao, mandado, intimacao ou despacho"""
+Responda APENAS UMA PALAVRA: sentenca, acordao, mandado, intimacao ou despacho"""
 
     try:
         logging.info("🤖 Chamando Gemini para identificar tipo de documento...")
