@@ -361,6 +361,13 @@ Identifique: [Sentença/Acórdão/Decisão/Despacho/Mandado de Citação/Mandado
 
 📚 MINI DICIONÁRIO
 [APENAS termos que aparecem no documento]
+SEMPRE inclua (se aparecerem no documento):
+- **Exequente:** Pessoa ou empresa que está cobrando uma dívida na justiça
+- **Executado:** Pessoa ou empresa que está sendo cobrada na justiça
+- **Requerente/Autor:** Quem entrou com o processo (iniciou a ação)
+- **Requerido/Réu:** Quem está sendo processado (se defendendo)
+- **Impetrante:** Quem pediu algo à justiça (em mandado de segurança)
+- **Impetrado:** Autoridade ou pessoa contra quem foi o pedido
 • **Termo**: Explicação simples
 
 ⚠️ CABE RECURSO?
@@ -374,12 +381,46 @@ Identifique: [Sentença/Acórdão/Decisão/Despacho/Mandado de Citação/Mandado
 *Documento processado em: [data/hora]*
 *Este resumo não substitui orientação jurídica*
 
+**IDENTIFICAÇÃO DA AUTORIDADE:**
+- APENAS identifique como Juiz(a) ou Desembargador(a) quem ASSINOU o documento
+- NÃO considere nomes citados em jurisprudências, precedentes ou citações
+- Procure por "Documento eletrônico assinado por" ou assinaturas no FINAL do documento
+- Se não encontrar assinatura clara, indique "Não identificado"
+
+**ATENÇÃO PARA CITAÇÕES:**
+- Jurisprudências mencionadas (TJ-XX, STJ, STF) são apenas referências, NÃO são a autoridade do caso
+- Nomes após "Relator:" em citações de outros casos NÃO são o juiz deste processo
+
+**SIMPLIFICAÇÃO DE TERMOS DAS PARTES:**
+SEMPRE substitua termos técnicos por explicações simples:
+- "Exequente" → "quem está cobrando"
+- "Executado" → "quem está sendo cobrado"
+- "Requerente/Autor" → "quem entrou com o processo" ou "você" (se for o usuário)
+- "Requerido/Réu" → "quem está sendo processado" ou "a outra parte"
+- "Impetrante" → "quem pediu"
+- "Impetrado" → "contra quem foi pedido"
+- "Reclamante" → "quem reclamou"
+- "Reclamado" → "empresa/pessoa reclamada"
+- "Apelante" → "quem está recorrendo"
+- "Apelado" → "contra quem é o recurso"
+
+NUNCA use os termos técnicos - SEMPRE explique de forma simples!
+
+Exemplo:
+❌ ERRADO: "O exequente move ação contra o executado"
+✅ CERTO: "Quem está cobrando entrou com um processo contra quem deve"
+
+❌ ERRADO: "A parte autora/requerente"
+✅ CERTO: "Você" (se for o usuário) ou "Quem entrou com o processo"
+
 **REGRAS:**
 1. Máximo 20 palavras por frase
 2. Substitua jargões por palavras comuns
 3. Identifique corretamente o tipo de documento
 4. DESTAQUE se for MANDADO (urgência máxima)
 5. Mantenha 100% de fidelidade ao documento original
+6. SEMPRE simplifique termos das partes (exequente, executado, etc.)
+7. Identifique apenas a autoridade que ASSINOU o documento
 
 **TEXTO ORIGINAL:**
 """
@@ -396,12 +437,16 @@ def identificar_tipo_documento(texto):
 
 REGRAS CRÍTICAS:
 1. Se o documento tem as palavras "MANDADO" ou "OFICIAL DE JUSTIÇA" ou "CUMPRA-SE" → responda "mandado"
-2. Se tem "SENTENÇA" ou "JULGO PROCEDENTE/IMPROCEDENTE" → responda "sentenca"
-3. Se tem "ACÓRDÃO" ou "RELATOR" ou "TURMA JULGADORA" → responda "acordao"
-4. Se tem apenas "INTIMAÇÃO" SEM mandado → responda "intimacao"
-5. Se tem "DESPACHO" → responda "despacho"
+2. Se tem "SENTENÇA" E "JULGO PROCEDENTE/IMPROCEDENTE" → responda "sentenca"
+3. Se tem "SENTENÇA" E "DISPOSITIVO" E assinatura de Juiz → responda "sentenca"
+4. Se tem "ACÓRDÃO" ou "TURMA JULGADORA" → responda "acordao"
+5. Se tem apenas "INTIMAÇÃO" SEM mandado → responda "intimacao"
+6. Se tem "DESPACHO" → responda "despacho"
 
-ATENÇÃO: Procure pelas palavras-chave no INÍCIO do documento!
+ATENÇÃO ESPECIAL:
+- IGNORE citações de jurisprudência (TJ-XX, STJ, STF) - elas NÃO definem o tipo do documento
+- Nomes após "Relator:" em citações de OUTROS casos NÃO são deste processo
+- Procure pelas palavras-chave no INÍCIO do documento atual, não em citações
 
 Documento:
 {texto_analise}
@@ -532,6 +577,88 @@ def analisar_recursos_cabiveis(tipo_doc, texto):
     }
 
     return recursos_info.get(tipo_doc, None)
+
+def normalizar_termo_parte(termo):
+    """Converte termos jurídicos para linguagem simples"""
+    mapeamento = {
+        "exequente": "quem está cobrando",
+        "executado": "quem está sendo cobrado",
+        "requerente": "quem pediu/entrou com o processo",
+        "requerido": "quem está sendo processado",
+        "impetrante": "quem pediu",
+        "impetrado": "contra quem foi pedido",
+        "reclamante": "quem reclamou",
+        "reclamado": "quem foi reclamado",
+        "agravante": "quem recorreu",
+        "agravado": "contra quem foi o recurso",
+        "apelante": "quem está recorrendo",
+        "apelado": "contra quem é o recurso",
+        "embargante": "quem está contestando",
+        "embargado": "quem está sendo contestado",
+        "paciente": "pessoa presa/ameaçada de prisão",
+        "autor": "quem entrou com o processo",
+        "réu": "quem está sendo processado",
+        "reu": "quem está sendo processado"
+    }
+
+    termo_lower = termo.lower().strip()
+    return mapeamento.get(termo_lower, termo)
+
+def remover_citacoes_jurisprudencia(texto):
+    """Remove trechos de jurisprudência citada para evitar confusão"""
+    # Padrão para identificar citações de jurisprudência
+    patterns = [
+        r'\(TJ-[A-Z]{2}.*?Data de Publicação:.*?\)',  # Citações de TJs
+        r'\(STJ.*?Data de Julgamento:.*?\)',  # Citações do STJ
+        r'\(STF.*?Data de Julgamento:.*?\)',  # Citações do STF
+        r'EMENTA:.*?(?=\n\n|\Z)',  # Ementas de jurisprudência
+    ]
+
+    texto_limpo = texto
+    for pattern in patterns:
+        texto_limpo = re.sub(pattern, '', texto_limpo, flags=re.DOTALL)
+
+    return texto_limpo
+
+def simplificar_termos_tecnicos(texto):
+    """Substitui termos técnicos por explicações simples no texto final"""
+
+    substituicoes = {
+        r'\bExequente\b': 'Quem está cobrando',
+        r'\bexequente\b': 'quem está cobrando',
+        r'\bExecutado\b': 'Quem está sendo cobrado',
+        r'\bexecutado\b': 'quem está sendo cobrado',
+        r'\bRequerente\b': 'Quem entrou com o processo',
+        r'\brequerente\b': 'quem entrou com o processo',
+        r'\bRequerido\b': 'Quem está sendo processado',
+        r'\brequerido\b': 'quem está sendo processado',
+        r'\bImpetrante\b': 'Quem pediu',
+        r'\bimpetrante\b': 'quem pediu',
+        r'\bImpetrado\b': 'Contra quem foi pedido',
+        r'\bimpetrado\b': 'contra quem foi pedido',
+        r'\bReclamante\b': 'Quem reclamou',
+        r'\breclamante\b': 'quem reclamou',
+        r'\bReclamado\b': 'Empresa/pessoa reclamada',
+        r'\breclamado\b': 'empresa/pessoa reclamada',
+        r'\bApelante\b': 'Quem está recorrendo',
+        r'\bapelante\b': 'quem está recorrendo',
+        r'\bApelado\b': 'Contra quem é o recurso',
+        r'\bapelado\b': 'contra quem é o recurso',
+        r'\bAgravante\b': 'Quem recorreu',
+        r'\bagravante\b': 'quem recorreu',
+        r'\bAgravado\b': 'Contra quem foi o recurso',
+        r'\bagravado\b': 'contra quem foi o recurso',
+        r'\bEmbargante\b': 'Quem está contestando',
+        r'\bembargante\b': 'quem está contestando',
+        r'\bEmbargado\b': 'Quem está sendo contestado',
+        r'\bembargado\b': 'quem está sendo contestado'
+    }
+
+    texto_simplificado = texto
+    for padrao, substituicao in substituicoes.items():
+        texto_simplificado = re.sub(padrao, substituicao, texto_simplificado)
+
+    return texto_simplificado
 
 def extrair_dados_estruturados(texto):
     """Extrai todos os dados importantes do documento"""
@@ -686,14 +813,25 @@ def extrair_dados_estruturados(texto):
     elif re.search(r'homologo.*?acordo', texto, re.IGNORECASE):
         dados["decisao"] = "ACORDO HOMOLOGADO"
 
-    # Identificar autoridade
-    juiz_match = re.search(r'(?:Juiz|Juíza)(?:\s+de\s+Direito)?:\s*([A-ZÀ-Ú][A-Za-zà-ú\s]+)', texto)
-    if juiz_match:
-        dados["autoridade"] = f"Juiz(a): {juiz_match.group(1).strip()}"
+    # Identificar autoridade (evitando jurisprudência)
+    # Primeiro, procurar assinatura eletrônica (mais confiável)
+    assinatura_match = re.search(
+        r'(?:Documento eletrônico assinado por|Assinado digitalmente por|Assinado eletronicamente por)\s+([A-ZÀ-Ú][A-Za-zà-ú\s]+?)(?:,\s*Juiz|,\s*Juíza|,\s*Desembargador)',
+        texto
+    )
+    if assinatura_match:
+        dados["autoridade"] = f"Juiz(a): {assinatura_match.group(1).strip()}"
     else:
-        desembargador_match = re.search(r'(?:Desembargador|Relator):\s*([A-ZÀ-Ú][A-Za-zà-ú\s]+)', texto)
-        if desembargador_match:
-            dados["autoridade"] = f"Desembargador(a): {desembargador_match.group(1).strip()}"
+        # Procurar no final do documento (geralmente onde está a assinatura)
+        final_doc = texto[-2000:]  # Últimos 2000 caracteres
+        juiz_match = re.search(r'(?:Juiz|Juíza)(?:\s+de\s+Direito)?:\s*([A-ZÀ-Ú][A-Za-zà-ú\s]+)', final_doc)
+        if juiz_match:
+            dados["autoridade"] = f"Juiz(a): {juiz_match.group(1).strip()}"
+        else:
+            # Tentar encontrar desembargador no final do documento
+            desembargador_match = re.search(r'(?:Desembargador|Relator):\s*([A-ZÀ-Ú][A-Za-zà-ú\s]+)', final_doc)
+            if desembargador_match:
+                dados["autoridade"] = f"Desembargador(a): {desembargador_match.group(1).strip()}"
 
     # Extrair audiências
     audiencia_patterns = [
@@ -2203,6 +2341,10 @@ def processar():
         elif perspectiva == "reu":
             texto_simplificado = adaptar_perspectiva_reu(texto_simplificado, dados_adaptados)
 
+        # NOVO: Simplificar termos técnicos das partes para linguagem acessível
+        texto_simplificado = simplificar_termos_tecnicos(texto_simplificado)
+        logging.info("✅ Termos técnicos simplificados (exequente, executado, etc.)")
+
         # NOVO: Adicionar explicação do termo "paciente" se for Habeas Corpus
         if dados_adaptados.get("termo_paciente"):
             explicacao_paciente = "\n\n📚 **Explicação:** No Habeas Corpus, \"paciente\" é o termo jurídico usado para identificar a pessoa que está presa ou ameaçada de prisão e em favor de quem o habeas corpus foi impetrado. É similar ao termo \"autor\" em outras ações."
@@ -2303,10 +2445,14 @@ def processar_texto():
             return jsonify({"erro": "Texto muito longo. Máximo: 30.000 caracteres. Divida em partes menores."}), 400
         
         texto_simplificado, erro = simplificar_com_gemini(texto)
-        
+
         if erro:
             return jsonify({"erro": erro}), 500
-        
+
+        # NOVO: Simplificar termos técnicos das partes para linguagem acessível
+        texto_simplificado = simplificar_termos_tecnicos(texto_simplificado)
+        logging.info("✅ Termos técnicos simplificados (exequente, executado, etc.)")
+
         # Análise adicional
         analise = analisar_resultado_judicial(texto_simplificado)
         
