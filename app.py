@@ -230,31 +230,34 @@ def rate_limit(f):
 
 # ============= PROMPT DE SIMPLIFICAÇÃO =============
 
-PROMPT_SIMPLIFICACAO_MELHORADO = """**ESTRUTURA DA EXPLICAÇÃO:**
+PROMPT_SIMPLIFICACAO_MELHORADO = """
+╔════════════════════════════════════════════════════════════════╗
+║  ⚠️ ATENÇÃO: ESTAS SÃO INSTRUÇÕES - NÃO COPIE PARA O TEXTO   ║
+║  Você deve SEGUIR estas regras, mas NÃO incluí-las no output  ║
+╚════════════════════════════════════════════════════════════════╝
 
-📊 **RESULTADO EM UMA FRASE**
+**INSTRUÇÕES PARA ESCOLHER O TIPO DE TÍTULO (não copie isso para o texto final):**
 
-🚨 REGRAS ESPECIAIS POR TIPO DE DOCUMENTO:
+Se for MANDADO/CITAÇÃO/INTIMAÇÃO:
+→ Escreva apenas: "📋 ORDEM JUDICIAL PARA [ação específica]"
+→ Exemplo real: "📋 ORDEM JUDICIAL PARA COMPARECER À AUDIÊNCIA"
 
-**MANDADOS/CITAÇÕES/INTIMAÇÕES:**
-- Use "📋 ORDEM JUDICIAL PARA [ação]" (ex: "ORDEM JUDICIAL PARA COMPARECER À AUDIÊNCIA")
-- NÃO mencione vitória ou derrota
-- Mencione valores APENAS se explícitos no documento original
+Se for PROCESSO DE ATO INFRACIONAL (ECA):
+→ Escreva apenas: "⚖️ DECISÃO SOBRE ATO INFRACIONAL"
 
-**PROCESSOS DE ATO INFRACIONAL (ECA - menores):**
-- Use "⚖️ DECISÃO SOBRE ATO INFRACIONAL"
-- NÃO use vitória/derrota (não se aplica)
-- Explique a medida aplicada em linguagem simples
-- Use o NOME do adolescente, não "você"
-- Exemplo: "O juiz aplicou a medida de semiliberdade a [NOME] por no mínimo 6 meses"
+Se for SENTENÇA/ACÓRDÃO/DECISÃO CÍVEL/TRABALHISTA:
+→ Escolha UM destes:
+  "✅ VITÓRIA TOTAL - Você ganhou tudo que pediu"
+  "❌ DERROTA - Você perdeu"
+  "⚠️ VITÓRIA PARCIAL - Você ganhou parte do que pediu"
+  "⏳ AGUARDANDO JULGAMENTO - Ainda não foi decidido"
+  "📋 ANDAMENTO DO PROCESSO - Apenas uma movimentação"
 
-**OUTROS DOCUMENTOS (sentenças, acórdãos, decisões cíveis/trabalhistas):**
-[Escolha o emoji e explique em 1 frase o que aconteceu]
-✅ VITÓRIA TOTAL - Você ganhou tudo que pediu
-❌ DERROTA - Você perdeu
-⚠️ VITÓRIA PARCIAL - Você ganhou parte do que pediu
-⏳ AGUARDANDO JULGAMENTO - Ainda não foi decidido
-📋 ANDAMENTO DO PROCESSO - Apenas uma movimentação
+════════════════════════════════════════════════════════════════
+
+**ESTRUTURA DO TEXTO SIMPLIFICADO (o que você VAI escrever):**
+
+📊 [TÍTULO ESCOLHIDO CONFORME AS INSTRUÇÕES ACIMA]
 
 **Em uma frase simples:** [Explique o resultado direto]
 
@@ -324,11 +327,13 @@ IMPORTANTE:
 **Próximos passos:**
 [O que você deve fazer agora? Seja ESPECÍFICO e PRÁTICO]
 
-**REGRA IMPORTANTE SOBRE PRAZOS:**
-- Se houver prazos, liste cada um especificando PARA QUEM e PARA QUÊ
+**REGRA CRÍTICA SOBRE PRAZOS (MUITO IMPORTANTE):**
+- Se NÃO houver prazos específicos → NÃO mencione prazos, omita completamente a informação
+- Se houver prazos → liste cada um especificando PARA QUEM e PARA QUÊ
 - Exemplo CORRETO: "A Secretaria de Saúde tem 15 dias para realizar a avaliação psicológica"
 - Exemplo CORRETO: "O adolescente tem 24 horas para se apresentar na Unidade de Semiliberdade"
 - Exemplo ERRADO: "15 dias" (sem dizer para quem e para quê)
+- Exemplo ERRADO: "Prazos: null" ou "Prazos: nenhum" (se não há, não mencione)
 
 ---
 
@@ -600,9 +605,10 @@ Analise o documento e retorne JSON com:
   }},
 
   "recursos_cabiveis": {{
-    "cabe_recurso": "Sim|Não|Consulte advogado(a) ou defensoria pública",
+    "cabe_recurso": "Sim|Não|Não se aplica|Consulte advogado(a) ou defensoria pública",
     "tipo_recurso": "Apelação|Agravo|etc ou null",
-    "prazo": "X dias ou null"
+    "prazo": "X dias ou null",
+    "explicacao_simples": "Explicação em linguagem simples sobre recurso (ex: 'Outros juízes podem analisar se você pedir recurso')"
   }}
 }}
 ```
@@ -660,12 +666,27 @@ Analise o documento e retorne JSON com:
 - Exemplo correto: {{"tipo": "apresentação", "prazo": "24 horas", "destinatario": "Adolescente Matheus", "finalidade": "Para se apresentar na Unidade de Semiliberdade"}}
 
 **REGRAS CRÍTICAS PARA RECURSOS:**
-- "cabe_recurso": Escolha APENAS UMA opção clara:
+
+🚨 REGRA ESPECIAL PARA MANDADOS:
+- Se o tipo_documento for "mandado" → "cabe_recurso": "Não se aplica"
+- Mandados são ordens judiciais de cumprimento, NÃO são decisões que se recorrem
+- Em mandados, não existe recurso direto - o que pode ser recorrido é a decisão que originou o mandado
+
+Para outros tipos de documento, "cabe_recurso":
   * "Sim" - se o documento menciona explicitamente que cabe recurso
   * "Não" - se o documento menciona explicitamente que não cabe recurso ou que é decisão irrecorrível
   * "Consulte advogado(a) ou defensoria pública" - se o documento não menciona se cabe ou não cabe recurso
+
 - "prazo": Use APENAS se o documento mencionar prazo específico para recurso, senão use null
 - NUNCA escreva "Sim|Não|Consulte..." com todas as opções juntas - escolha apenas UMA
+
+**LINGUAGEM SIMPLES PARA RECURSOS (campo "explicacao_simples"):**
+- NÃO use: "instâncias superiores", "revista por", "órgão superior"
+- USE linguagem clara:
+  * Se cabe recurso: "Outros juízes podem analisar esta decisão se você pedir um recurso"
+  * Se não cabe: "Esta decisão é definitiva e não pode ser revista"
+  * Se for mandado: "Mandados são ordens para cumprir algo, não decisões que você pode pedir para outros juízes analisarem"
+  * Se consultar advogado: "Consulte um advogado ou a Defensoria Pública para saber se você pode pedir que outros juízes analisem"
 
 ═══════════════════════════════════════════════════════════════════
 
@@ -1157,13 +1178,19 @@ def processar():
         logging.info(f"✅ Análise concluída: tipo={tipo_doc}, modelo={modelo_usado}, perspectiva={perspectiva_aplicada}")
 
         # Preparar dados estruturados
+        # Filtrar prazos válidos (não null, não vazios)
+        prazos_validos = []
+        for p in analise_completa.get("prazos", []):
+            if isinstance(p, dict) and p.get("prazo") and p.get("prazo") != "null":
+                prazos_validos.append(p)
+
         dados_estruturados = {
             "numero_processo": extrair_numero_processo_regex(texto_original),
             "tipo_documento": tipo_doc,
             "partes": analise_completa.get("partes", {}),
             "autoridade": f"{analise_completa.get('autoridade', {}).get('cargo', '')}: {analise_completa.get('autoridade', {}).get('nome', '')}".strip(),
             "valores": analise_completa.get("valores_principais", {}),
-            "prazos": [p.get("prazo", "") for p in analise_completa.get("prazos", [])],
+            "prazos": prazos_validos,  # Agora retorna objetos completos com destinatario e finalidade
             "decisao": analise_completa.get("decisao_resumida"),
             "audiencias": [analise_completa.get("audiencia")] if analise_completa.get("audiencia", {}).get("tem_audiencia") else [],
             "links_audiencia": [analise_completa.get("audiencia", {}).get("link")] if analise_completa.get("audiencia", {}).get("link") else [],
