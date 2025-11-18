@@ -290,13 +290,27 @@ IMPORTANTE: Explique o PORQUÊ da decisão de forma simples.
 
 **Sobre custas e honorários:**
 
-REGRAS PARA JUSTIÇA GRATUITA:
-- Se tem justiça gratuita E a exigibilidade está SUSPENSA (menciona "suspendo a exigibilidade", "art. 98, §3º, CPC" ou similar) → "Você NÃO vai pagar agora porque tem justiça gratuita. A cobrança está suspensa até que você tenha condições financeiras."
-- Se tem justiça gratuita E não há condenação ao pagamento → "Você NÃO vai pagar custas e honorários porque tem justiça gratuita."
-- Se tem justiça gratuita MAS foi condenado a pagar E NÃO há suspensão da exigibilidade → "Você tem justiça gratuita, MAS neste caso o juiz decidiu que você deve pagar [valores específicos]."
-- Se não tem justiça gratuita → Liste os valores a pagar
-- NUNCA use a palavra "encargos" - use sempre "custas e honorários" ou "valores a pagar"
-- REGRA ESPECIAL: Se for MANDADO ou CITAÇÃO, só mencione valores se estiverem explícitos no documento original
+REGRAS PARA JUSTIÇA GRATUITA (MUITO IMPORTANTE - LEIA COM ATENÇÃO):
+
+1. **Se tem justiça gratuita E menciona "suspendo a exigibilidade", "art. 98, §3º, CPC" ou similar:**
+   → Escreva APENAS: "Você NÃO vai pagar custas e honorários porque tem justiça gratuita."
+   → NÃO mencione valores de condenação
+   → NÃO use "no entanto", "mas", "porém"
+   → A suspensão da exigibilidade significa que o autor está ISENTO
+
+2. **Se tem justiça gratuita E não há menção de condenação ao pagamento:**
+   → "Você NÃO vai pagar custas e honorários porque tem justiça gratuita."
+
+3. **Se tem justiça gratuita MAS foi expressamente condenado SEM suspensão da exigibilidade (raro):**
+   → "Você tem justiça gratuita, MAS neste caso o juiz decidiu que você deve pagar [valores específicos]."
+
+4. **Se NÃO tem justiça gratuita:**
+   → Liste claramente os valores a pagar
+
+IMPORTANTE:
+- NUNCA use a palavra "encargos" - use sempre "custas e honorários"
+- Se for MANDADO ou CITAÇÃO, só mencione valores se estiverem explícitos no documento original
+- Quando há suspensão de exigibilidade + justiça gratuita = pessoa NÃO paga (é como se fosse isentada)
 
 **Próximos passos:**
 [O que você deve fazer agora? Seja ESPECÍFICO e PRÁTICO]
