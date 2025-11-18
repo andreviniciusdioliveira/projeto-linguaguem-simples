@@ -374,9 +374,9 @@ IMPORTANTE:
 - ❌ NUNCA diga: "Aguarde o tribunal te avisar" ou "Aguarde contato do tribunal"
 - ✅ O tribunal NÃO entra em contato direto com a parte
 - ✅ As intimações vão para o advogado ou são publicadas em Diário Oficial
-- ✅ Use: "Fale com seu advogado para saber os próximos passos"
-- ✅ Use: "Consulte seu advogado ou a Defensoria Pública"
-- ✅ Use: "Acompanhe o processo com seu advogado"
+- ✅ Use: "Fale com advogado(a) ou defensoria pública"
+- ✅ Use: "Consulte advogado(a) ou defensoria pública"
+- ✅ Use: "Acompanhe com advogado(a) ou defensoria pública"
 
 **REGRA CRÍTICA SOBRE PRAZOS (MUITO IMPORTANTE):**
 - Se NÃO houver prazos específicos → NÃO mencione prazos, omita completamente a informação
@@ -667,13 +667,13 @@ Analise o documento e retorne JSON com:
   * ❌ ERRADO: "Aguardar cumprimento da decisão ou informações sobre recursos"
   * ✅ CORRETO: "Aguarde - será executado automaticamente"
   * ❌ ERRADO: "Verificar se cabe recurso e prazo"
-  * ✅ CORRETO: "Fale com advogado se discordar"
+  * ✅ CORRETO: "Fale com advogado(a) ou defensoria pública"
   * ❌ ERRADO: "Apresentar-se para cumprimento da medida"
   * ✅ CORRETO: "Vá ao endereço indicado no prazo"
   * ❌ ERRADO: "Acompanhar andamento processual"
   * ✅ CORRETO: "Acompanhe online no site do tribunal"
   * ❌ ERRADO: "Aguardar intimação"
-  * ✅ CORRETO: "Fale com seu advogado ou defensoria"
+  * ✅ CORRETO: "Fale com advogado(a) ou defensoria pública"
   * ❌ ERRADO: "Cumprir obrigação de fazer"
   * ✅ CORRETO: "Faça o que foi pedido na decisão"
 
