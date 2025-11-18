@@ -987,8 +987,8 @@ def processar():
         file = request.files['file']
         perspectiva = request.form.get('perspectiva', 'nao_informado')
 
-        # 🔥 LOG CRÍTICO PARA DEBUG
-        logging.critical(f"""
+        # 🔥 LOG PARA DEBUG DA PERSPECTIVA
+        logging.info(f"""
 ╔════════════════════════════════════════════════╗
 ║  📍 PERSPECTIVA CAPTURADA DO FORMULÁRIO       ║
 ║  Valor: {perspectiva:^35} ║
