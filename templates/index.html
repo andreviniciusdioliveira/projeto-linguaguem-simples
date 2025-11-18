@@ -2915,8 +2915,28 @@
             if (dados.prazos && dados.prazos.length > 0) {
                 html += '<div style="background: white; padding: 1rem; border-radius: 6px;">';
                 html += '<strong>📅 Prazos:</strong><br>';
-                dados.prazos.forEach(prazo => {
-                    html += `• ${prazo}<br>`;
+                dados.prazos.forEach(p => {
+                    // Suporte para ambos os formatos: string simples ou objeto completo
+                    if (typeof p === 'string') {
+                        // Formato antigo (string simples)
+                        html += `• ${p}<br>`;
+                    } else if (p && p.prazo) {
+                        // Novo formato (objeto com campos detalhados)
+                        let texto = ``;
+
+                        // Formatar: "Destinatário tem X prazo para fazer Y"
+                        if (p.destinatario && p.finalidade) {
+                            texto = `${p.destinatario} tem ${p.prazo} ${p.finalidade}`;
+                        } else if (p.destinatario) {
+                            texto = `${p.destinatario}: ${p.prazo}`;
+                        } else if (p.finalidade) {
+                            texto = `${p.prazo} ${p.finalidade}`;
+                        } else {
+                            texto = p.prazo;
+                        }
+
+                        html += `• ${texto}<br>`;
+                    }
                 });
                 html += '</div>';
             }
