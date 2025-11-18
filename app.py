@@ -543,242 +543,10 @@ Separe sempre em duas listas claras: valores que VAI receber e valores que NÃO 
 **TEXTO DO DOCUMENTO:**
 """
 
-# ============= NOVAS FUNÇÕES DE IDENTIFICAÇÃO E ANÁLISE =============
+# ============= FUNÇÕES ANTIGAS (DEPRECATED - SERÃO REMOVIDAS) =============
 
-def identificar_tipo_documento(texto):
-    """Identifica o tipo de documento jurídico usando IA (Gemini)"""
-
-    # Truncar texto se muito longo (usar apenas início que geralmente tem o tipo)
-    texto_analise = texto[:3000] if len(texto) > 3000 else texto
-
-    prompt = f"""Analise este documento jurídico brasileiro e identifique o tipo EXATO.
-
-ORDEM DE PRIORIDADE (verifique nesta ordem!):
-
-1. ACÓRDÃO (verificar PRIMEIRO - use MARCADORES ESTRUTURAIS):
-   - Tem "ACÓRDÃO" no cabeçalho (primeiros 500 caracteres)? → "acordao"
-   - Tem "VISTOS, RELATADOS E DISCUTIDOS"? → "acordao"
-   - Tem "RELATOR(A):" ou "RELATORA:" seguido de nome de desembargador? → "acordao"
-   - Tem "Acordam os Desembargadores" ou "Acordam os Membros"? → "acordao"
-   - Tem estrutura colegial (CÂMARA + TURMA + múltiplos desembargadores)? → "acordao"
-   - IMPORTANTE: Acórdãos podem CITAR sentenças que contêm "JULGO" - não confunda citação com o documento principal!
-
-2. SENTENÇA (verificar SEGUNDO):
-   - Tem "SENTENÇA" E "JULGO"? → "sentenca"
-   - Tem assinatura de UM ÚNICO Juiz (não desembargador)? → "sentenca"
-   - Tem "DISPOSITIVO" com decisão individual? → "sentenca"
-
-3. MANDADO (verificar POR ÚLTIMO):
-   - Tem "MANDADO DE CITAÇÃO/INTIMAÇÃO/PENHORA"? → "mandado"
-   - Tem "INTIMO" ou "CITO" + link de audiência? → "mandado"
-   - Tem "OFICIAL DE JUSTIÇA" E "CUMPRA-SE"? → "mandado"
-   - Tem dados de audiência (data/hora/link)? → "mandado"
-   - IGNORE "mandado de segurança" dentro de sentenças
-
-4. OUTROS:
-   - Tem "INTIMAÇÃO" simples (SEM audiência)? → "intimacao"
-   - Tem "DESPACHO"? → "despacho"
-
-CRÍTICO:
-- ACÓRDÃO tem PRIORIDADE sobre SENTENÇA. SENTENÇA tem PRIORIDADE sobre MANDADO.
-- Se tem AUDIÊNCIA marcada (data/hora/link) + INTIMO/CITO → É MANDADO, não intimação!
-- MANDADO é mais urgente que INTIMAÇÃO simples.
-
-Documento:
-{texto_analise}
-
-Responda APENAS UMA PALAVRA: sentenca, acordao, mandado, intimacao ou despacho"""
-
-    try:
-        logging.info("🤖 Chamando Gemini para identificar tipo de documento...")
-        model = genai.GenerativeModel(GEMINI_MODELS[1]["name"])  # Usar flash para rapidez
-        response = model.generate_content(prompt)
-        tipo_bruto = response.text.strip()
-        logging.info(f"🤖 Gemini retornou: '{tipo_bruto}'")
-
-        # Limpar resposta (remover pontos, espaços extras, etc)
-        tipo_identificado = tipo_bruto.lower().replace(".", "").replace(",", "").strip()
-        logging.info(f"🤖 Tipo limpo: '{tipo_identificado}'")
-
-        # Mapear tipo para informações de urgência
-        tipos_info = {
-            "sentenca": {"urgencia": "ALTA", "acao_necessaria": "Verificar prazo para recurso"},
-            "acordao": {"urgencia": "MÉDIA", "acao_necessaria": "Analisar decisão do recurso"},
-            "mandado": {"urgencia": "MÁXIMA", "acao_necessaria": "Comparecer/Contestar URGENTE"},
-            "mandado_citacao": {"urgencia": "MÁXIMA", "acao_necessaria": "Procurar advogado URGENTE"},
-            "mandado_intimacao": {"urgencia": "MÁXIMA", "acao_necessaria": "Comparecer no dia/hora marcados"},
-            "mandado_penhora": {"urgencia": "MÁXIMA", "acao_necessaria": "Pagar ou apresentar defesa"},
-            "intimacao": {"urgencia": "ALTA", "acao_necessaria": "Tomar ciência e verificar prazos"},
-            "decisao_interlocutoria": {"urgencia": "ALTA", "acao_necessaria": "Cumprir ou recorrer via agravo"},
-            "despacho": {"urgencia": "MÉDIA", "acao_necessaria": "Aguardar ou manifestar se necessário"}
-        }
-
-        # VERIFICAÇÃO ESPECIAL: "intimacao" pode ser na verdade "mandado"
-        # Se Gemini disse "intimacao" mas tem características de mandado, corrigir
-        if tipo_identificado == "intimacao":
-            # Verificar se tem características de MANDADO (audiência marcada, links, etc)
-            tem_intimo_cito = bool(re.search(r'\b(?:INTIMO|CITO|INTIMADO|CITADO)\b', texto, re.IGNORECASE))
-            tem_audiencia = bool(re.search(r'(?:audiência|comparecer|link.*audiência|data.*hora|reunião.*online)', texto, re.IGNORECASE))
-
-            if tem_intimo_cito and tem_audiencia:
-                logging.warning(f"⚠️ Gemini disse 'intimacao' mas tem INTIMO+AUDIÊNCIA → Corrigindo para MANDADO")
-                tipo_identificado = "mandado"
-
-        # Tentar match exato primeiro
-        if tipo_identificado in tipos_info:
-            logging.info(f"✅ Tipo identificado: {tipo_identificado}")
-            return tipo_identificado, tipos_info[tipo_identificado]
-
-        # Tentar encontrar a palavra dentro da resposta
-        for tipo in tipos_info.keys():
-            if tipo in tipo_identificado:
-                logging.info(f"✅ Tipo identificado (match parcial): {tipo}")
-                return tipo, tipos_info[tipo]
-
-        # Se Gemini mencionou "mandado" mas não especificou tipo, usar genérico
-        if "mandado" in tipo_identificado:
-            logging.info("✅ Tipo identificado: mandado (genérico)")
-            return "mandado", tipos_info["mandado"]
-
-        # Se nada bateu, fazer fallback com regex - ORDEM CORRETA: mais específico primeiro
-        logging.warning(f"⚠️ Tipo não reconhecido pela IA: '{tipo_identificado}' - tentando regex")
-
-        # 1. ACÓRDÃO (mais específico - buscar marcadores estruturais)
-        # Verificar ACÓRDÃO no cabeçalho (primeiros 500 chars) + marcadores estruturais
-        cabecalho = texto[:500]
-        inicio = texto[:2000]
-
-        tem_acordao_titulo = bool(re.search(r'\bACÓRDÃO\b', cabecalho, re.IGNORECASE))
-        tem_relator = bool(re.search(r'\bRELATOR[A]?\s*:', inicio, re.IGNORECASE))
-        tem_vistos_relatados = bool(re.search(r'VISTOS,\s*RELATADOS\s*E\s*DISCUTIDOS', inicio, re.IGNORECASE))
-        tem_acordam = bool(re.search(r'ACORDAM\s+(?:OS|AS)\s+(?:DESEMBARGADOR|MEMBROS)', inicio, re.IGNORECASE))
-        tem_estrutura_colegial = bool(re.search(r'(?:CÂMARA|TURMA)', cabecalho, re.IGNORECASE))
-
-        # Se tem ACÓRDÃO no título + pelo menos 1 marcador estrutural → é acórdão
-        if tem_acordao_titulo and (tem_relator or tem_vistos_relatados or tem_acordam or tem_estrutura_colegial):
-            logging.info("✅ Tipo identificado por regex: acordao (marcadores estruturais)")
-            return "acordao", tipos_info["acordao"]
-
-        # 2. SENTENÇA (específico com indicadores)
-        if re.search(r'\bSENTENÇA\b', texto, re.IGNORECASE) and \
-           re.search(r'(?:DISPOSITIVO|JULGO\s+(?:PROCEDENTE|IMPROCEDENTE|PARCIALMENTE))', texto, re.IGNORECASE):
-            logging.info("✅ Tipo identificado por regex: sentenca")
-            return "sentenca", tipos_info["sentenca"]
-
-        # 3. MANDADO (várias formas de detectar)
-        if re.search(r'MANDADO\s+DE\s+(?:CITAÇÃO|INTIMAÇÃO|PENHORA|BUSCA|PRISÃO)',
-                     texto[:1000], re.IGNORECASE):
-            logging.info("✅ Tipo identificado por regex: mandado (título)")
-            return "mandado", tipos_info["mandado"]
-        if (re.search(r'\b(?:INTIMO|CITO|INTIMADO|CITADO)\b', texto, re.IGNORECASE) and
-            re.search(r'(?:audiência|comparecer|prazo|apresentar)', texto, re.IGNORECASE)):
-            logging.info("✅ Tipo identificado por regex: mandado (intimação/citação)")
-            return "mandado", tipos_info["mandado"]
-        if (re.search(r'OFICIAL\s+DE\s+JUSTIÇA', texto, re.IGNORECASE) and
-            re.search(r'CUMPRA-SE', texto, re.IGNORECASE)):
-            logging.info("✅ Tipo identificado por regex: mandado (oficial + cumpra-se)")
-            return "mandado", tipos_info["mandado"]
-
-        # 4. INTIMAÇÃO
-        if re.search(r'\bINTIMAÇÃO\b', texto, re.IGNORECASE):
-            logging.info("✅ Tipo identificado por regex: intimacao")
-            return "intimacao", tipos_info["intimacao"]
-
-        # FALLBACK: documento genérico
-        logging.warning(f"⚠️ Nenhum tipo específico reconhecido - usando 'despacho' como padrão")
-        return "despacho", tipos_info["despacho"]
-
-    except Exception as e:
-        logging.error(f"❌ ERRO ao identificar tipo com Gemini: {e}", exc_info=True)
-        # Fallback para regex em caso de erro - ORDEM CORRETA
-
-        # 1. ACÓRDÃO (prioritário - buscar marcadores estruturais)
-        cabecalho = texto[:500]
-        inicio = texto[:2000]
-
-        tem_acordao_titulo = bool(re.search(r'\bACÓRDÃO\b', cabecalho, re.IGNORECASE))
-        tem_relator = bool(re.search(r'\bRELATOR[A]?\s*:', inicio, re.IGNORECASE))
-        tem_vistos_relatados = bool(re.search(r'VISTOS,\s*RELATADOS\s*E\s*DISCUTIDOS', inicio, re.IGNORECASE))
-        tem_acordam = bool(re.search(r'ACORDAM\s+(?:OS|AS)\s+(?:DESEMBARGADOR|MEMBROS)', inicio, re.IGNORECASE))
-        tem_estrutura_colegial = bool(re.search(r'(?:CÂMARA|TURMA)', cabecalho, re.IGNORECASE))
-
-        if tem_acordao_titulo and (tem_relator or tem_vistos_relatados or tem_acordam or tem_estrutura_colegial):
-            logging.info("⚠️ Fallback regex: acordao (marcadores estruturais)")
-            return "acordao", {"urgencia": "MÉDIA", "acao_necessaria": "Analisar decisão do recurso"}
-
-        # 2. SENTENÇA (com indicadores)
-        if re.search(r'\bSENTENÇA\b', texto, re.IGNORECASE) and \
-           re.search(r'(?:DISPOSITIVO|JULGO\s+(?:PROCEDENTE|IMPROCEDENTE|PARCIALMENTE))', texto, re.IGNORECASE):
-            logging.info("⚠️ Fallback regex: sentenca")
-            return "sentenca", {"urgencia": "ALTA", "acao_necessaria": "Verificar prazo para recurso"}
-
-        # 3. MANDADO (várias formas)
-        if (re.search(r'MANDADO\s+DE\s+', texto[:1000], re.IGNORECASE) or
-            (re.search(r'\b(?:INTIMO|CITO|INTIMADO|CITADO)\b', texto, re.IGNORECASE) and
-             re.search(r'(?:audiência|comparecer)', texto, re.IGNORECASE)) or
-            (re.search(r'OFICIAL\s+DE\s+JUSTIÇA', texto, re.IGNORECASE) and
-             re.search(r'CUMPRA-SE', texto, re.IGNORECASE))):
-            logging.info("⚠️ Fallback regex: mandado")
-            return "mandado", {"urgencia": "MÁXIMA", "acao_necessaria": "Ler e tomar providências URGENTE"}
-
-        # 4. FALLBACK FINAL
-        logging.info("⚠️ Fallback: documento genérico")
-        return "despacho", {"urgencia": "MÉDIA", "acao_necessaria": "Ler com atenção"}
-
-def analisar_recursos_cabiveis(tipo_doc, texto):
-    """Analisa se cabe recurso baseado APENAS no documento"""
-    texto_lower = texto.lower()
-
-    # Verifica se é Juizado Especial
-    eh_juizado = "juizado especial" in texto_lower
-
-    # Busca prazo REAL mencionado no documento
-    prazo_encontrado = None
-    prazo_patterns = [
-        r'prazo\s+(?:de\s+)?(\d+)\s+dias?(?:\s+úteis)?(?:\s+para\s+(?:recorrer|interpor\s+recurso))?',
-        r'recurso.*?(?:no\s+)?prazo\s+de\s+(\d+)\s+dias?',
-        r'interpor\s+recurso.*?(\d+)\s+dias?'
-    ]
-
-    import re
-    for pattern in prazo_patterns:
-        match = re.search(pattern, texto_lower)
-        if match:
-            prazo_encontrado = f"{match.group(1)} dias"
-            break
-
-    recursos_info = {
-        "sentenca": {
-            "cabe_recurso": "Sim",
-            "prazo": prazo_encontrado,  # Só mostra se encontrado no documento
-            "dica": "Procure advogado ou Defensoria Pública"
-        },
-        "acordao": {
-            "cabe_recurso": "Sim (procure seu advogado ou defensor público)",
-            "prazo": prazo_encontrado,  # Só mostra se encontrado no documento
-            "dica": "Recursos em tribunais superiores - necessário advogado ou defensor público"
-        },
-        "decisao_interlocutoria": {
-            "cabe_recurso": "Sim (decisão interlocutória)",
-            "prazo": prazo_encontrado,  # Só mostra se encontrado no documento
-            "dica": "Recurso urgente - consulte advogado imediatamente"
-        },
-        "despacho": {
-            "cabe_recurso": "Não",
-            "observacao": "Despacho não comporta recurso",
-            "dica": "Apenas cumpra o determinado ou aguarde próxima movimentação"
-        },
-        "mandado": {
-            "cabe_recurso": None,  # Mandados não têm seção de recurso
-            "dica": None
-        },
-        "intimacao": {
-            "cabe_recurso": None,  # Intimações não têm seção de recurso
-            "dica": None
-        }
-    }
-
-    return recursos_info.get(tipo_doc, None)
+# Funções antigas foram removidas e substituídas por analisar_documento_completo_gemini()
+# que faz tudo em 1 única chamada ao Gemini
 
 def normalizar_termo_parte(termo):
     """Converte termos jurídicos para linguagem simples"""
@@ -862,7 +630,287 @@ def simplificar_termos_tecnicos(texto):
 
     return texto_simplificado
 
-# ============= PROCESSAMENTO ULTRA-RÁPIDO (1 CHAMADA TOTAL) =============
+# ============= FUNÇÕES AUXILIARES SIMPLIFICADAS =============
+
+def extrair_numero_processo_regex(texto):
+    """ÚNICA função que pode usar regex - extração simples de número de processo"""
+    processo_patterns = [
+        r'\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}',  # CNJ completo
+        r'Processo\s+n[º°]?\s*([\d\.\-\/]+)'  # Processo mencionado explicitamente
+    ]
+    for pattern in processo_patterns:
+        match = re.search(pattern, texto, re.IGNORECASE)
+        if match:
+            numero = match.group() if pattern == processo_patterns[0] else match.group(1)
+            logging.info(f"📋 Número de processo encontrado: {numero}")
+            return numero
+    logging.warning("⚠️ Número de processo não encontrado")
+    return None
+
+def gerar_perguntas_sugeridas(dados):
+    """Gera perguntas baseadas nos dados extraídos do documento"""
+    perguntas = []
+
+    if dados.get("valores", {}).get("total_a_receber"):
+        perguntas.append("Quanto vou receber?")
+
+    if dados.get("prazos"):
+        perguntas.append("Quais são os prazos importantes?")
+
+    if dados.get("audiencias"):
+        perguntas.append("Quando é a audiência?")
+
+    if dados.get("decisao"):
+        perguntas.append("Eu ganhei ou perdi?")
+
+    # Se não tiver perguntas específicas, adicionar genéricas
+    if not perguntas:
+        perguntas = [
+            "O que este documento significa?",
+            "O que devo fazer agora?",
+            "Quanto tempo tenho para agir?"
+        ]
+
+    return perguntas[:4]  # Máximo 4 sugestões
+
+# ============= ANÁLISE COMPLETA COM GEMINI (NOVA ABORDAGEM) =============
+
+def analisar_documento_completo_gemini(texto, perspectiva="nao_informado"):
+    """
+    ANÁLISE COMPLETA DO DOCUMENTO EM 1 ÚNICA CHAMADA GEMINI
+
+    Retorna: {
+        "tipo_documento": str,
+        "urgencia": str,
+        "tem_justica_gratuita": bool,
+        "autoridade": str,
+        "partes": {"autor": str, "reu": str},
+        "decisao_resumida": str,
+        "valores_principais": dict,
+        "prazos": list,
+        "proximo_passo": str,
+        "texto_simplificado": str,
+        "confianca_tipo": str,
+        "razao_tipo": str,
+        "acao_necessaria": str,
+        "audiencia": dict,
+        "recursos_cabiveis": dict
+    }
+    """
+
+    # Truncar texto se necessário (preservar início e fim)
+    if len(texto) > 15000:
+        texto_analise = texto[:7500] + "\n\n[...CONTEÚDO OMITIDO...]\n\n" + texto[-7500:]
+        logging.info(f"📄 Texto truncado de {len(texto)} para {len(texto_analise)} caracteres")
+    else:
+        texto_analise = texto
+
+    # Mapear perspectiva
+    if perspectiva == "autor":
+        instrucao_perspectiva = '**CRÍTICO:** Use "VOCÊ" para autor/requerente e "a outra parte" para réu.'
+    elif perspectiva == "reu":
+        instrucao_perspectiva = '**CRÍTICO:** Use "VOCÊ" para réu/requerido e "a outra parte" para autor.'
+    else:
+        instrucao_perspectiva = 'Use os nomes reais das partes (não use "você").'
+
+    prompt = f"""Você é um especialista em análise de documentos jurídicos brasileiros.
+
+🎯 **TAREFA:** Analisar este documento COMPLETAMENTE e gerar:
+1. Identificação técnica (tipo, partes, autoridade)
+2. Texto simplificado em linguagem acessível
+
+---
+
+## 🔍 **PARTE 1: ANÁLISE TÉCNICA (JSON)**
+
+Analise o documento e retorne JSON com:
+```json
+{{
+  "tipo_documento": "acordao|sentenca|mandado|decisao|despacho|intimacao",
+  "confianca_tipo": "ALTA|MÉDIA|BAIXA",
+  "razao_tipo": "Explique em 1 frase por que é este tipo",
+
+  "urgencia": "MÁXIMA|ALTA|MÉDIA|BAIXA",
+  "acao_necessaria": "Frase curta sobre o que fazer",
+
+  "tem_justica_gratuita": true|false,
+  "trecho_justica_gratuita": "trecho literal ou vazio",
+
+  "autoridade": {{
+    "cargo": "Juiz|Juíza|Desembargador|Desembargadora",
+    "nome": "Nome completo"
+  }},
+
+  "partes": {{
+    "autor": "Nome completo ou null",
+    "reu": "Nome completo ou null"
+  }},
+
+  "decisao_resumida": "1 frase: o que foi decidido",
+
+  "valores_principais": {{
+    "total_a_receber": "R$ XXX ou null",
+    "danos_morais": "R$ XXX ou null",
+    "danos_materiais": "R$ XXX ou null",
+    "honorarios": "X% ou null",
+    "custas": "quem paga ou null"
+  }},
+
+  "prazos": [
+    {{"tipo": "recurso", "prazo": "15 dias"}},
+    {{"tipo": "contestacao", "prazo": "30 dias"}}
+  ],
+
+  "audiencia": {{
+    "tem_audiencia": true|false,
+    "data": "DD/MM/AAAA ou null",
+    "hora": "HH:MM ou null",
+    "link": "URL ou null"
+  }},
+
+  "recursos_cabiveis": {{
+    "cabe_recurso": "Sim|Não",
+    "tipo_recurso": "Apelação|Agravo|etc ou null",
+    "prazo": "X dias ou null"
+  }}
+}}
+```
+
+### 🚨 **REGRAS CRÍTICAS PARA IDENTIFICAÇÃO DE TIPO:**
+
+**ORDEM DE VERIFICAÇÃO (do mais específico ao mais genérico):**
+
+1️⃣ **ACÓRDÃO** - Verifique PRIMEIRO:
+   - ✅ Tem "ACÓRDÃO" no cabeçalho (primeiros 800 chars)?
+   - ✅ Tem "RELATOR(A): Des./Desembargador(a)" no início?
+   - ✅ Tem "VISTOS, RELATADOS E DISCUTIDOS"?
+   - ✅ Tem "Acordam os Desembargadores"?
+   - ✅ Tem estrutura colegial (CÂMARA/TURMA/COLEGIADO)?
+   - ⚠️ **IGNORE** menções a "JULGO" - elas são citações de sentenças antigas!
+   - **SE 3+ marcadores acima = ACÓRDÃO**
+
+2️⃣ **SENTENÇA** - Verifique APENAS se NÃO for acórdão:
+   - ✅ Tem "SENTENÇA" no cabeçalho?
+   - ✅ Tem "JULGO PROCEDENTE/IMPROCEDENTE" no dispositivo?
+   - ✅ Assinado por UM juiz (não desembargador)?
+   - **SE os 3 acima = SENTENÇA**
+
+3️⃣ **MANDADO**:
+   - ✅ Tem "MANDADO DE CITAÇÃO/INTIMAÇÃO/PENHORA"?
+   - ✅ Tem "INTIMO/CITO" + audiência marcada?
+   - ✅ Tem "OFICIAL DE JUSTIÇA" + "CUMPRA-SE"?
+
+4️⃣ **OUTROS**: Decisão, Despacho, Intimação
+
+### 🚨 **REGRAS ANTI-ALUCINAÇÃO:**
+- **NUNCA invente valores** que não estão explícitos
+- Se não encontrar, use `null` ou `[]` ou `false`
+- Cite trechos literais quando solicitado
+
+---
+
+## 📝 **PARTE 2: TEXTO SIMPLIFICADO (MARKDOWN)**
+
+{instrucao_perspectiva}
+
+Após o JSON, gere o texto simplificado seguindo EXATAMENTE esta estrutura:
+
+{PROMPT_SIMPLIFICACAO_MELHORADO}
+
+---
+
+## 📄 **DOCUMENTO PARA ANÁLISE:**
+
+{texto_analise}
+
+---
+
+## ✅ **FORMATO DE RESPOSTA:**
+
+Responda EXATAMENTE neste formato:
+```json
+{{
+  "tipo_documento": "...",
+  ...
+}}
+```
+
+---SEPARADOR---
+
+[TEXTO SIMPLIFICADO EM MARKDOWN AQUI]
+"""
+
+    try:
+        logging.info("🤖 Chamando Gemini para análise completa do documento...")
+
+        # Usar modelo mais potente para análise complexa (flash ou pro)
+        model = genai.GenerativeModel(GEMINI_MODELS[1]["name"])  # gemini-2.5-flash
+
+        response = model.generate_content(
+            prompt,
+            generation_config={
+                "temperature": 0.2,
+                "max_output_tokens": 3000
+            }
+        )
+
+        resposta_completa = response.text.strip()
+        logging.info(f"✅ Resposta recebida do Gemini ({len(resposta_completa)} chars)")
+
+        # Separar JSON e texto simplificado
+        if "---SEPARADOR---" in resposta_completa:
+            partes = resposta_completa.split("---SEPARADOR---")
+            json_texto = partes[0].strip()
+            texto_simplificado = partes[1].strip()
+            logging.info("✅ Resposta separada em JSON e texto simplificado")
+        else:
+            # Fallback: tentar extrair JSON do início
+            json_match = re.search(r'```json\s*(\{.*?\})\s*```', resposta_completa, re.DOTALL)
+            if json_match:
+                json_texto = json_match.group(1)
+                texto_simplificado = resposta_completa.replace(json_match.group(0), "").strip()
+                logging.warning("⚠️ Separador não encontrado, usando regex para extrair JSON")
+            else:
+                logging.error("❌ Formato de resposta inválido - separador não encontrado")
+                raise ValueError("Formato de resposta inválido - separador não encontrado")
+
+        # Limpar e parsear JSON
+        json_texto = json_texto.replace("```json", "").replace("```", "").strip()
+
+        try:
+            analise = json.loads(json_texto)
+            logging.info("✅ JSON parseado com sucesso")
+        except json.JSONDecodeError as e:
+            logging.error(f"❌ Erro ao parsear JSON do Gemini: {e}")
+            logging.error(f"JSON recebido (primeiros 500 chars): {json_texto[:500]}")
+            raise ValueError("Gemini retornou JSON inválido")
+
+        # Adicionar texto simplificado ao resultado
+        analise["texto_simplificado"] = texto_simplificado
+
+        # Log de informações extraídas
+        tipo_doc = analise.get('tipo_documento', 'desconhecido')
+        confianca = analise.get('confianca_tipo', 'N/A')
+        urgencia = analise.get('urgencia', 'N/A')
+
+        logging.info(f"✅ Análise completa bem-sucedida:")
+        logging.info(f"   📋 Tipo: {tipo_doc} (confiança: {confianca})")
+        logging.info(f"   🚨 Urgência: {urgencia}")
+        logging.info(f"   ⚖️ Tem justiça gratuita: {analise.get('tem_justica_gratuita', False)}")
+        logging.info(f"   📝 Texto simplificado: {len(texto_simplificado)} chars")
+
+        return analise
+
+    except json.JSONDecodeError as e:
+        logging.error(f"❌ Erro ao parsear JSON do Gemini: {e}")
+        logging.error(f"JSON recebido: {json_texto[:500] if 'json_texto' in locals() else 'N/A'}")
+        raise ValueError("Gemini retornou JSON inválido")
+
+    except Exception as e:
+        logging.error(f"❌ Erro na análise completa com Gemini: {e}", exc_info=True)
+        raise
+
+# ============= PROCESSAMENTO ULTRA-RÁPIDO (1 CHAMADA TOTAL - DEPRECATED) =============
 
 def processar_e_simplificar_tudo_de_uma_vez(texto, perspectiva="nao_informado"):
     """
@@ -1030,208 +1078,14 @@ TEXTO SIMPLIFICADO (em markdown):"""
 
 # ============= PRÉ-PROCESSAMENTO CONSOLIDADO (1 CHAMADA GEMINI) =============
 
-def preprocessar_documento_completo(texto):
-    """
-    Usa Gemini para fazer TODAS as análises pré-processamento em UMA única chamada
-    Reduz de 4-5 chamadas para apenas 1 chamada
+# Funções preprocessar_documento_completo, detectar_justica_gratuita,
+# identificar_autoridade, identificar_partes, extrair_dados_estruturados
+# e gerar_chat_contextual foram REMOVIDAS e substituídas por
+# analisar_documento_completo_gemini() que faz tudo em 1 única chamada
 
-    Retorna: dict com {
-        "tem_justica_gratuita": bool,
-        "trecho_justica": str,
-        "tipo_documento": str,
-        "autoridade": str ou None,
-        "autor": str ou None,
-        "reu": str ou None
-    }
-    """
-    # Truncar texto se muito longo
-    if len(texto) > 15000:
-        # Pegar início + final (onde estão as info importantes)
-        texto_analise = texto[:7500] + "\n...\n" + texto[-7500:]
-    else:
-        texto_analise = texto
+# ============= FUNÇÕES AUXILIARES (MANTIDAS) =============
 
-    prompt = f"""Você é um especialista em análise de documentos jurídicos brasileiros.
-
-FAÇA AS SEGUINTES ANÁLISES DO DOCUMENTO (responda em JSON):
-
-1. JUSTIÇA GRATUITA: Procure por:
-   - "beneficiário da assistência judiciária gratuita"
-   - "Suspendo a exigibilidade"
-   - "art. 98, §3º, CPC"
-
-2. TIPO DE DOCUMENTO: CRÍTICO - SIGA ESTA ORDEM EXATA:
-
-   a) É ACÓRDÃO se tiver MARCADORES ESTRUTURAIS (verificar PRIMEIRO):
-      - "ACÓRDÃO" no cabeçalho (primeiros 500 caracteres) E
-      - Pelo menos 1 destes marcadores:
-        * "VISTOS, RELATADOS E DISCUTIDOS"
-        * "RELATOR(A):" seguido de desembargador
-        * "Acordam os Desembargadores" ou "Acordam os Membros"
-        * Estrutura colegial: CÂMARA ou TURMA no início
-      - IMPORTANTE: Acórdão pode CITAR sentenças com "JULGO" - não confunda!
-
-   b) É SENTENÇA se (verificar SEGUNDO):
-      - Tem "SENTENÇA" E ("JULGO" ou "DISPOSITIVO") E
-      - Assinado por UM ÚNICO juiz (não desembargador) E
-      - NÃO tem estrutura de acórdão acima
-
-   c) É MANDADO se (verificar POR ÚLTIMO):
-      - "MANDADO DE CITAÇÃO/INTIMAÇÃO/PENHORA" OU
-      - "INTIMO/CITO" + audiência/comparecimento OU
-      - "OFICIAL DE JUSTIÇA" + "CUMPRA-SE"
-
-   d) Outros: Decisão, Despacho, Intimação simples
-
-3. AUTORIDADE: Quem ASSINOU (não citações):
-   - Procure "Documento eletrônico assinado por" ou assinatura no final
-   - Formato: "Cargo: Nome"
-
-4. PARTES DO PROCESSO:
-   - Autor/Requerente (quem entrou com processo)
-   - Réu/Requerido (quem está sendo processado)
-   - IGNORE frases narrativas como "discorre sobre", "alega que"
-
-RESPONDA EM JSON (APENAS O JSON, SEM EXPLICAÇÕES):
-{{
-  "tem_justica_gratuita": true ou false,
-  "trecho_justica": "trecho encontrado ou vazio",
-  "tipo_documento": "acordao OU sentenca OU mandado OU decisao OU despacho OU intimacao",
-  "autoridade": "Cargo: Nome ou null",
-  "autor": "Nome do autor ou null",
-  "reu": "Nome do réu ou null"
-}}
-
-IMPORTANTE: Para tipo_documento, use EXATAMENTE uma dessas palavras em minúsculo:
-- "acordao" (se for acórdão com marcadores estruturais da regra 2a acima)
-- "sentenca" (se for sentença individual de juiz da regra 2b)
-- "mandado" (se for mandado/citação/intimação da regra 2c)
-- "decisao" (se for decisão interlocutória)
-- "despacho" (se for despacho simples)
-- "intimacao" (se for intimação sem ordem de comparecimento)
-
-TEXTO DO DOCUMENTO:
-{texto_analise}
-
-JSON:"""
-
-    try:
-        import google.generativeai as genai
-        import json
-
-        # Usar modelo mais rápido
-        model = genai.GenerativeModel(GEMINI_MODELS[0]["name"])
-
-        response = model.generate_content(
-            prompt,
-            generation_config={
-                "temperature": 0.1,
-                "max_output_tokens": 500
-            }
-        )
-
-        resultado_texto = response.text.strip()
-
-        # Extrair JSON da resposta (pode vir com ```json ou não)
-        if "```json" in resultado_texto:
-            resultado_texto = resultado_texto.split("```json")[1].split("```")[0].strip()
-        elif "```" in resultado_texto:
-            resultado_texto = resultado_texto.split("```")[1].split("```")[0].strip()
-
-        resultado = json.loads(resultado_texto)
-
-        logging.info(f"✅ Pré-processamento consolidado completo")
-        logging.info(f"   Justiça gratuita: {resultado.get('tem_justica_gratuita', False)}")
-        logging.info(f"   Tipo: {resultado.get('tipo_documento', 'desconhecido')}")
-        logging.info(f"   Autoridade: {resultado.get('autoridade', 'não identificada')}")
-
-        return resultado
-
-    except Exception as e:
-        logging.warning(f"⚠️ Erro no pré-processamento consolidado: {e}")
-        # Retornar valores padrão em caso de erro
-        return {
-            "tem_justica_gratuita": False,
-            "trecho_justica": "",
-            "tipo_documento": "documento",
-            "autoridade": None,
-            "autor": None,
-            "reu": None
-        }
-
-# ============= FUNÇÕES ANTIGAS (MANTER PARA FALLBACK) =============
-
-def detectar_justica_gratuita(texto):
-    """
-    Usa Gemini para detectar se o documento menciona justiça gratuita
-    CRITICAL: Esta detecção acontece ANTES da simplificação
-    Retorna: (tem_justica_gratuita: bool, trecho_encontrado: str)
-    """
-    # Truncar texto se muito longo (focar no dispositivo/final)
-    if len(texto) > 8000:
-        # Pegar final do documento onde normalmente está o dispositivo
-        texto_analise = texto[-8000:]
-    else:
-        texto_analise = texto
-
-    prompt = f"""Você é um especialista em análise de documentos jurídicos.
-
-TAREFA ÚNICA E SIMPLES: Verificar se este documento menciona que alguém tem JUSTIÇA GRATUITA.
-
-Procure por:
-- "beneficiário da assistência judiciária gratuita"
-- "beneficiária da assistência judiciária gratuita"
-- "Suspendo a exigibilidade"
-- "art. 98, §3º, CPC"
-- "gratuidade da justiça"
-
-Se encontrar QUALQUER um desses termos, responda APENAS:
-SIM - [copie aqui o trecho exato que encontrou]
-
-Se NÃO encontrar nenhum desses termos, responda APENAS:
-NÃO
-
-TEXTO DO DOCUMENTO:
-{texto_analise}
-
-SUA RESPOSTA (SIM ou NÃO):"""
-
-    try:
-        import google.generativeai as genai
-
-        # Usar modelo mais rápido e barato para esta tarefa simples
-        model = genai.GenerativeModel(GEMINI_MODELS[0]["name"])  # Primeiro da lista (mais rápido)
-
-        response = model.generate_content(
-            prompt,
-            generation_config={
-                "temperature": 0.1,  # Muito baixa - queremos resposta objetiva
-                "max_output_tokens": 200  # Resposta curta
-            }
-        )
-
-        resultado = response.text.strip()
-
-        # Parsear resposta
-        if resultado.upper().startswith("SIM"):
-            # Extrair trecho se houver
-            partes = resultado.split("-", 1)
-            trecho = partes[1].strip() if len(partes) > 1 else ""
-            logging.info(f"✅ Justiça gratuita DETECTADA: {trecho[:100]}...")
-            return True, trecho
-        else:
-            logging.info("❌ Justiça gratuita NÃO detectada")
-            return False, ""
-
-    except Exception as e:
-        logging.warning(f"⚠️ Erro ao detectar justiça gratuita: {e}")
-        # Em caso de erro, não assumir nada
-        return False, ""
-
-# ============= IDENTIFICAÇÃO COM GEMINI (100% IA) =============
-# Abordagem simplificada: usa apenas Gemini para máxima precisão
-
-def identificar_autoridade(texto):
+def adaptar_perspectiva_autor(texto, dados):
     """
     Usa Gemini para identificar quem assinou o documento
     Retorna: string com "Cargo: Nome" ou None
@@ -2949,99 +2803,57 @@ def processar():
         if len(texto_original) < 10:
             return jsonify({"erro": "Arquivo não contém texto suficiente para processar"}), 400
 
-        # MODO ULTRA-RÁPIDO: 1 chamada total (análise + simplificação)
-        if MODO_ULTRA_RAPIDO:
-            logging.info("⚡ MODO ULTRA-RÁPIDO: Processando tudo em 1 chamada Gemini...")
-            texto_simplificado, metadados_rapido = processar_e_simplificar_tudo_de_uma_vez(texto_original, perspectiva)
+        # 🎯 ANÁLISE COMPLETA COM GEMINI (1 CHAMADA!)
+        logging.info("🤖 Iniciando análise completa com Gemini...")
+        analise_completa = analisar_documento_completo_gemini(texto_original, perspectiva)
 
-            # Extrair dados estruturados (regex - rápido, sem Gemini)
-            dados_estruturados = extrair_dados_estruturados(texto_original)
+        # Extrair dados da análise
+        tipo_doc = analise_completa.get("tipo_documento", "documento")
+        texto_simplificado = analise_completa.get("texto_simplificado", "")
 
-            # Tipo do documento e informações de urgência (já vem dos metadados, sem chamada extra!)
-            tipo_doc = metadados_rapido.get("tipo_documento", "documento")
-            info_doc = {
-                "urgencia": metadados_rapido.get("urgencia", "MÉDIA"),
-                "acao_necessaria": metadados_rapido.get("acao_necessaria", "Verificar documento")
-            }
+        # Preparar dados estruturados (usando análise do Gemini, NÃO regex!)
+        dados_estruturados = {
+            "numero_processo": extrair_numero_processo_regex(texto_original),  # OK usar regex aqui
+            "tipo_documento": tipo_doc,
+            "partes": analise_completa.get("partes", {}),
+            "autoridade": f"{analise_completa.get('autoridade', {}).get('cargo', '')}: {analise_completa.get('autoridade', {}).get('nome', '')}".strip(),
+            "valores": analise_completa.get("valores_principais", {}),
+            "prazos": [p.get("prazo", "") for p in analise_completa.get("prazos", [])],
+            "decisao": analise_completa.get("decisao_resumida"),
+            "audiencias": [analise_completa.get("audiencia")] if analise_completa.get("audiencia", {}).get("tem_audiencia") else [],
+            "links_audiencia": [analise_completa.get("audiencia", {}).get("link")] if analise_completa.get("audiencia", {}).get("link") else [],
+        }
 
-            # Recursos cabíveis
-            recursos_info = analisar_recursos_cabiveis(tipo_doc, texto_original)
+        # Info de urgência (da análise Gemini)
+        info_doc = {
+            "urgencia": analise_completa.get("urgencia", "MÉDIA"),
+            "acao_necessaria": analise_completa.get("acao_necessaria", "Verificar documento")
+        }
 
-            # Contexto chat
-            contexto_chat = gerar_chat_contextual(texto_original, dados_estruturados)
-            contexto_chat["perspectiva"] = perspectiva
+        # Recursos (da análise Gemini)
+        recursos_info = analise_completa.get("recursos_cabiveis", {
+            "cabe_recurso": "Consulte advogado",
+            "prazo": None
+        })
 
-            logging.info("✅ Processamento ultra-rápido concluído!")
+        # Contexto chat
+        contexto_chat = {
+            "dados_extraidos": dados_estruturados,
+            "perspectiva": perspectiva,
+            "perguntas_sugeridas": gerar_perguntas_sugeridas(dados_estruturados)
+        }
 
-        # MODO COMPLETO: Múltiplas chamadas (mais preciso)
-        else:
-            logging.info("🔍 MODO COMPLETO: Pré-processamento consolidado com Gemini...")
-            preprocessamento = preprocessar_documento_completo(texto_original)
-
-            # Extrair informações do pré-processamento
-            tem_justica_gratuita = preprocessamento.get("tem_justica_gratuita", False)
-            trecho_justica = preprocessamento.get("trecho_justica", "")
-            tipo_doc_pre = preprocessamento.get("tipo_documento", "documento")
-
-            # Usar tipo do pré-processamento
-            tipo_doc = tipo_doc_pre if tipo_doc_pre and tipo_doc_pre != "documento" else "documento"
-            _, info_doc = identificar_tipo_documento(texto_original)
-            logging.info(f"Tipo de documento: {tipo_doc} - Urgência: {info_doc['urgencia']}")
-
-            # Extrair dados estruturados
-            dados_estruturados = extrair_dados_estruturados(texto_original)
-
-            # Usar dados do pré-processamento
-            if preprocessamento.get("autoridade"):
-                dados_estruturados["autoridade"] = preprocessamento["autoridade"]
-            if preprocessamento.get("autor"):
-                dados_estruturados["partes"]["autor"] = preprocessamento["autor"]
-            if preprocessamento.get("reu"):
-                dados_estruturados["partes"]["reu"] = preprocessamento["reu"]
-
-            logging.info(f"Dados extraídos - Processo: {dados_estruturados['numero_processo']}")
-
-            # Detectar perspectiva automaticamente se necessário
-            if perspectiva == "nao_informado":
-                perspectiva = detectar_perspectiva_automatica(texto_original, dados_estruturados)
-                logging.info(f"Perspectiva detectada: {perspectiva}")
-
-            # Recursos cabíveis
-            recursos_info = analisar_recursos_cabiveis(tipo_doc, texto_original)
-
-            # Prompt adaptado
-            prompt_adaptado = PROMPT_SIMPLIFICACAO_MELHORADO
-            prompt_adaptado += f"\n\nTIPO IDENTIFICADO: {tipo_doc}"
-            prompt_adaptado += f"\nPERSPECTIVA DO USUÁRIO: {perspectiva}"
-
-            # Aviso de justiça gratuita se detectado
-            if tem_justica_gratuita:
-                prompt_adaptado += f"\n\n🚨 JUSTIÇA GRATUITA CONFIRMADA 🚨"
-                prompt_adaptado += f"\nTrecho: \"{trecho_justica[:200]}\""
-                prompt_adaptado += f"\nNÃO escreva 'Você pagará custas'"
-                logging.info("✅ Aviso de justiça gratuita adicionado")
-
-            prompt_adaptado += f"\n\nTEXTO ORIGINAL:\n{texto_original}"
-
-            # Simplificar
-            texto_simplificado, erro = simplificar_com_gemini(prompt_adaptado)
-            if erro:
-                return jsonify({"erro": erro}), 500
-
-            logging.info(f"✅ Texto simplificado (modo completo)")
-
-            # Contexto chat
-            contexto_chat = gerar_chat_contextual(texto_original, dados_estruturados)
-            contexto_chat["perspectiva"] = perspectiva
+        logging.info("✅ Processamento completo concluído!")
 
         # Preparar metadados para o PDF
         metadados_geracao = {
-            "modelo": results_cache.get(hashlib.md5(texto_original.encode()).hexdigest(), {}).get("modelo", "Gemini"),
+            "modelo": GEMINI_MODELS[1]["name"],
             "tipo": metadados.get("tipo", file_extension),
             "tipo_documento": tipo_doc,
             "urgencia": info_doc["urgencia"],
             "dados": dados_estruturados,
-            "recursos": recursos_info
+            "recursos": recursos_info,
+            "confianca": analise_completa.get("confianca_tipo", "MÉDIA")
         }
 
         # Adiciona informações específicas do tipo de arquivo
@@ -3089,17 +2901,20 @@ def processar():
         return jsonify({
             "texto": texto_simplificado,
             "tipo_documento": tipo_doc,
+            "confianca_tipo": analise_completa.get("confianca_tipo", "MÉDIA"),
+            "razao_tipo": analise_completa.get("razao_tipo", "Análise automática"),
             "urgencia": info_doc["urgencia"],
             "acao_necessaria": info_doc["acao_necessaria"],
             "dados_extraidos": dados_estruturados,
             "recursos_cabiveis": recursos_info,
             "perguntas_sugeridas": contexto_chat["perguntas_sugeridas"],
+            "tem_justica_gratuita": analise_completa.get("tem_justica_gratuita", False),
             "caracteres_original": len(texto_original),
             "caracteres_simplificado": len(texto_simplificado),
             "reducao_percentual": round((1 - len(texto_simplificado)/len(texto_original)) * 100, 1),
             "metadados": metadados,
             "analise": analise,
-            "modelo_usado": metadados_geracao.get("modelo", "Gemini"),
+            "modelo_usado": GEMINI_MODELS[1]["name"],  # Sempre gemini-2.5-flash agora
             "tipo_arquivo": file_extension,
             "pdf_download_url": f"/download_pdf?path={os.path.basename(pdf_path)}&filename={pdf_filename}"  # URL direta para download
         })
