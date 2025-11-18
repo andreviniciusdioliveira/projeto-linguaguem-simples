@@ -234,12 +234,21 @@ PROMPT_SIMPLIFICACAO_MELHORADO = """**ESTRUTURA DA EXPLICAÇÃO:**
 
 📊 **RESULTADO EM UMA FRASE**
 
-🚨 REGRA ESPECIAL PARA MANDADOS/CITAÇÕES/INTIMAÇÕES:
-- Se for MANDADO, CITAÇÃO ou INTIMAÇÃO → Use "📋 ORDEM JUDICIAL PARA [ação]" (ex: "ORDEM JUDICIAL PARA COMPARECER À AUDIÊNCIA")
-- NÃO mencione vitória ou derrota em mandados/citações
-- Mencione valores APENAS se estiverem explicitamente no documento original
+🚨 REGRAS ESPECIAIS POR TIPO DE DOCUMENTO:
 
-PARA OUTROS DOCUMENTOS (sentenças, acórdãos, decisões):
+**MANDADOS/CITAÇÕES/INTIMAÇÕES:**
+- Use "📋 ORDEM JUDICIAL PARA [ação]" (ex: "ORDEM JUDICIAL PARA COMPARECER À AUDIÊNCIA")
+- NÃO mencione vitória ou derrota
+- Mencione valores APENAS se explícitos no documento original
+
+**PROCESSOS DE ATO INFRACIONAL (ECA - menores):**
+- Use "⚖️ DECISÃO SOBRE ATO INFRACIONAL"
+- NÃO use vitória/derrota (não se aplica)
+- Explique a medida aplicada em linguagem simples
+- Use o NOME do adolescente, não "você"
+- Exemplo: "O juiz aplicou a medida de semiliberdade a [NOME] por no mínimo 6 meses"
+
+**OUTROS DOCUMENTOS (sentenças, acórdãos, decisões cíveis/trabalhistas):**
 [Escolha o emoji e explique em 1 frase o que aconteceu]
 ✅ VITÓRIA TOTAL - Você ganhou tudo que pediu
 ❌ DERROTA - Você perdeu
@@ -315,6 +324,12 @@ IMPORTANTE:
 **Próximos passos:**
 [O que você deve fazer agora? Seja ESPECÍFICO e PRÁTICO]
 
+**REGRA IMPORTANTE SOBRE PRAZOS:**
+- Se houver prazos, liste cada um especificando PARA QUEM e PARA QUÊ
+- Exemplo CORRETO: "A Secretaria de Saúde tem 15 dias para realizar a avaliação psicológica"
+- Exemplo CORRETO: "O adolescente tem 24 horas para se apresentar na Unidade de Semiliberdade"
+- Exemplo ERRADO: "15 dias" (sem dizer para quem e para quê)
+
 ---
 
 📚 **PALAVRAS QUE PODEM APARECER NO DOCUMENTO**
@@ -362,8 +377,47 @@ def analisar_documento_completo_gemini(texto, perspectiva="nao_informado"):
     else:
         texto_analise = texto
 
+    # 🔥 DETECTAR PROCESSO DE ATO INFRACIONAL (tem prioridade sobre perspectiva)
+    is_ato_infracional = any([
+        "ato infracional" in texto.lower(),
+        "adolescente representado" in texto.lower(),
+        "medida socioeducativa" in texto.lower(),
+        "estatuto da criança" in texto.lower(),
+        "eca" in texto.lower() and ("adolescente" in texto.lower() or "menor" in texto.lower())
+    ])
+
     # 🔥 MAPEAR PERSPECTIVA DE FORMA EXPLÍCITA E FORTE
-    if perspectiva == "autor":
+    if is_ato_infracional:
+        instrucao_perspectiva = '''
+╔══════════════════════════════════════════════════════════════════╗
+║  🚨 PROCESSO DE ATO INFRACIONAL - USE O NOME DO ADOLESCENTE     ║
+╚══════════════════════════════════════════════════════════════════╝
+
+**INSTRUÇÕES ABSOLUTAS:**
+
+1️⃣ Este é um processo de ATO INFRACIONAL (ECA - Estatuto da Criança e do Adolescente)
+2️⃣ Use o NOME COMPLETO do adolescente, NÃO use "você"
+3️⃣ NÃO use conceitos de vitória/derrota
+4️⃣ Foque na MEDIDA SOCIOEDUCATIVA aplicada
+
+**EXEMPLOS OBRIGATÓRIOS:**
+
+❌ ERRADO: "Você foi condenado à semiliberdade..."
+✅ CORRETO: "O juiz aplicou a medida de semiliberdade a [NOME DO ADOLESCENTE]..."
+
+❌ ERRADO: "VITÓRIA PARCIAL - Você ganhou parte do que pediu"
+✅ CORRETO: "DECISÃO SOBRE ATO INFRACIONAL - O juiz aplicou medida de semiliberdade"
+
+❌ ERRADO: "Você entrou com um processo..."
+✅ CORRETO: "O Ministério Público iniciou um processo contra [NOME DO ADOLESCENTE]..."
+
+**ATENÇÃO:**
+- Identifique o nome do adolescente no documento (após "adolescente representado" ou similar)
+- Use linguagem respeitosa e educativa
+- Explique claramente a medida aplicada e o que o adolescente deve fazer
+- NÃO criminalize: use "ato infracional", não "crime"
+'''
+    elif perspectiva == "autor":
         instrucao_perspectiva = '''
 ╔══════════════════════════════════════════════════════════════════╗
 ║  🚨 REGRA CRÍTICA DE PERSPECTIVA - VOCÊ É O AUTOR/REQUERENTE     ║
@@ -534,8 +588,8 @@ Analise o documento e retorne JSON com:
   }},
 
   "prazos": [
-    {{"tipo": "recurso", "prazo": "15 dias"}},
-    {{"tipo": "contestacao", "prazo": "30 dias"}}
+    {{"tipo": "recurso", "prazo": "15 dias", "destinatario": "para quem é o prazo", "finalidade": "para que serve"}},
+    {{"tipo": "contestacao", "prazo": "30 dias", "destinatario": "para quem é o prazo", "finalidade": "para que serve"}}
   ],
 
   "audiencia": {{
@@ -596,8 +650,14 @@ Analise o documento e retorne JSON com:
 
 **REGRAS CRÍTICAS PARA PRAZOS:**
 - Use APENAS prazos explicitamente mencionados no documento
+- Para CADA prazo, especifique:
+  * "tipo": tipo do prazo (recurso, contestação, cumprimento, apresentação, etc)
+  * "prazo": quanto tempo (ex: "15 dias", "10 dias úteis", "24 horas")
+  * "destinatario": PARA QUEM é o prazo (ex: "para o Ministério Público", "para o adolescente se apresentar", "para a Secretaria de Saúde")
+  * "finalidade": PARA QUÊ serve o prazo (ex: "para apresentar recurso", "para se apresentar na Unidade", "para realizar avaliação psicológica")
 - Se o documento não menciona prazo específico → deixe a lista "prazos" vazia: []
 - NUNCA adicione prazos "gerais" como "geralmente é de 15 dias" - se não está no documento, não coloque
+- Exemplo correto: {{"tipo": "apresentação", "prazo": "24 horas", "destinatario": "Adolescente Matheus", "finalidade": "Para se apresentar na Unidade de Semiliberdade"}}
 
 **REGRAS CRÍTICAS PARA RECURSOS:**
 - "cabe_recurso": Escolha APENAS UMA opção clara:
