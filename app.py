@@ -370,6 +370,14 @@ IMPORTANTE:
 **Próximos passos:**
 [O que você deve fazer agora? Seja ESPECÍFICO e PRÁTICO]
 
+**REGRA CRÍTICA - NÃO ORIENTE "AGUARDE O TRIBUNAL":**
+- ❌ NUNCA diga: "Aguarde o tribunal te avisar" ou "Aguarde contato do tribunal"
+- ✅ O tribunal NÃO entra em contato direto com a parte
+- ✅ As intimações vão para o advogado ou são publicadas em Diário Oficial
+- ✅ Use: "Fale com seu advogado para saber os próximos passos"
+- ✅ Use: "Consulte seu advogado ou a Defensoria Pública"
+- ✅ Use: "Acompanhe o processo com seu advogado"
+
 **REGRA CRÍTICA SOBRE PRAZOS (MUITO IMPORTANTE):**
 - Se NÃO houver prazos específicos → NÃO mencione prazos, omita completamente a informação
 - Se houver prazos → liste cada um especificando PARA QUEM e PARA QUÊ
@@ -665,7 +673,7 @@ Analise o documento e retorne JSON com:
   * ❌ ERRADO: "Acompanhar andamento processual"
   * ✅ CORRETO: "Acompanhe online no site do tribunal"
   * ❌ ERRADO: "Aguardar intimação"
-  * ✅ CORRETO: "Aguarde o tribunal te avisar"
+  * ✅ CORRETO: "Fale com seu advogado ou defensoria"
   * ❌ ERRADO: "Cumprir obrigação de fazer"
   * ✅ CORRETO: "Faça o que foi pedido na decisão"
 
