@@ -58,21 +58,21 @@ try:
 except Exception as e:
     logging.error(f"❌ Erro ao inicializar banco de dados: {e}")
 
-# Modelos Gemini
+# Modelos Gemini (ordem de prioridade - usar gemini-1.5-flash primeiro)
 GEMINI_MODELS = [
     {
-        "name": "gemini-2.0-flash-exp",
+        "name": "gemini-1.5-flash",
         "urls": [
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent"
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
         ],
         "max_tokens": 8192,
         "max_input_tokens": 1000000,
         "priority": 1
     },
     {
-        "name": "gemini-1.5-flash",
+        "name": "gemini-2.0-flash-exp",
         "urls": [
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent"
         ],
         "max_tokens": 8192,
         "max_input_tokens": 1000000,
