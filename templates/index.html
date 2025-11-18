@@ -1633,6 +1633,113 @@
         .categoria-valor p {
             margin: 0;
         }
+
+        /* Estilos para botão Nova Simplificação */
+        .button-new-doc {
+            background: linear-gradient(135deg, var(--jus-azul) 0%, var(--jus-vinho) 100%) !important;
+            color: white !important;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .button-new-doc:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(44, 79, 94, 0.4);
+        }
+
+        /* Estilos para botões de feedback */
+        .feedback-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 1rem 1.5rem;
+            border: 2px solid var(--border);
+            background: white;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-width: 120px;
+        }
+
+        .feedback-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+        }
+
+        .feedback-positive {
+            border-color: var(--secondary);
+            color: var(--secondary);
+        }
+
+        .feedback-positive:hover {
+            background: var(--secondary);
+            color: white;
+        }
+
+        .feedback-positive:hover svg {
+            stroke: white;
+        }
+
+        .feedback-negative {
+            border-color: var(--danger);
+            color: var(--danger);
+        }
+
+        .feedback-negative:hover {
+            background: var(--danger);
+            color: white;
+        }
+
+        .feedback-negative:hover svg {
+            stroke: white;
+        }
+
+        .feedback-btn svg {
+            transition: all 0.3s ease;
+        }
+
+        .feedback-label {
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+
+        .feedback-btn.selected {
+            transform: scale(1.1);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+        }
+
+        .feedback-positive.selected {
+            background: var(--secondary);
+            color: white;
+            border-color: var(--secondary);
+        }
+
+        .feedback-positive.selected svg {
+            stroke: white;
+        }
+
+        .feedback-negative.selected {
+            background: var(--danger);
+            color: white;
+            border-color: var(--danger);
+        }
+
+        .feedback-negative.selected svg {
+            stroke: white;
+        }
+
+        /* Responsividade para feedback */
+        @media (max-width: 768px) {
+            .feedback-btn {
+                min-width: 100px;
+                padding: 0.75rem 1rem;
+            }
+
+            .feedback-label {
+                font-size: 0.75rem;
+            }
+        }
     </style>
 </head>
 <body>
@@ -1910,7 +2017,7 @@
                 <!-- CHAT DESABILITADO -->
 
                 <!-- Action Buttons -->
-                <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                <div style="display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem;">
                     <a href="#" class="button" id="downloadBtn" style="display: none;">
                         <span>📥</span> Baixar PDF
                     </a>
@@ -1920,6 +2027,33 @@
                     <button class="button" onclick="speakText()" id="speakBtn">
                         <span>🔊</span> Ler em Voz Alta
                     </button>
+                    <button class="button button-new-doc" onclick="novaDcumentacao()">
+                        <span>📄</span> Nova Simplificação
+                    </button>
+                </div>
+
+                <!-- Feedback Section -->
+                <div id="feedbackSection" style="background: var(--light); padding: 1.5rem; border-radius: 8px; text-align: center;">
+                    <p style="margin: 0 0 1rem 0; color: var(--text); font-weight: 500;">
+                        Esta simplificação foi útil para você?
+                    </p>
+                    <div style="display: flex; gap: 1rem; justify-content: center; align-items: center;">
+                        <button class="feedback-btn feedback-positive" onclick="enviarFeedback('positivo')" id="feedbackPositivo" title="Sim, foi útil!">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path>
+                            </svg>
+                            <span class="feedback-label">Sim, útil!</span>
+                        </button>
+                        <button class="feedback-btn feedback-negative" onclick="enviarFeedback('negativo')" id="feedbackNegativo" title="Não foi útil">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"></path>
+                            </svg>
+                            <span class="feedback-label">Não útil</span>
+                        </button>
+                    </div>
+                    <p id="feedbackMessage" style="margin: 1rem 0 0 0; color: var(--success); font-weight: 500; display: none;">
+                        Obrigado pelo seu feedback! 🎉
+                    </p>
                 </div>
             </div>
         </div>
@@ -3330,6 +3464,82 @@
             window.speechSynthesis.speak(utterance);
             btn.innerHTML = '<span>⏹️</span> Parar Leitura';
             isSpeaking = true;
+        }
+
+        // Nova Simplificação - Reseta a página para processar outro documento
+        function novaDocumentacao() {
+            // Confirmar ação
+            if (confirm('Deseja processar um novo documento? O resultado atual será limpo.')) {
+                // Limpar seções de resultado
+                document.getElementById('resultSection').style.display = 'none';
+                document.getElementById('fileInfo').style.display = 'none';
+                document.getElementById('perspectiveModal').style.display = 'none';
+
+                // Limpar input de arquivo
+                const fileInput = document.getElementById('fileInput');
+                if (fileInput) {
+                    fileInput.value = '';
+                }
+
+                // Resetar feedback
+                document.getElementById('feedbackPositivo').classList.remove('selected');
+                document.getElementById('feedbackNegativo').classList.remove('selected');
+                document.getElementById('feedbackMessage').style.display = 'none';
+
+                // Scroll para o topo
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+
+                // Toast de confirmação
+                showToast('Pronto! Você pode enviar um novo documento.', 'success');
+            }
+        }
+
+        // Sistema de Feedback - LGPD Compliant (só estatísticas agregadas)
+        let feedbackEnviado = false;
+
+        function enviarFeedback(tipo) {
+            if (feedbackEnviado) {
+                showToast('Você já enviou seu feedback. Obrigado!', 'info');
+                return;
+            }
+
+            // Marcar botão selecionado
+            const btnPositivo = document.getElementById('feedbackPositivo');
+            const btnNegativo = document.getElementById('feedbackNegativo');
+
+            btnPositivo.classList.remove('selected');
+            btnNegativo.classList.remove('selected');
+
+            if (tipo === 'positivo') {
+                btnPositivo.classList.add('selected');
+            } else {
+                btnNegativo.classList.add('selected');
+            }
+
+            // Enviar para backend (LGPD compliant - só contador)
+            fetch('/feedback', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ tipo: tipo })
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Mostrar mensagem de agradecimento
+                document.getElementById('feedbackMessage').style.display = 'block';
+                feedbackEnviado = true;
+
+                // Toast de confirmação
+                showToast(tipo === 'positivo' ? 'Obrigado! Ficamos felizes que foi útil! 😊' : 'Obrigado pelo feedback! Vamos melhorar! 💪', 'success');
+            })
+            .catch(error => {
+                console.error('Erro ao enviar feedback:', error);
+                showToast('Erro ao enviar feedback, mas obrigado mesmo assim!', 'warning');
+                // Mostrar mensagem mesmo se houver erro
+                document.getElementById('feedbackMessage').style.display = 'block';
+                feedbackEnviado = true;
+            });
         }
 
         function clearAll() {

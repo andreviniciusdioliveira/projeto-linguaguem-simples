@@ -1474,6 +1474,34 @@ def download_pdf():
         logging.error(f"Erro download: {e}")
         return jsonify({"erro": "Erro ao baixar"}), 500
 
+@app.route("/feedback", methods=["POST"])
+def feedback():
+    """Registra feedback do usuário (LGPD compliant - só contador)"""
+    try:
+        data = request.get_json()
+        tipo = data.get("tipo", "").lower()
+
+        if tipo not in ["positivo", "negativo"]:
+            return jsonify({"erro": "Tipo de feedback inválido"}), 400
+
+        # Incrementar contador de feedback (LGPD compliant)
+        try:
+            database.incrementar_feedback(tipo)
+            logging.info(f"✅ Feedback {tipo} registrado")
+        except Exception as e:
+            logging.error(f"❌ Erro ao registrar feedback: {e}")
+            # Retorna sucesso mesmo se houver erro no banco
+            # para não prejudicar a experiência do usuário
+
+        return jsonify({
+            "sucesso": True,
+            "mensagem": "Obrigado pelo seu feedback!"
+        })
+
+    except Exception as e:
+        logging.error(f"Erro ao processar feedback: {e}")
+        return jsonify({"erro": "Erro ao processar feedback"}), 500
+
 @app.route("/api/stats")
 def get_stats():
     """Estatísticas LGPD compliant"""
