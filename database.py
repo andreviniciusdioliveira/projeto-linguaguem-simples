@@ -47,6 +47,14 @@ def init_db():
             )
         ''')
 
+        # Tabela de feedback (LGPD compliant - só contadores)
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS stats_feedback (
+                tipo TEXT PRIMARY KEY,
+                quantidade INTEGER DEFAULT 0
+            )
+        ''')
+
         # Inserir registro inicial se não existir
         cursor.execute('SELECT COUNT(*) FROM stats_geral')
         if cursor.fetchone()[0] == 0:
@@ -102,6 +110,34 @@ def incrementar_documento(tipo_documento):
         logging.info(f"📊 Estatísticas atualizadas: Total={total}, Tipo={tipo_documento}")
         return total
 
+def incrementar_feedback(tipo_feedback):
+    """
+    Incrementa contadores de feedback
+    LGPD: Armazena APENAS contadores agregados, sem dados do usuário
+
+    Args:
+        tipo_feedback: 'positivo' ou 'negativo'
+    """
+    with db_lock:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+
+        # Incrementar contador de feedback
+        cursor.execute('''
+            INSERT INTO stats_feedback (tipo, quantidade) VALUES (?, 1)
+            ON CONFLICT(tipo) DO UPDATE SET quantidade = quantidade + 1
+        ''', (tipo_feedback,))
+
+        # Buscar novo total
+        cursor.execute('SELECT quantidade FROM stats_feedback WHERE tipo = ?', (tipo_feedback,))
+        total = cursor.fetchone()[0]
+
+        conn.commit()
+        conn.close()
+
+        logging.info(f"👍👎 Feedback registrado: {tipo_feedback} (Total: {total})")
+        return total
+
 def get_estatisticas():
     """
     Retorna estatísticas agregadas para exibição
@@ -129,6 +165,14 @@ def get_estatisticas():
 
         # Tipo mais comum
         tipo_mais_comum = max(por_tipo.items(), key=lambda x: x[1])[0] if por_tipo else None
+
+        # Feedback
+        cursor.execute('SELECT tipo, quantidade FROM stats_feedback')
+        feedback_stats = {row[0]: row[1] for row in cursor.fetchall()}
+        total_feedback = sum(feedback_stats.values())
+        feedback_positivo = feedback_stats.get('positivo', 0)
+        feedback_negativo = feedback_stats.get('negativo', 0)
+        taxa_satisfacao = int((feedback_positivo / total_feedback * 100)) if total_feedback > 0 else 0
 
         # Calcular milestone atual
         milestones = [
@@ -167,7 +211,13 @@ def get_estatisticas():
             'milestone_atual': milestone_atual,
             'proximo_milestone': proximo_milestone,
             'progresso_percentual': progresso_percentual,
-            'data_inicio': data_inicio
+            'data_inicio': data_inicio,
+            'feedback': {
+                'total': total_feedback,
+                'positivo': feedback_positivo,
+                'negativo': feedback_negativo,
+                'taxa_satisfacao': taxa_satisfacao
+            }
         }
 
         return stats
