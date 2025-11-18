@@ -489,58 +489,98 @@ Responda EXATAMENTE neste formato:
 [TEXTO SIMPLIFICADO EM MARKDOWN AQUI]
 """
 
-    try:
-        logging.info("🤖 Chamando Gemini para análise completa...")
+    # Tentar cada modelo em ordem de prioridade
+    modelos_ordenados = sorted(GEMINI_MODELS, key=lambda x: x["priority"])
+    ultimo_erro = None
 
-        # Usar modelo mais potente
-        model = genai.GenerativeModel(GEMINI_MODELS[0]["name"])
+    for modelo_config in modelos_ordenados:
+        modelo_nome = modelo_config["name"]
 
-        response = model.generate_content(
-            prompt,
-            generation_config={
-                "temperature": 0.2,
-                "max_output_tokens": 3000
-            }
-        )
-
-        resposta_completa = response.text.strip()
-
-        # Separar JSON e texto simplificado
-        if "---SEPARADOR---" in resposta_completa:
-            partes = resposta_completa.split("---SEPARADOR---", 1)
-            json_texto = partes[0].strip()
-            texto_simplificado = partes[1].strip()
-        else:
-            # Fallback: tentar extrair JSON
-            json_match = re.search(r'```json\s*(\{.*?\})\s*```', resposta_completa, re.DOTALL)
-            if json_match:
-                json_texto = json_match.group(1)
-                texto_simplificado = resposta_completa.replace(json_match.group(0), "").strip()
-            else:
-                logging.error("❌ Formato de resposta inválido - separador não encontrado")
-                raise ValueError("Formato de resposta inválido")
-
-        # Limpar e parsear JSON
-        json_texto = json_texto.replace("```json", "").replace("```", "").strip()
-
-        # Tentar parsear
         try:
-            analise = json.loads(json_texto)
-        except json.JSONDecodeError as e:
-            logging.error(f"❌ Erro ao parsear JSON: {e}")
-            logging.error(f"JSON recebido: {json_texto[:500]}")
-            raise ValueError("Gemini retornou JSON inválido")
+            logging.info(f"🤖 Tentando análise completa com modelo: {modelo_nome}")
 
-        # Adicionar texto simplificado
-        analise["texto_simplificado"] = texto_simplificado
+            # Criar modelo
+            model = genai.GenerativeModel(modelo_nome)
 
-        logging.info(f"✅ Análise completa: tipo={analise.get('tipo_documento')}, confiança={analise.get('confianca_tipo')}")
+            # Chamada com timeout implícito
+            response = model.generate_content(
+                prompt,
+                generation_config={
+                    "temperature": 0.2,
+                    "max_output_tokens": 3000
+                }
+            )
 
-        return analise
+            resposta_completa = response.text.strip()
+            logging.info(f"✅ Resposta recebida do {modelo_nome} ({len(resposta_completa)} chars)")
 
-    except Exception as e:
-        logging.error(f"❌ Erro na análise completa: {e}", exc_info=True)
-        raise
+            # Separar JSON e texto simplificado
+            if "---SEPARADOR---" in resposta_completa:
+                partes = resposta_completa.split("---SEPARADOR---", 1)
+                json_texto = partes[0].strip()
+                texto_simplificado = partes[1].strip()
+                logging.info("✅ Separador encontrado na resposta")
+            else:
+                logging.warning("⚠️ Separador não encontrado, tentando regex fallback")
+                # Fallback: tentar extrair JSON
+                json_match = re.search(r'```json\s*(\{.*?\})\s*```', resposta_completa, re.DOTALL)
+                if json_match:
+                    json_texto = json_match.group(1)
+                    texto_simplificado = resposta_completa.replace(json_match.group(0), "").strip()
+                    logging.info("✅ JSON extraído via regex")
+                else:
+                    logging.error("❌ Formato de resposta inválido - separador não encontrado")
+                    logging.error(f"Primeiros 500 chars da resposta: {resposta_completa[:500]}")
+                    raise ValueError("Formato de resposta inválido")
+
+            # Limpar e parsear JSON
+            json_texto = json_texto.replace("```json", "").replace("```", "").strip()
+
+            # Tentar parsear
+            try:
+                analise = json.loads(json_texto)
+                logging.info(f"✅ JSON parseado com sucesso")
+            except json.JSONDecodeError as e:
+                logging.error(f"❌ Erro ao parsear JSON: {e}")
+                logging.error(f"JSON recebido (primeiros 500 chars): {json_texto[:500]}")
+                raise ValueError(f"Gemini retornou JSON inválido: {e}")
+
+            # Adicionar texto simplificado
+            analise["texto_simplificado"] = texto_simplificado
+            analise["modelo_usado"] = modelo_nome
+
+            # Atualizar estatísticas de sucesso
+            model_usage_stats[modelo_nome]["attempts"] += 1
+            model_usage_stats[modelo_nome]["successes"] += 1
+
+            logging.info(f"✅ Análise completa com {modelo_nome}: tipo={analise.get('tipo_documento')}, confiança={analise.get('confianca_tipo')}")
+
+            return analise
+
+        except Exception as e:
+            ultimo_erro = e
+            erro_msg = str(e)
+
+            # Atualizar estatísticas de falha
+            if modelo_nome in model_usage_stats:
+                model_usage_stats[modelo_nome]["attempts"] += 1
+                model_usage_stats[modelo_nome]["failures"] += 1
+
+            logging.error(f"❌ Falha com modelo {modelo_nome}: {erro_msg}")
+
+            # Se é erro de quota/rate limit, tentar próximo modelo
+            if "quota" in erro_msg.lower() or "429" in erro_msg or "resource" in erro_msg.lower():
+                logging.warning(f"⚠️ Quota excedida no modelo {modelo_nome}, tentando próximo...")
+                continue
+
+            # Se é outro tipo de erro, tentar próximo modelo mesmo assim
+            logging.warning(f"⚠️ Erro no modelo {modelo_nome}, tentando próximo...")
+            continue
+
+    # Se chegou aqui, todos os modelos falharam
+    logging.error(f"❌ TODOS OS MODELOS FALHARAM. Último erro: {ultimo_erro}")
+    logging.error(f"📊 Estatísticas dos modelos: {model_usage_stats}")
+    raise Exception(f"Todos os modelos Gemini falharam. Último erro: {ultimo_erro}")
 
 # ============= FUNÇÕES AUXILIARES =============
 
@@ -833,22 +873,40 @@ def processar():
         logging.info(f"📄 Processando: {secure_filename(file.filename)} ({size/1024:.1f}KB)")
 
         # Extrair texto
-        if file_extension == 'pdf':
-            texto_original, metadados_arquivo = extrair_texto_pdf(file_bytes)
-        elif file_extension in ALLOWED_IMAGE_EXTENSIONS:
-            texto_original, metadados_arquivo = processar_imagem_para_texto(file_bytes, file_extension.upper())
-        else:
-            return jsonify({"erro": "Tipo não suportado"}), 400
+        try:
+            if file_extension == 'pdf':
+                logging.info("📄 Extraindo texto de PDF...")
+                texto_original, metadados_arquivo = extrair_texto_pdf(file_bytes)
+                logging.info(f"✅ Texto extraído do PDF: {len(texto_original)} caracteres")
+            elif file_extension in ALLOWED_IMAGE_EXTENSIONS:
+                logging.info("🖼️ Extraindo texto de imagem com OCR...")
+                texto_original, metadados_arquivo = processar_imagem_para_texto(file_bytes, file_extension.upper())
+                logging.info(f"✅ Texto extraído da imagem: {len(texto_original)} caracteres")
+            else:
+                return jsonify({"erro": "Tipo não suportado"}), 400
+        except Exception as e:
+            logging.error(f"❌ Erro ao extrair texto do arquivo: {e}", exc_info=True)
+            return jsonify({"erro": f"Erro ao extrair texto: {str(e)}"}), 500
 
         if len(texto_original) < 10:
-            return jsonify({"erro": "Texto insuficiente"}), 400
+            logging.warning(f"⚠️ Texto muito curto: {len(texto_original)} caracteres")
+            return jsonify({"erro": "Texto insuficiente no documento"}), 400
 
         # 🎯 ANÁLISE COMPLETA COM GEMINI
-        logging.info("🤖 Iniciando análise completa com Gemini...")
-        analise_completa = analisar_documento_completo_gemini(texto_original, perspectiva)
+        logging.info(f"🤖 Iniciando análise completa com Gemini (perspectiva: {perspectiva})...")
+        logging.info(f"📝 Texto extraído: {len(texto_original)} caracteres")
 
-        tipo_doc = analise_completa["tipo_documento"]
-        texto_simplificado = analise_completa["texto_simplificado"]
+        try:
+            analise_completa = analisar_documento_completo_gemini(texto_original, perspectiva)
+        except Exception as e:
+            logging.error(f"❌ ERRO CRÍTICO na análise Gemini: {e}", exc_info=True)
+            return jsonify({"erro": f"Erro ao analisar documento: {str(e)}"}), 500
+
+        tipo_doc = analise_completa.get("tipo_documento", "desconhecido")
+        texto_simplificado = analise_completa.get("texto_simplificado", "")
+        modelo_usado = analise_completa.get("modelo_usado", GEMINI_MODELS[0]["name"])
+
+        logging.info(f"✅ Análise concluída: tipo={tipo_doc}, modelo={modelo_usado}")
 
         # Preparar dados estruturados
         dados_estruturados = {
@@ -888,7 +946,7 @@ def processar():
 
         # Gerar PDF
         metadados_pdf = {
-            "modelo": GEMINI_MODELS[0]["name"],
+            "modelo": modelo_usado,
             "tipo": metadados_arquivo.get("tipo"),
             "tipo_documento": tipo_doc,
             "urgencia": info_doc["urgencia"],
@@ -928,7 +986,7 @@ def processar():
             "tem_justica_gratuita": analise_completa.get("tem_justica_gratuita"),
             "caracteres_original": len(texto_original),
             "caracteres_simplificado": len(texto_simplificado),
-            "modelo_usado": GEMINI_MODELS[0]["name"],
+            "modelo_usado": modelo_usado,
             "pdf_download_url": f"/download_pdf?path={os.path.basename(pdf_path)}&filename={pdf_filename}"
         })
 
