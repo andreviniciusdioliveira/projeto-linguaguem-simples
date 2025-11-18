@@ -233,6 +233,13 @@ def rate_limit(f):
 PROMPT_SIMPLIFICACAO_MELHORADO = """**ESTRUTURA DA EXPLICAÇÃO:**
 
 📊 **RESULTADO EM UMA FRASE**
+
+🚨 REGRA ESPECIAL PARA MANDADOS/CITAÇÕES/INTIMAÇÕES:
+- Se for MANDADO, CITAÇÃO ou INTIMAÇÃO → Use "📋 ORDEM JUDICIAL PARA [ação]" (ex: "ORDEM JUDICIAL PARA COMPARECER À AUDIÊNCIA")
+- NÃO mencione vitória ou derrota em mandados/citações
+- Mencione valores APENAS se estiverem explicitamente no documento original
+
+PARA OUTROS DOCUMENTOS (sentenças, acórdãos, decisões):
 [Escolha o emoji e explique em 1 frase o que aconteceu]
 ✅ VITÓRIA TOTAL - Você ganhou tudo que pediu
 ❌ DERROTA - Você perdeu
@@ -284,10 +291,12 @@ IMPORTANTE: Explique o PORQUÊ da decisão de forma simples.
 **Sobre custas e honorários:**
 
 REGRAS PARA JUSTIÇA GRATUITA:
-- Se tem justiça gratuita E não há condenação específica ao pagamento → "Você NÃO vai pagar custas e honorários advocatícios porque tem justiça gratuita."
-- Se tem justiça gratuita MAS há condenação específica ao pagamento → Explique claramente: "Você tem justiça gratuita, MAS neste caso específico o juiz decidiu que você deve pagar [descreva exatamente o que o documento diz]."
+- Se tem justiça gratuita E a exigibilidade está SUSPENSA (menciona "suspendo a exigibilidade", "art. 98, §3º, CPC" ou similar) → "Você NÃO vai pagar agora porque tem justiça gratuita. A cobrança está suspensa até que você tenha condições financeiras."
+- Se tem justiça gratuita E não há condenação ao pagamento → "Você NÃO vai pagar custas e honorários porque tem justiça gratuita."
+- Se tem justiça gratuita MAS foi condenado a pagar E NÃO há suspensão da exigibilidade → "Você tem justiça gratuita, MAS neste caso o juiz decidiu que você deve pagar [valores específicos]."
 - Se não tem justiça gratuita → Liste os valores a pagar
 - NUNCA use a palavra "encargos" - use sempre "custas e honorários" ou "valores a pagar"
+- REGRA ESPECIAL: Se for MANDADO ou CITAÇÃO, só mencione valores se estiverem explícitos no documento original
 
 **Próximos passos:**
 [O que você deve fazer agora? Seja ESPECÍFICO e PRÁTICO]
@@ -467,6 +476,11 @@ Use APENAS informações que estão explicitamente escritas no documento.
 - "Cerceamento de defesa" → "você foi impedido de se defender corretamente"
 - "Deferido" → "aprovado" ou "aceito"
 - "Indeferido" → "negado" ou "recusado"
+- "Trânsito em julgado" → "quando a decisão se tornar definitiva (não couber mais recurso)"
+- "Aguardar trânsito em julgado" → "Aguardar que a decisão se torne definitiva (quando não couber mais recurso)"
+- "Cumprimento de sentença" ou "Cumprimento da decisão" → "quando você receber o que foi decidido" ou "quando a decisão for cumprida"
+- "Exigibilidade suspensa" → "cobrança suspensa" ou "você não precisa pagar agora"
+- "Suspendo a exigibilidade" → "a cobrança fica suspensa" ou "você não precisa pagar agora"
 
 ═══════════════════════════════════════════════════════════════════
 
