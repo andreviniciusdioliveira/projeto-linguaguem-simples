@@ -273,19 +273,21 @@ IMPORTANTE: Explique o PORQUÊ da decisão de forma simples.
 
 💰 **VALORES E O QUE VOCÊ PRECISA FAZER**
 
-**Importante:** Use APENAS valores que estão explicitamente mencionados no documento. Se algo não está escrito, não invente.
-
 **Valores mencionados:**
 
 ✅ O QUE VOCÊ VAI GANHAR:
-- [Liste APENAS valores que estão EXPLÍCITOS no documento]
+- [Liste APENAS valores que estão EXPLÍCITOS no documento. Se não houver valores a receber, omita esta seção]
 
 ❌ O QUE VOCÊ NÃO VAI GANHAR:
-- [Liste valores negados]
+- [Liste valores negados. Se não houver, omita esta seção]
 
 **Sobre custas e honorários:**
-- [Se tem justiça gratuita: "Você NÃO vai pagar porque tem justiça gratuita"]
-- [Se não tem: Liste os valores a pagar]
+
+REGRAS PARA JUSTIÇA GRATUITA:
+- Se tem justiça gratuita E não há condenação específica ao pagamento → "Você NÃO vai pagar custas e honorários advocatícios porque tem justiça gratuita."
+- Se tem justiça gratuita MAS há condenação específica ao pagamento → Explique claramente: "Você tem justiça gratuita, MAS neste caso específico o juiz decidiu que você deve pagar [descreva exatamente o que o documento diz]."
+- Se não tem justiça gratuita → Liste os valores a pagar
+- NUNCA use a palavra "encargos" - use sempre "custas e honorários" ou "valores a pagar"
 
 **Próximos passos:**
 [O que você deve fazer agora? Seja ESPECÍFICO e PRÁTICO]
@@ -311,6 +313,14 @@ IMPORTANTE: Explique o PORQUÊ da decisão de forma simples.
 3. SEMPRE use conforme a perspectiva escolhida
 4. Seja empático: "Você ganhou!", "Infelizmente você perdeu"
 5. Mini dicionário: NO MÁXIMO 7 termos
+
+**IMPORTANTE - NÃO INCLUIR NO TEXTO SIMPLIFICADO:**
+❌ NÃO crie seções sobre "Recursos" ou "Cabe recurso" no texto simplificado
+❌ NÃO mencione prazos de recurso no texto simplificado
+❌ NÃO inclua seções sobre "Audiências Marcadas" se não houver data/hora
+❌ NÃO adicione informações como "geralmente é de X dias" ou "normalmente"
+✅ Essas informações devem estar APENAS no JSON, não no texto simplificado
+✅ O frontend exibirá as informações de recursos e audiências automaticamente a partir do JSON
 """
 
 # ============= ANÁLISE COMPLETA COM GEMINI =============
@@ -550,6 +560,24 @@ Analise o documento e retorne JSON com:
 - Se não encontrar informação, use `null` ou `[]` ou `false`
 - Cite trechos literais quando solicitado (trecho_justica_gratuita)
 - Se em dúvida sobre o tipo, use confianca_tipo: "BAIXA"
+
+**REGRAS CRÍTICAS PARA AUDIÊNCIAS:**
+- Se o documento NÃO menciona audiência → use "tem_audiencia": false, "data": null, "hora": null, "link": null
+- Se menciona audiência mas sem data/hora específicas → use "tem_audiencia": true, mas deixe "data" e "hora" como null
+- NUNCA invente datas ou horários de audiências que não estão no documento
+
+**REGRAS CRÍTICAS PARA PRAZOS:**
+- Use APENAS prazos explicitamente mencionados no documento
+- Se o documento não menciona prazo específico → deixe a lista "prazos" vazia: []
+- NUNCA adicione prazos "gerais" como "geralmente é de 15 dias" - se não está no documento, não coloque
+
+**REGRAS CRÍTICAS PARA RECURSOS:**
+- "cabe_recurso": Escolha APENAS UMA opção clara:
+  * "Sim" - se o documento menciona explicitamente que cabe recurso
+  * "Não" - se o documento menciona explicitamente que não cabe recurso ou que é decisão irrecorrível
+  * "Consulte advogado(a) ou defensoria pública" - se o documento não menciona se cabe ou não cabe recurso
+- "prazo": Use APENAS se o documento mencionar prazo específico para recurso, senão use null
+- NUNCA escreva "Sim|Não|Consulte..." com todas as opções juntas - escolha apenas UMA
 
 ═══════════════════════════════════════════════════════════════════
 
