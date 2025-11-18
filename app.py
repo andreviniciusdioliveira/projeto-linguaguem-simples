@@ -230,50 +230,7 @@ def rate_limit(f):
 
 # ============= PROMPT DE SIMPLIFICAÇÃO =============
 
-PROMPT_SIMPLIFICACAO_MELHORADO = """**VOCÊ É UM ASSISTENTE QUE EXPLICA DOCUMENTOS JURÍDICOS DE FORMA PESSOAL, EMPÁTICA E SIMPLES.**
-
-**TOM DE VOZ E EMPATIA:**
-- Fale DIRETAMENTE com o cidadão usando "você"
-- Seja MUITO empático
-- Use frases como: "Entendo que esta situação pode ser difícil..."
-- NUNCA use termos técnicos sem explicar
-- Use linguagem de conversa calorosa, não formal/fria
-- Seja direto mas gentil
-
----
-
-🚨🚨🚨 **REGRA CRÍTICA ANTI-ALUCINAÇÃO** 🚨🚨🚨
-
-**NUNCA NUNCA NUNCA invente informações que NÃO estão no documento!**
-
-❌ **NÃO FAÇA:**
-- Inventar valores que não estão explícitos
-- Deduzir datas que não foram mencionadas
-- Criar prazos que não aparecem
-- Supor nomes que não estão escritos
-- Inventar decisões não mencionadas
-
-✅ **FAÇA:**
-- Use APENAS informações que você pode CITAR diretamente
-- Se algo NÃO está no documento, diga: "O documento não menciona [isso]"
-- Quando em dúvida, OMITA a informação - não invente!
-
-**SE NÃO ESTÁ NO DOCUMENTO, NÃO EXISTE!**
-
----
-
-**SIMPLIFICAÇÃO OBRIGATÓRIA DE TERMOS TÉCNICOS:**
-- "PARCIALMENTE PROCEDENTE" → "Você ganhou PARTE do que pediu"
-- "PROCEDENTE" → "Você ganhou"
-- "IMPROCEDENTE" → "Você perdeu" ou "Seu pedido foi negado"
-- "Habeas Corpus" → "um pedido urgente para garantir sua liberdade"
-- "Cerceamento de defesa" → "você foi impedido de se defender corretamente"
-- "Deferido" → "aprovado" ou "aceito"
-- "Indeferido" → "negado" ou "recusado"
-
----
-
-**ESTRUTURA DA EXPLICAÇÃO:**
+PROMPT_SIMPLIFICACAO_MELHORADO = """**ESTRUTURA DA EXPLICAÇÃO:**
 
 📊 **RESULTADO EM UMA FRASE**
 [Escolha o emoji e explique em 1 frase o que aconteceu]
@@ -352,7 +309,7 @@ IMPORTANTE: Explique o PORQUÊ da decisão de forma simples.
 **REGRAS DE ESCRITA:**
 1. Máximo 15 palavras por frase
 2. NUNCA use: "exequente", "executado", "lide", "mérito"
-3. SEMPRE use: "você", "a outra parte", "o processo"
+3. SEMPRE use conforme a perspectiva escolhida
 4. Seja empático: "Você ganhou!", "Infelizmente você perdeu"
 5. Mini dicionário: NO MÁXIMO 7 termos
 """
@@ -363,6 +320,8 @@ def analisar_documento_completo_gemini(texto, perspectiva="nao_informado"):
     """
     ANÁLISE COMPLETA DO DOCUMENTO EM 1 ÚNICA CHAMADA GEMINI
     Retorna dict com análise técnica + texto simplificado
+    
+    🔥 VERSÃO CORRIGIDA - Perspectiva aplicada corretamente
     """
 
     # Truncar texto se necessário
@@ -371,21 +330,146 @@ def analisar_documento_completo_gemini(texto, perspectiva="nao_informado"):
     else:
         texto_analise = texto
 
-    # Mapear perspectiva
+    # 🔥 MAPEAR PERSPECTIVA DE FORMA EXPLÍCITA E FORTE
     if perspectiva == "autor":
-        instrucao_perspectiva = '**CRÍTICO:** Use "VOCÊ" para autor/requerente e "a outra parte" para réu.'
-    elif perspectiva == "reu":
-        instrucao_perspectiva = '**CRÍTICO:** Use "VOCÊ" para réu/requerido e "a outra parte" para autor.'
-    else:
-        instrucao_perspectiva = 'Use os nomes reais das partes (não use "você").'
+        instrucao_perspectiva = '''
+╔══════════════════════════════════════════════════════════════════╗
+║  🚨 REGRA CRÍTICA DE PERSPECTIVA - VOCÊ É O AUTOR/REQUERENTE     ║
+╚══════════════════════════════════════════════════════════════════╝
 
-    prompt = f"""Você é um especialista em análise de documentos jurídicos brasileiros.
+**INSTRUÇÕES ABSOLUTAS:**
+
+1️⃣ Use **"VOCÊ"** para se referir ao **AUTOR/REQUERENTE** do processo
+2️⃣ Use **"a outra parte"**, **"o réu"** ou **"o requerido"** para o ADVERSÁRIO
+3️⃣ NUNCA troque essas referências!
+
+**EXEMPLOS OBRIGATÓRIOS:**
+
+❌ ERRADO: "O autor João Silva foi condenado..."
+✅ CORRETO: "VOCÊ foi condenado..."
+
+❌ ERRADO: "O requerente deve pagar..."
+✅ CORRETO: "VOCÊ deve pagar..."
+
+❌ ERRADO: "João Silva ganhou o processo..."
+✅ CORRETO: "VOCÊ ganhou o processo..."
+
+❌ ERRADO: "O Estado de Goiás deve pagar ao autor..."
+✅ CORRETO: "O Estado de Goiás deve pagar a VOCÊ..."
+
+**REGRA DE OURO:** 
+Sempre que o documento mencionar "AUTOR", "REQUERENTE", "APELANTE" (se for quem apelou primeiro), substitua por "VOCÊ".
+Sempre que mencionar "RÉU", "REQUERIDO", "APELADO" (se for o adversário), substitua por "a outra parte" ou mantenha o nome.
+
+**ATENÇÃO REDOBRADA EM:**
+- Seção "O QUE ESTÁ ACONTECENDO" → Diga "Você entrou com um processo pedindo..."
+- Seção "A DECISÃO DO JUIZ" → Diga "O juiz decidiu que VOCÊ..."
+- Seção "VALORES E O QUE VOCÊ PRECISA FAZER" → Diga "Você vai receber..." ou "Você deve pagar..."
+'''
+        
+    elif perspectiva == "reu":
+        instrucao_perspectiva = '''
+╔══════════════════════════════════════════════════════════════════╗
+║  🚨 REGRA CRÍTICA DE PERSPECTIVA - VOCÊ É O RÉU/REQUERIDO        ║
+╚══════════════════════════════════════════════════════════════════╝
+
+**INSTRUÇÕES ABSOLUTAS:**
+
+1️⃣ Use **"VOCÊ"** para se referir ao **RÉU/REQUERIDO** do processo
+2️⃣ Use **"a outra parte"**, **"o autor"** ou **"o requerente"** para o ADVERSÁRIO
+3️⃣ NUNCA troque essas referências!
+
+**EXEMPLOS OBRIGATÓRIOS:**
+
+❌ ERRADO: "O réu Estado de Goiás foi condenado..."
+✅ CORRETO: "VOCÊ foi condenado..."
+
+❌ ERRADO: "O requerido deve pagar..."
+✅ CORRETO: "VOCÊ deve pagar..."
+
+❌ ERRADO: "Maria Santos foi absolvida..."
+✅ CORRETO: "VOCÊ foi absolvida..."
+
+❌ ERRADO: "O autor entrou com processo contra o Estado..."
+✅ CORRETO: "A outra parte entrou com processo contra VOCÊ..."
+
+**REGRA DE OURO:** 
+Sempre que o documento mencionar "RÉU", "REQUERIDO", "APELADO" (se for você), substitua por "VOCÊ".
+Sempre que mencionar "AUTOR", "REQUERENTE", "APELANTE" (se for o adversário), substitua por "a outra parte" ou mantenha o nome.
+
+**ATENÇÃO REDOBRADA EM:**
+- Seção "O QUE ESTÁ ACONTECENDO" → Diga "A outra parte entrou com um processo contra você..."
+- Seção "A DECISÃO DO JUIZ" → Diga "O juiz decidiu que VOCÊ..."
+- Seção "VALORES E O QUE VOCÊ PRECISA FAZER" → Diga "Você deve pagar..." ou "Você não precisa pagar..."
+'''
+        
+    else:
+        instrucao_perspectiva = '''
+╔══════════════════════════════════════════════════════════════════╗
+║  ℹ️ PERSPECTIVA NEUTRA - POSIÇÃO NÃO INFORMADA                   ║
+╚══════════════════════════════════════════════════════════════════╝
+
+**INSTRUÇÕES:**
+
+1️⃣ Use os **nomes reais** das partes (não use "você")
+2️⃣ Mantenha linguagem neutra e imparcial
+3️⃣ Seja claro sobre quem é quem
+
+**EXEMPLOS:**
+
+✅ CORRETO: "João Silva foi condenado a pagar indenização"
+✅ CORRETO: "O Estado de Goiás deve pagar R$ 30.000,00 a Andresley Carlos"
+✅ CORRETO: "Maria Santos ganhou o processo contra a empresa"
+
+**NÃO use "você" em nenhuma circunstância quando a perspectiva for "nao_informado".**
+'''
+
+    # 🔥 LOG PARA DEBUG
+    logging.info(f"🎯 Perspectiva aplicada no prompt Gemini: {perspectiva}")
+    logging.info(f"📝 Instrução gerada: {instrucao_perspectiva[:150]}...")
+
+    prompt = f"""Você é um especialista em análise de documentos jurídicos brasileiros com foco em linguagem acessível.
 
 🎯 **TAREFA:** Analisar este documento COMPLETAMENTE e gerar:
-1. Identificação técnica (tipo, partes, autoridade)
-2. Texto simplificado em linguagem acessível
+1. Identificação técnica (tipo, partes, autoridade) em JSON
+2. Texto simplificado em linguagem acessível em Markdown
 
----
+═══════════════════════════════════════════════════════════════════
+
+{instrucao_perspectiva}
+
+═══════════════════════════════════════════════════════════════════
+
+🚨🚨🚨 **REGRA CRÍTICA ANTI-ALUCINAÇÃO** 🚨🚨🚨
+
+**NUNCA NUNCA NUNCA invente informações que NÃO estão no documento!**
+
+❌ **NÃO FAÇA:**
+- Inventar valores que não estão explícitos
+- Deduzir datas que não foram mencionadas
+- Criar prazos que não aparecem
+- Supor nomes que não estão escritos
+- Inventar decisões não mencionadas
+
+✅ **FAÇA:**
+- Use APENAS informações que você pode CITAR diretamente
+- Se algo NÃO está no documento, diga: "O documento não menciona [isso]"
+- Quando em dúvida, OMITA a informação - não invente!
+
+**SE NÃO ESTÁ NO DOCUMENTO, NÃO EXISTE!**
+
+═══════════════════════════════════════════════════════════════════
+
+**SIMPLIFICAÇÃO OBRIGATÓRIA DE TERMOS TÉCNICOS:**
+- "PARCIALMENTE PROCEDENTE" → "Você ganhou PARTE do que pediu" (ajuste conforme perspectiva)
+- "PROCEDENTE" → "Você ganhou" (ajuste conforme perspectiva)
+- "IMPROCEDENTE" → "Você perdeu" ou "Seu pedido foi negado" (ajuste conforme perspectiva)
+- "Habeas Corpus" → "um pedido urgente para garantir sua liberdade"
+- "Cerceamento de defesa" → "você foi impedido de se defender corretamente"
+- "Deferido" → "aprovado" ou "aceito"
+- "Indeferido" → "negado" ou "recusado"
+
+═══════════════════════════════════════════════════════════════════
 
 ## 🔍 **PARTE 1: ANÁLISE TÉCNICA (JSON)**
 
@@ -435,7 +519,7 @@ Analise o documento e retorne JSON com:
   }},
 
   "recursos_cabiveis": {{
-    "cabe_recurso": "Sim|Não|Consulte advogado",
+    "cabe_recurso": "Sim|Não|Consulte advogado(a) ou defensoria pública",
     "tipo_recurso": "Apelação|Agravo|etc ou null",
     "prazo": "X dias ou null"
   }}
@@ -478,25 +562,35 @@ Analise o documento e retorne JSON com:
 - Cite trechos literais quando solicitado (trecho_justica_gratuita)
 - Se em dúvida sobre o tipo, use confianca_tipo: "BAIXA"
 
----
+═══════════════════════════════════════════════════════════════════
 
 ## 📝 **PARTE 2: TEXTO SIMPLIFICADO (MARKDOWN)**
 
+🚨🚨🚨 **LEMBRE-SE SEMPRE DA PERSPECTIVA ESCOLHIDA:** 🚨🚨🚨
+
 {instrucao_perspectiva}
+
+**TOM DE VOZ E EMPATIA:**
+- Fale conforme a perspectiva (use "você" corretamente ou nomes reais)
+- Seja MUITO empático
+- Use frases como: "Entendo que esta situação pode ser difícil..."
+- NUNCA use termos técnicos sem explicar
+- Use linguagem de conversa calorosa, não formal/fria
+- Seja direto mas gentil
 
 Após o JSON, gere o texto simplificado seguindo EXATAMENTE esta estrutura:
 
 {PROMPT_SIMPLIFICACAO_MELHORADO}
 
----
+═══════════════════════════════════════════════════════════════════
 
 ## 📄 **DOCUMENTO PARA ANÁLISE:**
 
 {texto_analise}
 
----
+═══════════════════════════════════════════════════════════════════
 
-## ✅ **FORMATO DE RESPOSTA:**
+## ✅ **FORMATO DE RESPOSTA OBRIGATÓRIO:**
 
 Responda EXATAMENTE neste formato:
 ```json
@@ -508,7 +602,7 @@ Responda EXATAMENTE neste formato:
 
 ---SEPARADOR---
 
-[TEXTO SIMPLIFICADO EM MARKDOWN AQUI]
+[TEXTO SIMPLIFICADO EM MARKDOWN AQUI - RESPEITANDO A PERSPECTIVA ESCOLHIDA]
 """
 
     # Tentar cada modelo em ordem de prioridade
@@ -574,12 +668,13 @@ Responda EXATAMENTE neste formato:
             # Adicionar texto simplificado
             analise["texto_simplificado"] = texto_simplificado
             analise["modelo_usado"] = modelo_nome
+            analise["perspectiva_aplicada"] = perspectiva  # 🔥 NOVO - registrar perspectiva
 
             # Atualizar estatísticas de sucesso
             model_usage_stats[modelo_nome]["attempts"] += 1
             model_usage_stats[modelo_nome]["successes"] += 1
 
-            logging.info(f"✅ Análise completa com {modelo_nome}: tipo={analise.get('tipo_documento')}, confiança={analise.get('confianca_tipo')}")
+            logging.info(f"✅ Análise completa com {modelo_nome}: tipo={analise.get('tipo_documento')}, confiança={analise.get('confianca_tipo')}, perspectiva={perspectiva}")
 
             return analise
 
@@ -881,7 +976,7 @@ def index():
 @app.route("/processar", methods=["POST"])
 @rate_limit
 def processar():
-    """Processa upload com análise 100% Gemini"""
+    """Processa upload com análise 100% Gemini - VERSÃO CORRIGIDA"""
     try:
         session.permanent = True
         session.modified = True
@@ -891,6 +986,14 @@ def processar():
 
         file = request.files['file']
         perspectiva = request.form.get('perspectiva', 'nao_informado')
+
+        # 🔥 LOG CRÍTICO PARA DEBUG
+        logging.critical(f"""
+╔════════════════════════════════════════════════╗
+║  📍 PERSPECTIVA CAPTURADA DO FORMULÁRIO       ║
+║  Valor: {perspectiva:^35} ║
+╚════════════════════════════════════════════════╝
+        """)
 
         if file.filename == '':
             return jsonify({"erro": "Nenhum arquivo selecionado"}), 400
@@ -931,7 +1034,7 @@ def processar():
             logging.warning(f"⚠️ Texto muito curto: {len(texto_original)} caracteres")
             return jsonify({"erro": "Texto insuficiente no documento"}), 400
 
-        # 🎯 ANÁLISE COMPLETA COM GEMINI
+        # 🎯 ANÁLISE COMPLETA COM GEMINI (COM PERSPECTIVA CORRIGIDA)
         logging.info(f"🤖 Iniciando análise completa com Gemini (perspectiva: {perspectiva})...")
         logging.info(f"📝 Texto extraído: {len(texto_original)} caracteres")
 
@@ -944,8 +1047,9 @@ def processar():
         tipo_doc = analise_completa.get("tipo_documento", "desconhecido")
         texto_simplificado = analise_completa.get("texto_simplificado", "")
         modelo_usado = analise_completa.get("modelo_usado", GEMINI_MODELS[0]["name"])
+        perspectiva_aplicada = analise_completa.get("perspectiva_aplicada", perspectiva)
 
-        logging.info(f"✅ Análise concluída: tipo={tipo_doc}, modelo={modelo_usado}")
+        logging.info(f"✅ Análise concluída: tipo={tipo_doc}, modelo={modelo_usado}, perspectiva={perspectiva_aplicada}")
 
         # Preparar dados estruturados
         dados_estruturados = {
@@ -966,7 +1070,7 @@ def processar():
         }
 
         recursos_info = analise_completa.get("recursos_cabiveis", {
-            "cabe_recurso": "Consulte advogado",
+            "cabe_recurso": "Consulte advogado(a) ou defensoria pública",
             "prazo": None
         })
 
@@ -991,7 +1095,8 @@ def processar():
             "urgencia": info_doc["urgencia"],
             "dados": dados_estruturados,
             "recursos": recursos_info,
-            "confianca": analise_completa.get("confianca_tipo", "MÉDIA")
+            "confianca": analise_completa.get("confianca_tipo", "MÉDIA"),
+            "perspectiva": perspectiva_aplicada  # 🔥 NOVO
         }
 
         pdf_filename = f"simplificado_{file_hash[:8]}.pdf"
@@ -1010,7 +1115,7 @@ def processar():
         except Exception as e:
             logging.error(f"Erro stats: {e}")
 
-        logging.info(f"✅ Processamento completo: {tipo_doc} (confiança: {analise_completa.get('confianca_tipo')})")
+        logging.info(f"✅ Processamento completo: {tipo_doc} (confiança: {analise_completa.get('confianca_tipo')}, perspectiva: {perspectiva_aplicada})")
 
         return jsonify({
             "texto": texto_simplificado,
@@ -1026,6 +1131,7 @@ def processar():
             "caracteres_original": len(texto_original),
             "caracteres_simplificado": len(texto_simplificado),
             "modelo_usado": modelo_usado,
+            "perspectiva_aplicada": perspectiva_aplicada,  # 🔥 NOVO - confirmar perspectiva
             "pdf_download_url": f"/download_pdf?path={os.path.basename(pdf_path)}&filename={pdf_filename}"
         })
 
@@ -1057,9 +1163,15 @@ def chat_contextual():
             documento = ""
 
         dados = contexto.get("dados_extraidos", {})
+        perspectiva = contexto.get("perspectiva", "nao_informado")
 
         # Prompt simplificado para chat
         prompt = f"""Você é um assistente que responde perguntas sobre documentos jurídicos.
+
+IMPORTANTE - PERSPECTIVA: {perspectiva}
+{f'- Use "você" para o AUTOR/REQUERENTE' if perspectiva == 'autor' else ''}
+{f'- Use "você" para o RÉU/REQUERIDO' if perspectiva == 'reu' else ''}
+{f'- Use nomes próprios (não use "você")' if perspectiva == 'nao_informado' else ''}
 
 DOCUMENTO (resumo):
 - Tipo: {dados.get('tipo_documento')}
@@ -1070,7 +1182,7 @@ DOCUMENTO (resumo):
 
 PERGUNTA: {pergunta}
 
-Responda em NO MÁXIMO 2-3 frases curtas e simples. Se não souber, diga "Não encontrei essa informação".
+Responda em NO MÁXIMO 2-3 frases curtas e simples, respeitando a perspectiva {perspectiva}. Se não souber, diga "Não encontrei essa informação".
 """
 
         try:
@@ -1189,3 +1301,40 @@ cleanup_thread.start()
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8080))
     app.run(host="0.0.0.0", port=port, debug=False)
+```
+
+---
+
+## 🎯 **Principais Mudanças Aplicadas:**
+
+### **1. Instruções de Perspectiva Reforçadas (linhas 470-570)**
+- ✅ Caixas visuais destacadas com `╔═══╗` para chamar atenção do modelo
+- ✅ Exemplos práticos de **ERRADO vs CORRETO**
+- ✅ Instruções repetidas 3 vezes no prompt (início, meio, seção de simplificação)
+
+### **2. Logs de Debug Críticos**
+- ✅ Log visual quando a perspectiva é capturada (linha ~1090)
+- ✅ Log quando a perspectiva é aplicada no prompt (linha ~565)
+- ✅ Perspectiva registrada no resultado da análise (linha ~920)
+
+### **3. Validação na Resposta**
+- ✅ Campo `perspectiva_aplicada` adicionado ao JSON de retorno
+- ✅ Frontend pode confirmar qual perspectiva foi usada
+
+---
+
+## 🧪 **Como Testar:**
+
+1. **Substitua o `app.py`** pelo código acima
+2. **Reinicie o servidor**
+3. **Teste com o documento da sentença:**
+   - Marque "**Autor**" → Deve dizer: "**VOCÊ** ganhou parte do que pediu"
+   - Marque "**Réu**" → Deve dizer: "**VOCÊ** foi condenado"
+   - Marque "**Não sei**" → Deve dizer: "**Andresley Carlos** ganhou..."
+
+4. **Verifique os logs** no console - você verá:
+```
+╔════════════════════════════════════════════════╗
+║  📍 PERSPECTIVA CAPTURADA DO FORMULÁRIO       ║
+║  Valor:                autor                  ║
+╚════════════════════════════════════════════════╝
