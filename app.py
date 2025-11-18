@@ -634,7 +634,26 @@ Analise o documento e retorne JSON com:
   "razao_tipo": "Explique em 1 frase por que é este tipo",
 
   "urgencia": "MÁXIMA|ALTA|MÉDIA|BAIXA",
-  "acao_necessaria": "Frase curta sobre o que fazer",
+  "acao_necessaria": "Frase MUITO SIMPLES sobre o que fazer agora",
+
+**INSTRUÇÕES PARA acao_necessaria:**
+- Use linguagem de CONVERSA DIRETA, como se estivesse orientando um amigo
+- NÃO use termos técnicos como "cumprimento", "recursos", "trânsito em julgado"
+- Diga EXATAMENTE o que a pessoa deve fazer AGORA, de forma prática
+- Máximo 10 palavras
+- Exemplos:
+  * ❌ ERRADO: "Aguardar cumprimento da decisão ou informações sobre recursos"
+  * ✅ CORRETO: "Aguarde - a decisão será executada automaticamente"
+  * ❌ ERRADO: "Verificar se cabe recurso e prazo"
+  * ✅ CORRETO: "Fale com advogado se quiser contestar"
+  * ❌ ERRADO: "Apresentar-se para cumprimento da medida"
+  * ✅ CORRETO: "Compareça ao local indicado no prazo"
+  * ❌ ERRADO: "Acompanhar andamento processual"
+  * ✅ CORRETO: "Acompanhe o processo pelo site do tribunal"
+  * ❌ ERRADO: "Aguardar intimação"
+  * ✅ CORRETO: "Aguarde contato do tribunal"
+  * ❌ ERRADO: "Cumprir obrigação de fazer"
+  * ✅ CORRETO: "Faça o que foi determinado na decisão"
 
   "tem_justica_gratuita": true|false,
   "trecho_justica_gratuita": "trecho literal ou vazio",
