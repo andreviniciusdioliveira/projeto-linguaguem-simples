@@ -385,6 +385,15 @@ IMPORTANTE:
 
 - **[Termo]**: Significa [explicação em 5-10 palavras]
 
+**PRIORIZE SEMPRE explicar estes termos comuns se aparecerem no documento:**
+- **Cumprimento da decisão**: Quando a decisão será colocada em prática
+- **Indenização**: Dinheiro que alguém deve pagar de volta
+- **Intimação**: Aviso oficial do tribunal para você
+- **Recurso**: Pedido para outros juízes reverem a decisão
+- **Trânsito em julgado**: Quando não dá mais para contestar
+- **Audiência**: Reunião no tribunal para falar sobre o processo
+- **Citação**: Primeira vez que o tribunal te avisa do processo
+
 **Não coloque mais de 7 termos!**
 
 ---
@@ -637,23 +646,28 @@ Analise o documento e retorne JSON com:
   "acao_necessaria": "Frase MUITO SIMPLES sobre o que fazer agora",
 
 **INSTRUÇÕES PARA acao_necessaria:**
-- Use linguagem de CONVERSA DIRETA, como se estivesse orientando um amigo
-- NÃO use termos técnicos como "cumprimento", "recursos", "trânsito em julgado"
-- Diga EXATAMENTE o que a pessoa deve fazer AGORA, de forma prática
-- Máximo 10 palavras
-- Exemplos:
+- Use linguagem de CONVERSA DIRETA, como se estivesse orientando um amigo ou familiar
+- NUNCA use palavras difíceis: "cumprimento", "recursos", "decisão judicial", "indenização", "intimação", "trânsito em julgado"
+- Diga EXATAMENTE o que a pessoa deve fazer AGORA, de forma ULTRA PRÁTICA
+- Máximo 8 palavras
+- Pense: "Como eu explicaria isso para minha avó?"
+- Exemplos PROIBIDOS e CORRETOS:
+  * ❌ ERRADO: "Aguardar cumprimento da decisão judicial"
+  * ❌ ERRADO: "Aguarde o cumprimento da decisão"
+  * ❌ ERRADO: "Aguarde o pagamento da indenização"
+  * ✅ CORRETO: "Aguarde - você vai receber automaticamente"
   * ❌ ERRADO: "Aguardar cumprimento da decisão ou informações sobre recursos"
-  * ✅ CORRETO: "Aguarde - a decisão será executada automaticamente"
+  * ✅ CORRETO: "Aguarde - será executado automaticamente"
   * ❌ ERRADO: "Verificar se cabe recurso e prazo"
-  * ✅ CORRETO: "Fale com advogado se quiser contestar"
+  * ✅ CORRETO: "Fale com advogado se discordar"
   * ❌ ERRADO: "Apresentar-se para cumprimento da medida"
-  * ✅ CORRETO: "Compareça ao local indicado no prazo"
+  * ✅ CORRETO: "Vá ao endereço indicado no prazo"
   * ❌ ERRADO: "Acompanhar andamento processual"
-  * ✅ CORRETO: "Acompanhe o processo pelo site do tribunal"
+  * ✅ CORRETO: "Acompanhe online no site do tribunal"
   * ❌ ERRADO: "Aguardar intimação"
-  * ✅ CORRETO: "Aguarde contato do tribunal"
+  * ✅ CORRETO: "Aguarde o tribunal te avisar"
   * ❌ ERRADO: "Cumprir obrigação de fazer"
-  * ✅ CORRETO: "Faça o que foi determinado na decisão"
+  * ✅ CORRETO: "Faça o que foi pedido na decisão"
 
   "tem_justica_gratuita": true|false,
   "trecho_justica_gratuita": "trecho literal ou vazio",
