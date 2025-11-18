@@ -294,10 +294,53 @@ IMPORTANTE: Explique o PORQUÊ da decisão de forma simples.
 
 **Valores mencionados:**
 
-✅ O QUE VOCÊ VAI GANHAR:
-- [Liste APENAS valores que estão EXPLÍCITOS no documento. Se não houver valores a receber, omita esta seção]
+✅ **O QUE VOCÊ VAI GANHAR:**
 
-❌ O QUE VOCÊ NÃO VAI GANHAR:
+**REGRA CRÍTICA - DISCRIMINAÇÃO DE VALORES:**
+- SEMPRE discrimine os valores por categoria quando o documento detalhar
+- NÃO agrupe valores diferentes em uma explicação genérica
+- Use a estrutura de lista detalhada abaixo
+
+**Estrutura obrigatória quando houver discriminação:**
+
+📋 **Danos Materiais: R$ X.XXX,XX**
+- [Descrição item 1]: R$ XXX,XX
+- [Descrição item 2]: R$ XXX,XX
+- [Descrição item N]: R$ XXX,XX
+
+📋 **Danos Morais: R$ X.XXX,XX**
+- Para [nome pessoa 1]: R$ X.XXX,XX
+- Para [nome pessoa 2]: R$ X.XXX,XX
+
+📋 **TOTAL GERAL: R$ XX.XXX,XX**
+
+**EXEMPLOS CORRETOS:**
+
+✅ **Exemplo 1 - Valores discriminados (PREFERÍVEL):**
+📋 **Danos Materiais: R$ 1.427,64**
+- Reembolso de passagens aéreas: R$ 1.362,14
+- Alimentação durante a viagem: R$ 65,50
+
+📋 **Danos Morais: R$ 6.000,00**
+- Para Thiago José de Arruda Oliveira: R$ 3.000,00
+- Para Kamilla Sousa Prado: R$ 3.000,00
+
+📋 **TOTAL GERAL: R$ 7.427,64**
+
+✅ **Exemplo 2 - Valor único (quando não há discriminação):**
+- Indenização por danos morais: R$ 5.000,00
+
+❌ **ERRADO - NÃO FAÇA ASSIM:**
+- "R$ 1.427,64 referente ao prejuízo com a compra das passagens"
+- "Valores relacionados a danos materiais: R$ 1.427,64"
+- "Este valor é para cobrir os custos da viagem"
+
+**Por que discriminar é importante:**
+- O cidadão tem direito de saber EXATAMENTE o que compõe cada valor
+- Facilita a conferência quando o pagamento for feito
+- Transparência total sobre a decisão judicial
+
+❌ **O QUE VOCÊ NÃO VAI GANHAR:**
 - [Liste valores negados. Se não houver, omita esta seção]
 
 **Sobre custas e honorários:**
@@ -587,10 +630,21 @@ Analise o documento e retorne JSON com:
   "valores_principais": {{
     "total_a_receber": "R$ XXX ou null",
     "danos_morais": "R$ XXX ou null",
+    "danos_morais_discriminado": [
+      {{"beneficiario": "Nome da Pessoa", "valor": "R$ XXX"}}
+    ],
     "danos_materiais": "R$ XXX ou null",
+    "danos_materiais_discriminado": [
+      {{"item": "Descrição do item", "valor": "R$ XXX"}}
+    ],
     "honorarios": "X% ou R$ XXX ou null",
     "custas": "quem paga ou null"
   }},
+
+**INSTRUÇÕES PARA VALORES DISCRIMINADOS:**
+- Se o documento detalha os valores (ex: "R$ 1.362,14 de passagens + R$ 65,50 de alimentação"), preencha os arrays "_discriminado"
+- Se o documento só menciona o total sem discriminação, deixe os arrays vazios []
+- Isso permite que o frontend exiba valores de forma detalhada quando possível
 
   "prazos": [
     {{"tipo": "recurso", "prazo": "15 dias", "destinatario": "para quem é o prazo", "finalidade": "para que serve"}},
@@ -679,6 +733,35 @@ Para outros tipos de documento, "cabe_recurso":
 
 - "prazo": Use APENAS se o documento mencionar prazo específico para recurso, senão use null
 - NUNCA escreva "Sim|Não|Consulte..." com todas as opções juntas - escolha apenas UMA
+
+**REGRAS CRÍTICAS PARA VALORES NO TEXTO SIMPLIFICADO:**
+
+1️⃣ **Discriminação Obrigatória:**
+   - Se o documento detalha valores (ex: "R$ 1.362,14 de passagens + R$ 65,50 de alimentação = R$ 1.427,64")
+   - Você DEVE manter essa discriminação no texto simplificado
+   - Use estrutura de lista com subitens
+
+2️⃣ **Exemplo Real Correto:**
+
+**Documento diz:**
+"R$ 1.362,14 de reembolso de passagens + R$ 65,50 de alimentação = total de R$ 1.427,64"
+
+**Texto simplificado DEVE dizer:**
+```
+📋 **Danos Materiais: R$ 1.427,64**
+- Reembolso de passagens aéreas: R$ 1.362,14
+- Alimentação durante a viagem: R$ 65,50
+```
+
+3️⃣ **NÃO simplifique demais:**
+   ❌ ERRADO: "R$ 1.427,64 para cobrir prejuízos"
+   ✅ CORRETO: Discriminação detalhada conforme exemplo acima
+
+4️⃣ **Sempre calcule e mostre totais:**
+   - Se há discriminação, mostre: subtotais + TOTAL GERAL
+   - Use emojis para destacar: 📋 para categorias, 💰 para total
+
+═══════════════════════════════════════════════════════════════════
 
 **LINGUAGEM SIMPLES PARA RECURSOS (campo "explicacao_simples"):**
 - NÃO use: "instâncias superiores", "revista por", "órgão superior"

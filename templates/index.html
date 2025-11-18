@@ -1589,6 +1589,50 @@
                 height: 16px;
             }
         }
+
+        /* Estilos para valores discriminados */
+        .valores-detalhados {
+            margin: 15px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .categoria-valor {
+            margin-bottom: 15px;
+        }
+
+        .categoria-valor h4 {
+            margin: 0 0 8px 0;
+            color: #2c5282;
+            font-size: 1.1em;
+        }
+
+        .categoria-valor ul {
+            margin: 8px 0 0 20px;
+            padding: 0;
+        }
+
+        .categoria-valor ul li {
+            margin: 4px 0;
+            color: #4a5568;
+        }
+
+        .total-valor {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 2px solid #2c5282;
+        }
+
+        .total-valor h3 {
+            margin: 0;
+            color: #2c5282;
+            font-size: 1.3em;
+        }
+
+        .categoria-valor p {
+            margin: 0;
+        }
     </style>
 </head>
 <body>
@@ -2834,6 +2878,51 @@
             section.style.display = 'block';
         }
 
+        // Função auxiliar para formatar valores discriminados
+        function formatarValoresDiscriminados(valores) {
+            let html = '<div class="valores-detalhados">';
+
+            // Danos Materiais
+            if (valores.danos_materiais_discriminado && valores.danos_materiais_discriminado.length > 0) {
+                html += '<div class="categoria-valor">';
+                html += '<h4>📋 Danos Materiais: ' + valores.danos_materiais + '</h4>';
+                html += '<ul>';
+                valores.danos_materiais_discriminado.forEach(item => {
+                    html += '<li>' + item.item + ': ' + item.valor + '</li>';
+                });
+                html += '</ul></div>';
+            } else if (valores.danos_materiais) {
+                html += '<div class="categoria-valor">';
+                html += '<p>📋 Danos Materiais: ' + valores.danos_materiais + '</p>';
+                html += '</div>';
+            }
+
+            // Danos Morais
+            if (valores.danos_morais_discriminado && valores.danos_morais_discriminado.length > 0) {
+                html += '<div class="categoria-valor">';
+                html += '<h4>📋 Danos Morais: ' + valores.danos_morais + '</h4>';
+                html += '<ul>';
+                valores.danos_morais_discriminado.forEach(item => {
+                    html += '<li>Para ' + item.beneficiario + ': ' + item.valor + '</li>';
+                });
+                html += '</ul></div>';
+            } else if (valores.danos_morais) {
+                html += '<div class="categoria-valor">';
+                html += '<p>📋 Danos Morais: ' + valores.danos_morais + '</p>';
+                html += '</div>';
+            }
+
+            // Total
+            if (valores.total_a_receber) {
+                html += '<div class="total-valor">';
+                html += '<h3>💰 TOTAL: ' + valores.total_a_receber + '</h3>';
+                html += '</div>';
+            }
+
+            html += '</div>';
+            return html;
+        }
+
         function showStructuredData(dados) {
             const section = document.getElementById('structuredDataSection');
             let html = '<div style="background: var(--light); padding: 1.5rem; border-radius: 8px;">';
@@ -2889,23 +2978,30 @@
                 html += '<div style="background: white; padding: 1rem; border-radius: 6px;">';
                 html += '<strong>💰 Valores:</strong><br>';
 
-                if (dados.valores.danos_morais) {
-                    html += `• Danos morais: R$ ${dados.valores.danos_morais}<br>`;
-                }
-                if (dados.valores.danos_materiais) {
-                    html += `• Danos materiais: R$ ${dados.valores.danos_materiais}<br>`;
-                }
-                if (dados.valores.lucros_cessantes) {
-                    html += `• Lucros cessantes: R$ ${dados.valores.lucros_cessantes}<br>`;
-                }
-                if (dados.valores.total) {
-                    html += `<br><strong style="color: var(--jus-dourado);">Total: ${dados.valores.total}</strong><br>`;
-                }
-                if (dados.valores.honorarios) {
-                    html += `• Honorários: ${dados.valores.honorarios}<br>`;
-                }
-                if (dados.valores.valor_causa) {
-                    html += `• Valor da causa: R$ ${dados.valores.valor_causa}`;
+                // Se houver valores discriminados, usar função formatarValoresDiscriminados
+                if ((dados.valores.danos_materiais_discriminado && dados.valores.danos_materiais_discriminado.length > 0) ||
+                    (dados.valores.danos_morais_discriminado && dados.valores.danos_morais_discriminado.length > 0)) {
+                    html += formatarValoresDiscriminados(dados.valores);
+                } else {
+                    // Formato antigo (sem discriminação)
+                    if (dados.valores.danos_morais) {
+                        html += `• Danos morais: ${dados.valores.danos_morais}<br>`;
+                    }
+                    if (dados.valores.danos_materiais) {
+                        html += `• Danos materiais: ${dados.valores.danos_materiais}<br>`;
+                    }
+                    if (dados.valores.lucros_cessantes) {
+                        html += `• Lucros cessantes: ${dados.valores.lucros_cessantes}<br>`;
+                    }
+                    if (dados.valores.total_a_receber) {
+                        html += `<br><strong style="color: var(--jus-dourado);">Total: ${dados.valores.total_a_receber}</strong><br>`;
+                    }
+                    if (dados.valores.honorarios) {
+                        html += `• Honorários: ${dados.valores.honorarios}<br>`;
+                    }
+                    if (dados.valores.valor_causa) {
+                        html += `• Valor da causa: ${dados.valores.valor_causa}`;
+                    }
                 }
 
                 html += '</div>';
