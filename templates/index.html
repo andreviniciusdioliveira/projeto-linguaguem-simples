@@ -2923,12 +2923,16 @@
 
             // Audiências
             if (dados.audiencias && dados.audiencias.length > 0) {
-                html += '<div style="background: white; padding: 1rem; border-radius: 6px; border-left: 4px solid var(--warning);">';
-                html += '<strong>📅 Audiências Marcadas:</strong><br>';
-                dados.audiencias.forEach(aud => {
-                    html += `• ${aud.data} às ${aud.hora}<br>`;
-                });
-                html += '</div>';
+                // Filtrar apenas audiências com data e hora válidas (não null)
+                const audienciasValidas = dados.audiencias.filter(aud => aud && aud.data && aud.hora);
+                if (audienciasValidas.length > 0) {
+                    html += '<div style="background: white; padding: 1rem; border-radius: 6px; border-left: 4px solid var(--warning);">';
+                    html += '<strong>📅 Audiências Marcadas:</strong><br>';
+                    audienciasValidas.forEach(aud => {
+                        html += `• ${aud.data} às ${aud.hora}<br>`;
+                    });
+                    html += '</div>';
+                }
             }
 
             // NOVO: Links de Audiência Online
