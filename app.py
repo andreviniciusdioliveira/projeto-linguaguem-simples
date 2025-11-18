@@ -58,25 +58,42 @@ try:
 except Exception as e:
     logging.error(f"❌ Erro ao inicializar banco de dados: {e}")
 
-# Modelos Gemini (ordem de prioridade - usar gemini-1.5-flash primeiro)
+# Modelos Gemini com fallback expandido (5 modelos para máxima disponibilidade)
 GEMINI_MODELS = [
     {
-        "name": "gemini-1.5-flash",
-        "urls": [
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
-        ],
+        "name": "gemini-2.5-flash-lite",
         "max_tokens": 8192,
         "max_input_tokens": 1000000,
-        "priority": 1
+        "priority": 1,
+        "description": "Modelo mais leve e rápido (menor chance de quota excedida)"
+    },
+    {
+        "name": "gemini-2.5-flash",
+        "max_tokens": 8192,
+        "max_input_tokens": 1000000,
+        "priority": 2,
+        "description": "Modelo flash versão 2.5"
+    },
+    {
+        "name": "gemini-1.5-flash",
+        "max_tokens": 8192,
+        "max_input_tokens": 1000000,
+        "priority": 3,
+        "description": "Modelo flash estável versão 1.5"
     },
     {
         "name": "gemini-2.0-flash-exp",
-        "urls": [
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent"
-        ],
         "max_tokens": 8192,
         "max_input_tokens": 1000000,
-        "priority": 2
+        "priority": 4,
+        "description": "Modelo experimental 2.0"
+    },
+    {
+        "name": "gemini-1.5-pro",
+        "max_tokens": 8192,
+        "max_input_tokens": 2000000,
+        "priority": 5,
+        "description": "Modelo Pro (mais robusto, fallback final)"
     }
 ]
 
@@ -96,6 +113,11 @@ CACHE_EXPIRATION = 3600
 
 # Estatísticas de uso dos modelos
 model_usage_stats = {model["name"]: {"attempts": 0, "successes": 0, "failures": 0} for model in GEMINI_MODELS}
+
+# Log dos modelos configurados
+logging.info(f"🤖 Sistema multi-modelo configurado com {len(GEMINI_MODELS)} modelos:")
+for idx, model in enumerate(sorted(GEMINI_MODELS, key=lambda x: x["priority"]), 1):
+    logging.info(f"  {idx}. {model['name']} (priority {model['priority']}) - {model.get('description', 'N/A')}")
 
 # ===== LGPD - Sistema de Limpeza Automática =====
 temp_files_tracker = {}
@@ -491,13 +513,17 @@ Responda EXATAMENTE neste formato:
 
     # Tentar cada modelo em ordem de prioridade
     modelos_ordenados = sorted(GEMINI_MODELS, key=lambda x: x["priority"])
+    total_modelos = len(modelos_ordenados)
     ultimo_erro = None
+    erros_por_modelo = {}
 
-    for modelo_config in modelos_ordenados:
+    logging.info(f"🔄 Sistema multi-modelo: {total_modelos} modelos disponíveis para fallback")
+
+    for idx, modelo_config in enumerate(modelos_ordenados, 1):
         modelo_nome = modelo_config["name"]
 
         try:
-            logging.info(f"🤖 Tentando análise completa com modelo: {modelo_nome}")
+            logging.info(f"🤖 [{idx}/{total_modelos}] Tentando modelo: {modelo_nome} - {modelo_config.get('description', '')}")
 
             # Criar modelo
             model = genai.GenerativeModel(modelo_nome)
@@ -560,27 +586,40 @@ Responda EXATAMENTE neste formato:
         except Exception as e:
             ultimo_erro = e
             erro_msg = str(e)
+            erros_por_modelo[modelo_nome] = erro_msg[:200]  # Salvar primeiros 200 chars do erro
 
             # Atualizar estatísticas de falha
             if modelo_nome in model_usage_stats:
                 model_usage_stats[modelo_nome]["attempts"] += 1
                 model_usage_stats[modelo_nome]["failures"] += 1
 
-            logging.error(f"❌ Falha com modelo {modelo_nome}: {erro_msg}")
-
-            # Se é erro de quota/rate limit, tentar próximo modelo
+            # Identificar tipo de erro
             if "quota" in erro_msg.lower() or "429" in erro_msg or "resource" in erro_msg.lower():
-                logging.warning(f"⚠️ Quota excedida no modelo {modelo_nome}, tentando próximo...")
-                continue
+                logging.error(f"❌ [{idx}/{total_modelos}] Quota excedida em {modelo_nome}")
+                if idx < total_modelos:
+                    logging.warning(f"⚠️ Tentando próximo modelo ({idx+1}/{total_modelos})...")
+            else:
+                logging.error(f"❌ [{idx}/{total_modelos}] Erro em {modelo_nome}: {erro_msg[:100]}")
+                if idx < total_modelos:
+                    logging.warning(f"⚠️ Tentando próximo modelo ({idx+1}/{total_modelos})...")
 
-            # Se é outro tipo de erro, tentar próximo modelo mesmo assim
-            logging.warning(f"⚠️ Erro no modelo {modelo_nome}, tentando próximo...")
             continue
 
     # Se chegou aqui, todos os modelos falharam
-    logging.error(f"❌ TODOS OS MODELOS FALHARAM. Último erro: {ultimo_erro}")
+    logging.error(f"❌ TODOS OS {total_modelos} MODELOS FALHARAM!")
+    logging.error(f"📊 Resumo de erros por modelo:")
+    for modelo, erro in erros_por_modelo.items():
+        logging.error(f"  - {modelo}: {erro}")
     logging.error(f"📊 Estatísticas dos modelos: {model_usage_stats}")
-    raise Exception(f"Todos os modelos Gemini falharam. Último erro: {ultimo_erro}")
+
+    # Mensagem de erro amigável
+    if all("quota" in err.lower() or "429" in err for err in erros_por_modelo.values()):
+        raise Exception(
+            "Todos os modelos Gemini atingiram o limite de quota. "
+            "Aguarde alguns minutos e tente novamente, ou verifique sua chave API."
+        )
+    else:
+        raise Exception(f"Erro ao processar documento com IA. Último erro: {ultimo_erro}")
 
 # ============= FUNÇÕES AUXILIARES =============
 
@@ -1084,13 +1123,29 @@ def get_stats():
 
 @app.route("/health")
 def health():
-    """Health check"""
+    """Health check com informações dos modelos"""
+    try:
+        stats = database.get_estatisticas()
+        total_docs = stats.get("total_documentos", 0)
+        today_docs = stats.get("documentos_hoje", 0)
+    except:
+        total_docs = 0
+        today_docs = 0
+
     return jsonify({
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
         "api_configured": bool(GEMINI_API_KEY),
-        "models_available": len(GEMINI_MODELS),
-        "tesseract_available": TESSERACT_AVAILABLE
+        "models": {
+            "total": len(GEMINI_MODELS),
+            "configured": [m["name"] for m in sorted(GEMINI_MODELS, key=lambda x: x["priority"])],
+            "usage_stats": model_usage_stats
+        },
+        "tesseract_available": TESSERACT_AVAILABLE,
+        "documents_processed": {
+            "total": total_docs,
+            "today": today_docs
+        }
     })
 
 @app.errorhandler(404)
