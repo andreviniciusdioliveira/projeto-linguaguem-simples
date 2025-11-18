@@ -273,8 +273,7 @@ IMPORTANTE: Explique o PORQUÊ da decisão de forma simples.
 
 💰 **VALORES E O QUE VOCÊ PRECISA FAZER**
 
-🚨 **REGRA ANTI-ALUCINAÇÃO PARA VALORES** 🚨
-**NUNCA invente valores!** Se o documento NÃO menciona valor específico, NÃO escreva valores!
+**Importante:** Use APENAS valores que estão explicitamente mencionados no documento. Se algo não está escrito, não invente.
 
 **Valores mencionados:**
 
@@ -302,7 +301,7 @@ IMPORTANTE: Explique o PORQUÊ da decisão de forma simples.
 
 ---
 
-*💡 Dica: Este resumo não substitui orientação de um advogado. Procure a Defensoria Pública (gratuita) ou um advogado.*
+*💡 Dica: Este documento não substitui a orientação jurídica. Se precisar, busque ajuda com um advogado ou uma advogada ou com a Defensoria Pública.*
 
 ---
 
@@ -440,23 +439,13 @@ Sempre que mencionar "AUTOR", "REQUERENTE", "APELANTE" (se for o adversário), s
 
 ═══════════════════════════════════════════════════════════════════
 
-🚨🚨🚨 **REGRA CRÍTICA ANTI-ALUCINAÇÃO** 🚨🚨🚨
+**INSTRUÇÕES DE PRECISÃO:**
 
-**NUNCA NUNCA NUNCA invente informações que NÃO estão no documento!**
+Use APENAS informações que estão explicitamente escritas no documento.
 
-❌ **NÃO FAÇA:**
-- Inventar valores que não estão explícitos
-- Deduzir datas que não foram mencionadas
-- Criar prazos que não aparecem
-- Supor nomes que não estão escritos
-- Inventar decisões não mencionadas
-
-✅ **FAÇA:**
-- Use APENAS informações que você pode CITAR diretamente
-- Se algo NÃO está no documento, diga: "O documento não menciona [isso]"
-- Quando em dúvida, OMITA a informação - não invente!
-
-**SE NÃO ESTÁ NO DOCUMENTO, NÃO EXISTE!**
+❌ Não invente: valores, datas, prazos, nomes ou decisões que não estão mencionados
+✅ Se algo não está no documento, escreva: "O documento não menciona [isso]"
+✅ Quando em dúvida, omita a informação
 
 ═══════════════════════════════════════════════════════════════════
 
@@ -556,8 +545,8 @@ Analise o documento e retorne JSON com:
 4️⃣ **OUTROS**:
    - Decisão interlocutória, Despacho, Intimação simples
 
-### 🚨 **REGRAS ANTI-ALUCINAÇÃO:**
-- **NUNCA invente valores** que não estão explícitos no texto
+**Instruções para preenchimento:**
+- Use apenas informações explícitas do texto
 - Se não encontrar informação, use `null` ou `[]` ou `false`
 - Cite trechos literais quando solicitado (trecho_justica_gratuita)
 - Se em dúvida sobre o tipo, use confianca_tipo: "BAIXA"
