@@ -474,7 +474,7 @@ def analisar_documento_completo_gemini(texto, perspectiva="nao_informado"):
 **INSTRUÇÕES ABSOLUTAS:**
 
 1️⃣ Use **"VOCÊ"** para se referir ao **AUTOR/REQUERENTE** do processo
-2️⃣ Use **"a outra parte"**, **"o réu"** ou **"o requerido"** para o ADVERSÁRIO
+2️⃣ Use o **NOME DO RÉU** diretamente (ex: "Empresa XYZ") ao invés de "a outra parte" quando mencionar contra quem você processou
 3️⃣ NUNCA troque essas referências!
 
 **EXEMPLOS OBRIGATÓRIOS:**
@@ -489,16 +489,18 @@ def analisar_documento_completo_gemini(texto, perspectiva="nao_informado"):
 ✅ CORRETO: "VOCÊ ganhou o processo..."
 
 ❌ ERRADO: "O Estado de Goiás deve pagar ao autor..."
-✅ CORRETO: "O Estado de Goiás deve pagar a VOCÊ..."
+❌ ERRADO: "A outra parte deve pagar a você..."
+✅ CORRETO: "O Estado de Goiás deve pagar a VOCÊ..." (use o nome do réu)
 
-**REGRA DE OURO:** 
+**REGRA DE OURO:**
 Sempre que o documento mencionar "AUTOR", "REQUERENTE", "APELANTE" (se for quem apelou primeiro), substitua por "VOCÊ".
-Sempre que mencionar "RÉU", "REQUERIDO", "APELADO" (se for o adversário), substitua por "a outra parte" ou mantenha o nome.
+Sempre que mencionar "RÉU", "REQUERIDO", "APELADO" (se for o adversário), USE O NOME COMPLETO do réu (não diga "a outra parte").
 
 **ATENÇÃO REDOBRADA EM:**
-- Seção "O QUE ESTÁ ACONTECENDO" → Diga "Você entrou com um processo pedindo..."
-- Seção "A DECISÃO DO JUIZ" → Diga "O juiz decidiu que VOCÊ..."
-- Seção "VALORES E O QUE VOCÊ PRECISA FAZER" → Diga "Você vai receber..." ou "Você deve pagar..."
+- Seção "O QUE ESTÁ ACONTECENDO" → Diga "Você entrou com um processo contra [NOME DO RÉU]..."
+- Seção "A DECISÃO DO JUIZ" → Diga "O juiz decidiu que [NOME DO RÉU] deve pagar a VOCÊ..." ou "O juiz decidiu que VOCÊ..."
+- Seção "VALORES E O QUE VOCÊ PRECISA FAZER" → Diga "Você vai receber de [NOME DO RÉU]..." ou "Você deve pagar..."
+- Use SEMPRE o nome do réu ao invés de "a outra parte" para evitar confusão
 '''
         
     elif perspectiva == "reu":
@@ -510,7 +512,7 @@ Sempre que mencionar "RÉU", "REQUERIDO", "APELADO" (se for o adversário), subs
 **INSTRUÇÕES ABSOLUTAS:**
 
 1️⃣ Use **"VOCÊ"** para se referir ao **RÉU/REQUERIDO** do processo
-2️⃣ Use **"a outra parte"**, **"o autor"** ou **"o requerente"** para o ADVERSÁRIO
+2️⃣ Use o **NOME DO AUTOR** diretamente (ex: "João Silva") ao invés de "a outra parte" quando mencionar quem processou você
 3️⃣ NUNCA troque essas referências!
 
 **EXEMPLOS OBRIGATÓRIOS:**
@@ -525,16 +527,38 @@ Sempre que mencionar "RÉU", "REQUERIDO", "APELADO" (se for o adversário), subs
 ✅ CORRETO: "VOCÊ foi absolvida..."
 
 ❌ ERRADO: "O autor entrou com processo contra o Estado..."
-✅ CORRETO: "A outra parte entrou com processo contra VOCÊ..."
+❌ ERRADO: "A outra parte entrou com processo contra você..."
+✅ CORRETO: "João Silva entrou com processo contra VOCÊ..." (use o nome do autor)
 
-**REGRA DE OURO:** 
+**REGRA DE OURO:**
 Sempre que o documento mencionar "RÉU", "REQUERIDO", "APELADO" (se for você), substitua por "VOCÊ".
-Sempre que mencionar "AUTOR", "REQUERENTE", "APELANTE" (se for o adversário), substitua por "a outra parte" ou mantenha o nome.
+Sempre que mencionar "AUTOR", "REQUERENTE", "APELANTE" (se for o adversário), USE O NOME COMPLETO da pessoa (não diga "a outra parte").
+
+**REGRAS CRÍTICAS ESPECÍFICAS PARA RÉU:**
+
+🚨 **TÍTULOS - NUNCA USE "VITÓRIA" PARA RÉU:**
+- Se réu foi TOTALMENTE condenado → "❌ DERROTA TOTAL - Você foi condenado"
+- Se réu foi PARCIALMENTE condenado → "⚠️ DERROTA PARCIAL - Você foi parcialmente condenado"
+- Se réu foi TOTALMENTE absolvido → "✅ VITÓRIA TOTAL - Você foi absolvido de tudo"
+- ❌ NUNCA diga "Você ganhou parte do que pediu" porque o RÉU NÃO PEDE nada, é o AUTOR que pede
+
+🚨 **VALORES - INVERTA A SEÇÃO:**
+Quando o réu foi condenado a pagar:
+- ❌ NÃO use: "✅ O QUE VOCÊ VAI GANHAR:"
+- ✅ USE: "❌ O QUE VOCÊ VAI PAGAR:"
+
+Quando o réu não foi condenado a pagar nada (ou foi absolvido):
+- ✅ USE: "✅ BOA NOTÍCIA - VOCÊ NÃO VAI PAGAR:"
+
+🚨 **FRASE RESUMO:**
+- ❌ ERRADO: "A outra parte deve pagar a você R$ 20.000,00"
+- ✅ CORRETO: "O juiz decidiu que você deve pagar R$ 20.000,00 a [NOME DO AUTOR]"
 
 **ATENÇÃO REDOBRADA EM:**
-- Seção "O QUE ESTÁ ACONTECENDO" → Diga "A outra parte entrou com um processo contra você..."
+- Seção "O QUE ESTÁ ACONTECENDO" → Use o nome do autor: "[NOME] entrou com um processo contra você..."
 - Seção "A DECISÃO DO JUIZ" → Diga "O juiz decidiu que VOCÊ..."
-- Seção "VALORES E O QUE VOCÊ PRECISA FAZER" → Diga "Você deve pagar..." ou "Você não precisa pagar..."
+- Seção "VALORES E O QUE VOCÊ PRECISA FAZER" → Se condenado, use "O QUE VOCÊ VAI PAGAR:" (não "ganhar")
+- Use SEMPRE o nome do autor ao invés de "a outra parte" para evitar confusão
 '''
         
     else:
@@ -625,7 +649,19 @@ Analise o documento e retorne JSON com:
     "reu": "Nome completo ou null"
   }},
 
-  "decisao_resumida": "1 frase: o que foi decidido",
+  "decisao_resumida": "1 frase SIMPLES: o que foi decidido",
+
+**INSTRUÇÕES PARA decisao_resumida:**
+- Use linguagem MUITO SIMPLES, como se estivesse falando com uma criança
+- NÃO use termos técnicos como "acolheu", "procedente", "improcedente", "parcialmente procedente"
+- Diga CLARAMENTE o resultado prático
+- Exemplos:
+  * ❌ ERRADO: "O juiz acolheu em parte os pedidos iniciais, condenando a requerida ao pagamento de danos materiais e morais"
+  * ✅ CORRETO: "O juiz decidiu que a empresa deve pagar indenização por danos materiais e morais"
+  * ❌ ERRADO: "Julgo parcialmente procedente o pedido"
+  * ✅ CORRETO: "O autor ganhou parte do que pediu"
+  * ❌ ERRADO: "Acolho a preliminar de ilegitimidade passiva"
+  * ✅ CORRETO: "O juiz decidiu que esta parte não deveria estar no processo"
 
   "valores_principais": {{
     "total_a_receber": "R$ XXX ou null",
