@@ -26,6 +26,8 @@ import subprocess
 import numpy as np
 import google.generativeai as genai
 import database
+# Importar gerador de PDF melhorado
+from gerador_pdf import gerar_pdf_simplificado as gerar_pdf_melhorado
 
 # Tentativa de importar OpenCV
 try:
@@ -1333,117 +1335,17 @@ def extrair_texto_pdf(pdf_bytes):
 # ============= GERAÇÃO DE PDF =============
 
 def gerar_pdf_simplificado(texto, metadados=None, filename="documento_simplificado.pdf"):
-    """Gera PDF com formatação"""
+    """Gera PDF com formatação aprimorada usando o novo gerador"""
     output_path = os.path.join(TEMP_DIR, filename)
 
     try:
-        c = canvas.Canvas(output_path, pagesize=letter)
-        largura, altura = letter
-
-        margem_esq = 50
-        margem_dir = 50
-        margem_top = 50
-        margem_bottom = 50
-        largura_texto = largura - margem_esq - margem_dir
-        altura_linha = 14
-
-        y = altura - margem_top
-
-        # Cabeçalho
-        c.setFont("Helvetica-Bold", 16)
-        c.drawString(margem_esq, y, "Documento em Linguagem Simples")
-        y -= 30
-
-        # Informações
-        c.setFont("Helvetica", 9)
-        c.setFillColorRGB(0.5, 0.5, 0.5)
-        c.drawString(margem_esq, y, f"Gerado em: {datetime.now().strftime('%d/%m/%Y às %H:%M')}")
-        y -= 15
-
-        if metadados:
-            if metadados.get("modelo"):
-                c.drawString(margem_esq, y, f"Processado com: {metadados['modelo']}")
-                y -= 15
-            if metadados.get("tipo_documento"):
-                c.drawString(margem_esq, y, f"Tipo: {metadados['tipo_documento'].upper()}")
-                y -= 15
-            if metadados.get("confianca"):
-                c.drawString(margem_esq, y, f"Confiança: {metadados['confianca']}")
-                y -= 15
-
-        c.setStrokeColorRGB(0.8, 0.8, 0.8)
-        c.line(margem_esq, y, largura - margem_dir, y)
-        y -= 20
-
-        # Processar texto
-        c.setFont("Helvetica", 11)
-        c.setFillColorRGB(0, 0, 0)
-
-        linhas = texto.split('\n')
-
-        for linha in linhas:
-            if not linha.strip():
-                y -= altura_linha
-                continue
-
-            # Detectar títulos
-            if any(icon in linha for icon in ['✅', '❌', '⚠️', '📊', '📑', '⚖️', '💰', '📅', '💡']):
-                c.setFont("Helvetica-Bold", 12)
-                linha_limpa = linha.replace('**', '')
-                if y < margem_bottom + altura_linha * 2:
-                    c.showPage()
-                    y = altura - margem_top
-                c.drawString(margem_esq, y, linha_limpa)
-                c.setFont("Helvetica", 11)
-                y -= altura_linha * 1.5
-                continue
-
-            if linha.strip().startswith('**') and linha.strip().endswith('**'):
-                titulo = linha.strip()[2:-2]
-                c.setFont("Helvetica-Bold", 12)
-                if y < margem_bottom + altura_linha * 2:
-                    c.showPage()
-                    y = altura - margem_top
-                c.drawString(margem_esq, y, titulo)
-                c.setFont("Helvetica", 11)
-                y -= altura_linha * 1.5
-                continue
-
-            # Quebra de linha
-            palavras = linha.split()
-            linha_atual = []
-
-            for palavra in palavras:
-                linha_teste = ' '.join(linha_atual + [palavra])
-                if c.stringWidth(linha_teste, "Helvetica", 11) <= largura_texto:
-                    linha_atual.append(palavra)
-                else:
-                    if linha_atual:
-                        if y < margem_bottom + altura_linha:
-                            c.showPage()
-                            y = altura - margem_top
-                        c.drawString(margem_esq, y, ' '.join(linha_atual))
-                        y -= altura_linha
-                        linha_atual = [palavra]
-
-            if linha_atual:
-                if y < margem_bottom + altura_linha:
-                    c.showPage()
-                    y = altura - margem_top
-                c.drawString(margem_esq, y, ' '.join(linha_atual))
-                y -= altura_linha
-
-        # Rodapé
-        c.setFont("Helvetica", 8)
-        c.setFillColorRGB(0.6, 0.6, 0.6)
-        c.drawString(margem_esq, 30, "Desenvolvido pela INOVASSOL - TJTO")
-
-        c.save()
+        # Usar o novo gerador de PDF melhorado
+        gerar_pdf_melhorado(texto, metadados, output_path)
         registrar_arquivo_temporario(output_path, session_id=session.get('session_id'))
         return output_path
 
     except Exception as e:
-        logging.error(f"Erro ao gerar PDF: {e}")
+        logging.error(f"❌ Erro ao gerar PDF: {e}")
         raise
 
 # ============= ROTAS =============
