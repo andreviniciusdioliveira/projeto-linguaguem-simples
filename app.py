@@ -246,10 +246,32 @@ Se for PROCESSO DE ATO INFRACIONAL (ECA):
 → Escreva apenas: "⚖️ DECISÃO SOBRE ATO INFRACIONAL"
 
 Se for SENTENÇA/ACÓRDÃO/DECISÃO CÍVEL/TRABALHISTA:
-→ Escolha UM destes:
-  "✅ VITÓRIA TOTAL - Você ganhou tudo que pediu"
-  "❌ DERROTA - Você perdeu"
-  "⚠️ VITÓRIA PARCIAL - Você ganhou parte do que pediu"
+→ Escolha UM destes (adapte conforme a perspectiva):
+
+  **Para AUTOR que ganhou tudo:**
+  "✅ CONSEGUIU O QUE PEDIU"
+
+  **Para AUTOR que ganhou parte:**
+  "🟡 CONSEGUIU PARTE DO QUE PEDIU"
+
+  **Para AUTOR que perdeu:**
+  "❌ NÃO CONSEGUIU O QUE PEDIU"
+
+  **Para RÉU que foi totalmente absolvido:**
+  "✅ VITÓRIA TOTAL - Você foi absolvido de tudo"
+
+  **Para RÉU que foi parcialmente condenado:**
+  "🟡 CONDENAÇÃO PARCIAL"
+
+  **Para RÉU que foi totalmente condenado:**
+  "⚪ PEDIDO NEGADO - Você foi condenado"
+
+  **Para perspectiva NEUTRA:**
+  "✅ VITÓRIA TOTAL"
+  "🟡 VITÓRIA PARCIAL"
+  "⚪ PEDIDO NEGADO"
+
+  **Outros estados:**
   "⏳ AGUARDANDO JULGAMENTO - Ainda não foi decidido"
   "📋 ANDAMENTO DO PROCESSO - Apenas uma movimentação"
 
@@ -649,11 +671,11 @@ Sempre que mencionar "AUTOR", "REQUERENTE", "APELANTE" (se for o adversário), U
 
 **REGRAS CRÍTICAS ESPECÍFICAS PARA RÉU:**
 
-🚨 **TÍTULOS - NUNCA USE "VITÓRIA" PARA RÉU:**
-- Se réu foi TOTALMENTE condenado → "❌ DERROTA TOTAL - Você foi condenado"
-- Se réu foi PARCIALMENTE condenado → "⚠️ DERROTA PARCIAL - Você foi parcialmente condenado"
+🚨 **TÍTULOS - ADAPTADOS PARA RÉU:**
+- Se réu foi TOTALMENTE condenado → "⚪ PEDIDO NEGADO - Você foi condenado"
+- Se réu foi PARCIALMENTE condenado → "🟡 CONDENAÇÃO PARCIAL"
 - Se réu foi TOTALMENTE absolvido → "✅ VITÓRIA TOTAL - Você foi absolvido de tudo"
-- ❌ NUNCA diga "Você ganhou parte do que pediu" porque o RÉU NÃO PEDE nada, é o AUTOR que pede
+- ❌ NUNCA diga "Você conseguiu parte do que pediu" porque o RÉU NÃO PEDE nada, é o AUTOR que pede
 
 🚨 **VALORES - INVERTA A SEÇÃO:**
 Quando o réu foi condenado a pagar:
