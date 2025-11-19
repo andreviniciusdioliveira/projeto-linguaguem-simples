@@ -197,9 +197,10 @@ def criar_estilos():
         leading=14,
         alignment=TA_JUSTIFY,
         spaceAfter=6,
+        leftIndent=10,
         fontName='Helvetica'
     ))
-    
+
     # Estilo para destaques
     styles.add(ParagraphStyle(
         name='Destaque',
@@ -208,7 +209,8 @@ def criar_estilos():
         leading=14,
         textColor=JUS_AZUL,
         fontName='Helvetica-Bold',
-        spaceAfter=6
+        spaceAfter=6,
+        leftIndent=10
     ))
     
     # Estilo para observações
@@ -443,6 +445,7 @@ def gerar_pdf_simplificado(texto, metadados=None, output_path='documento_simplif
         # AVISO INICIAL DESTACADO
         aviso_table = Table(
             [[Paragraph(
+                '<b>AVISO IMPORTANTE</b><br/>'
                 'Este documento foi simplificado usando Inteligencia Artificial. '
                 'Para orientacao juridica completa, consulte um advogado ou a Defensoria Publica.',
                 styles['Observacao']
