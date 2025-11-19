@@ -183,12 +183,12 @@ def criar_estilos():
         parent=styles['Heading2'],
         fontSize=14,
         textColor=JUS_VINHO,
-        spaceAfter=10,
-        spaceBefore=12,
+        spaceAfter=6,
+        spaceBefore=10,
         fontName='Helvetica-Bold',
         leftIndent=0
     ))
-    
+
     # Estilo para corpo do texto
     styles.add(ParagraphStyle(
         name='CorpoTexto',
@@ -196,7 +196,7 @@ def criar_estilos():
         fontSize=10,
         leading=14,
         alignment=TA_JUSTIFY,
-        spaceAfter=8,
+        spaceAfter=6,
         fontName='Helvetica'
     ))
     
@@ -250,9 +250,8 @@ def processar_markdown_para_pdf(texto, styles):
     while i < len(linhas):
         linha = linhas[i].strip()
         
-        # Pular linhas vazias (mas adicionar espaço)
+        # Pular linhas vazias (sem adicionar espaço extra - já controlado pelos estilos)
         if not linha:
-            elementos.append(Spacer(1, 0.2*cm))
             i += 1
             continue
         
@@ -286,7 +285,6 @@ def processar_markdown_para_pdf(texto, styles):
 
             # Adicionar linha sem os emojis
             elementos.append(Paragraph(f'<b>{texto_limpo}</b>', styles['Secao']))
-            elementos.append(Spacer(1, 0.3*cm))
         
         # Detectar negrito (**texto**)
         elif '**' in linha:
@@ -296,6 +294,10 @@ def processar_markdown_para_pdf(texto, styles):
         # Detectar listas (começam com -)
         elif linha.startswith('-') or linha.startswith('•'):
             texto_limpo = limpar_markdown(linha.lstrip('-•').strip())
+            # Ignorar bullets vazios (apenas o símbolo sem texto)
+            if not texto_limpo:
+                i += 1
+                continue
             # Adicionar bullet point
             texto_com_bullet = f"• {texto_limpo}"
             elementos.append(Paragraph(texto_com_bullet, styles['ItemLista']))
@@ -436,7 +438,7 @@ def gerar_pdf_simplificado(texto, metadados=None, output_path='documento_simplif
                 ])
             )
             story.append(resultado_table)
-            story.append(Spacer(1, 0.8*cm))
+            story.append(Spacer(1, 0.5*cm))
 
         # AVISO INICIAL DESTACADO
         aviso_table = Table(
@@ -449,14 +451,14 @@ def gerar_pdf_simplificado(texto, metadados=None, output_path='documento_simplif
             style=TableStyle([
                 ('BACKGROUND', (0,0), (-1,-1), colors.Color(1, 0.95, 0.8, alpha=0.3)),
                 ('BOX', (0,0), (-1,-1), 1, JUS_DOURADO),
-                ('TOPPADDING', (0,0), (-1,-1), 8),
-                ('BOTTOMPADDING', (0,0), (-1,-1), 8),
+                ('TOPPADDING', (0,0), (-1,-1), 6),
+                ('BOTTOMPADDING', (0,0), (-1,-1), 6),
                 ('LEFTPADDING', (0,0), (-1,-1), 10),
                 ('RIGHTPADDING', (0,0), (-1,-1), 10),
             ])
         )
         story.append(aviso_table)
-        story.append(Spacer(1, 0.8*cm))
+        story.append(Spacer(1, 0.5*cm))
         
         # Processar texto completo
         elementos_texto = processar_markdown_para_pdf(texto, styles)
