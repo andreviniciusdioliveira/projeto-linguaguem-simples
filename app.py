@@ -439,7 +439,7 @@ Se o documento só diz "R$ 5.000,00 de danos materiais" SEM detalhes:
 ```
 📋 **Danos Materiais: R$ 1.427,64**
 - Reembolso de passagens: R$ 1.362,14
-- Alimentação: R$ 65,50
+- Reembolso de alimentação: R$ 65,50
 ```
 
 ═══════════════════════════════════════════════════════════════════
