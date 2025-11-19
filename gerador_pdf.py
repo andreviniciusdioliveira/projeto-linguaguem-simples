@@ -71,10 +71,10 @@ class HeaderFooterCanvas(canvas.Canvas):
     def draw_header_footer(self, page_num, page_count):
         """Desenha cabeçalho e rodapé em cada página"""
         page_width, page_height = A4
-        
+
         # CABEÇALHO
         self.saveState()
-        
+
         # Linha superior colorida (cores JUS)
         self.setFillColor(JUS_VINHO)
         self.rect(0, page_height - 1.5*cm, page_width/3, 0.3*cm, fill=True, stroke=False)
@@ -82,18 +82,38 @@ class HeaderFooterCanvas(canvas.Canvas):
         self.rect(page_width/3, page_height - 1.5*cm, page_width/3, 0.3*cm, fill=True, stroke=False)
         self.setFillColor(JUS_DOURADO)
         self.rect(2*page_width/3, page_height - 1.5*cm, page_width/3, 0.3*cm, fill=True, stroke=False)
-        
-        # Título do documento
+
+        # Logo JUS (esquerda)
+        logo_jus_path = 'static/avatar.png'
+        if os.path.exists(logo_jus_path):
+            try:
+                self.drawImage(logo_jus_path, 1.5*cm, page_height - 2.8*cm,
+                              width=1.2*cm, height=1.2*cm,
+                              preserveAspectRatio=True, mask='auto')
+            except Exception as e:
+                logging.warning(f"⚠️ Não foi possível carregar logo JUS: {e}")
+
+        # Título do documento (centro)
         self.setFont('Helvetica-Bold', 12)
         self.setFillColor(JUS_AZUL)
         self.drawCentredString(page_width/2, page_height - 2.2*cm, "Documento em Linguagem Simples")
-        
+
         # Subtítulo
         self.setFont('Helvetica', 8)
         self.setFillColor(colors.grey)
-        self.drawCentredString(page_width/2, page_height - 2.6*cm, 
+        self.drawCentredString(page_width/2, page_height - 2.6*cm,
                               "Desenvolvido pelo INOVASSOL - Centro de Inovação do TJTO")
-        
+
+        # Logo INOVASSOL (direita)
+        logo_inovassol_path = 'static/inovassol.png'
+        if os.path.exists(logo_inovassol_path):
+            try:
+                self.drawImage(logo_inovassol_path, page_width - 2.7*cm, page_height - 2.8*cm,
+                              width=1.2*cm, height=1.2*cm,
+                              preserveAspectRatio=True, mask='auto')
+            except Exception as e:
+                logging.warning(f"⚠️ Não foi possível carregar logo INOVASSOL: {e}")
+
         # Linha separadora
         self.setStrokeColor(colors.lightgrey)
         self.setLineWidth(0.5)
@@ -229,11 +249,30 @@ def processar_markdown_para_pdf(texto, styles):
             i += 1
             continue
         
-        # Detectar emojis de seção (📊, 📑, ⚖️, 💰, etc)
-        if any(emoji in linha for emoji in ['📊', '📑', '⚖️', '💰', '📅', '✅', '❌', '⚠️', '🟡', '⚪']):
-            # Título de seção
-            texto_limpo = limpar_markdown(linha)
-            elementos.append(Paragraph(texto_limpo, styles['Secao']))
+        # Detectar emojis de seção e adicionar ícone visual
+        emoji_map = {
+            '📊': '[RESULTADO]',
+            '📑': '[CONTEXTO]',
+            '⚖️': '[DECISÃO]',
+            '💰': '[VALORES]',
+            '📅': '[PRAZOS]',
+            '✅': '[OK]',
+            '❌': '[X]',
+            '⚠️': '[!]',
+            '🟡': '[!]',
+            '⚪': '[-]',
+            '📋': '»',
+            '💡': '[DICA]',
+            '📚': '[GLOSSÁRIO]'
+        }
+
+        if any(emoji in linha for emoji in emoji_map.keys()):
+            # Título de seção com ícone textual
+            texto_limpo = linha
+            for emoji, icone in emoji_map.items():
+                texto_limpo = texto_limpo.replace(emoji, icone)
+            texto_limpo = limpar_markdown(texto_limpo)
+            elementos.append(Paragraph(f'<b>{texto_limpo}</b>', styles['Secao']))
             elementos.append(Spacer(1, 0.3*cm))
         
         # Detectar negrito (**texto**)
@@ -338,11 +377,58 @@ def gerar_pdf_simplificado(texto, metadados=None, output_path='documento_simplif
         
         # Lista de elementos do PDF
         story = []
-        
+
+        # DETECTAR TIPO DE RESULTADO (do texto simplificado)
+        resultado_texto = ""
+        cor_resultado = JUS_AZUL
+
+        if 'CONSEGUIU O QUE PEDIU' in texto and 'PARTE' not in texto:
+            resultado_texto = "CONSEGUIU O QUE PEDIU"
+            cor_resultado = colors.HexColor('#34a853')  # Verde
+        elif 'CONSEGUIU PARTE DO QUE PEDIU' in texto:
+            resultado_texto = "CONSEGUIU PARTE DO QUE PEDIU"
+            cor_resultado = colors.HexColor('#fbbc04')  # Laranja
+        elif 'NÃO CONSEGUIU O QUE PEDIU' in texto:
+            resultado_texto = "NÃO CONSEGUIU O QUE PEDIU"
+            cor_resultado = colors.HexColor('#ea4335')  # Vermelho
+        elif 'PEDIDO NEGADO' in texto:
+            resultado_texto = "PEDIDO NEGADO"
+            cor_resultado = colors.HexColor('#9e9e9e')  # Cinza
+        else:
+            resultado_texto = "Entenda Aqui"
+            cor_resultado = JUS_AZUL
+
+        # CAIXA DE RESULTADO DESTACADA
+        if resultado_texto:
+            resultado_table = Table(
+                [[Paragraph(
+                    f'<b>{resultado_texto}</b>',
+                    ParagraphStyle(
+                        name='ResultadoStyle',
+                        parent=styles['Normal'],
+                        fontSize=16,
+                        textColor=colors.white,
+                        alignment=TA_CENTER,
+                        fontName='Helvetica-Bold'
+                    )
+                )]],
+                colWidths=[16*cm],
+                style=TableStyle([
+                    ('BACKGROUND', (0,0), (-1,-1), cor_resultado),
+                    ('TOPPADDING', (0,0), (-1,-1), 15),
+                    ('BOTTOMPADDING', (0,0), (-1,-1), 15),
+                    ('LEFTPADDING', (0,0), (-1,-1), 15),
+                    ('RIGHTPADDING', (0,0), (-1,-1), 15),
+                    ('ROUNDEDCORNERS', [8, 8, 8, 8]),
+                ])
+            )
+            story.append(resultado_table)
+            story.append(Spacer(1, 0.8*cm))
+
         # AVISO INICIAL DESTACADO
         aviso_table = Table(
             [[Paragraph(
-                '<b>⚠️ AVISO IMPORTANTE</b><br/>'
+                '<b>AVISO IMPORTANTE</b><br/>'
                 'Este documento foi simplificado usando Inteligência Artificial. '
                 'Para orientação jurídica adequada, consulte um(a) advogado(a) ou a Defensoria Pública.',
                 styles['Observacao']
