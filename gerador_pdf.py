@@ -267,18 +267,17 @@ def processar_markdown_para_pdf(texto, styles):
         }
 
         if any(emoji in linha for emoji in emoji_map.keys()):
-            # Título de seção com ícone textual
+            # Remover emojis da linha (converter para string vazia, não para ícones)
             texto_limpo = linha
-            for emoji, icone in emoji_map.items():
-                texto_limpo = texto_limpo.replace(emoji, icone)
+            for emoji in emoji_map.keys():
+                texto_limpo = texto_limpo.replace(emoji, '')
             texto_limpo = limpar_markdown(texto_limpo).strip()
 
-            # Ignorar linhas que são apenas ícones sem texto significativo
-            icones_sozinhos = ['[RESULTADO]', '[CONTEXTO]', '[DECISÃO]', '[VALORES]',
-                              '[PRAZOS]', '[OK]', '[X]', '[!]', '[-]', '»', '[DICA]', '[GLOSSÁRIO]']
-            if texto_limpo in icones_sozinhos:
+            # Ignorar linhas vazias ou com apenas espaços
+            if not texto_limpo:
                 continue
 
+            # Adicionar linha sem os emojis
             elementos.append(Paragraph(f'<b>{texto_limpo}</b>', styles['Secao']))
             elementos.append(Spacer(1, 0.3*cm))
         
