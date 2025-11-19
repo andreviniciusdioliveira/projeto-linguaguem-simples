@@ -370,9 +370,18 @@ IMPORTANTE:
 
 ✅ **O QUE VOCÊ VAI GANHAR:**
 
-**🚨 REGRAS CRÍTICAS PARA DISCRIMINAÇÃO DE VALORES - LEIA COM ATENÇÃO 🚨**
+**🚨 REGRA CRÍTICA #1 - JUSTIÇA GRATUITA:**
+
+**❌ NÃO MOSTRE HONORÁRIOS/CUSTAS NESTA SEÇÃO SE TEM JUSTIÇA GRATUITA!**
+
+- Se `tem_justica_gratuita` = true → NÃO inclua honorários ou custas nesta seção de valores
+- Honorários e custas serão mencionados APENAS na seção "Sobre custas e honorários" (mais abaixo)
+- Exemplo ERRADO: "• Honorários: 10% do valor da condenação (devido pelo autor)" ← NÃO FAÇA ISSO!
+- Exemplo CORRETO: Não mencionar honorários aqui, só os valores que a pessoa VAI RECEBER (danos morais, materiais, etc)
 
 ═══════════════════════════════════════════════════════════════════
+
+**🚨 REGRA CRÍTICA #2 - DISCRIMINAÇÃO DE VALORES:**
 
 **REGRA ABSOLUTA:**
 Quando o documento discrimina valores (ex: "R$ 1.362,14 de passagens + R$ 65,50 de alimentação"),
@@ -470,12 +479,10 @@ Se o documento só diz "R$ 5.000,00 de danos materiais" SEM detalhes:
 ```
 (Neste caso, NÃO invente discriminação - use apenas o total)
 
-**Exemplo 4 - Honorários discriminados:**
-```
-📋 **Honorários Advocatícios: R$ 3.500,00**
-- Honorários de sucumbência: R$ 2.000,00
-- Honorários contratuais: R$ 1.500,00
-```
+**Exemplo 4 - Honorários e custas:**
+⚠️ IMPORTANTE: Honorários e custas NÃO vão nesta seção "O QUE VOCÊ VAI GANHAR"!
+- Se tem justiça gratuita: NÃO mencione aqui, será tratado em "Sobre custas e honorários"
+- Se NÃO tem justiça gratuita: AINDA ASSIM não inclua aqui (vai na seção específica abaixo)
 
 ═══════════════════════════════════════════════════════════════════
 
@@ -514,31 +521,37 @@ Se você respondeu SIM para todas, está correto! ✅
 
 **Sobre custas e honorários:**
 
-REGRAS PARA JUSTIÇA GRATUITA (MUITO IMPORTANTE - LEIA COM ATENÇÃO):
+🚨 **REGRA SIMPLES E DEFINITIVA:**
 
-1. **Se tem justiça gratuita E menciona "suspendo a exigibilidade", "art. 98, §3º, CPC" ou similar:**
-   → Escreva APENAS: "Você NÃO vai pagar custas e honorários porque tem justiça gratuita."
-   → NÃO mencione valores de condenação
-   → NÃO use "no entanto", "mas", "porém"
-   → A suspensão da exigibilidade significa que o autor está ISENTO
+**Se tem justiça gratuita (`tem_justica_gratuita` = true):**
+→ Escreva SEMPRE E SOMENTE: "Você NÃO vai pagar custas e honorários porque tem justiça gratuita."
+→ PONTO FINAL. Não adicione mais nada.
+→ NÃO mencione valores
+→ NÃO mencione "suspenso", "agora", "futuramente", "mas", "porém"
+→ Justiça gratuita = ISENTO (não paga, ponto final)
 
-2. **Se tem justiça gratuita E não há menção de condenação ao pagamento:**
-   → "Você NÃO vai pagar custas e honorários porque tem justiça gratuita."
+**Se NÃO tem justiça gratuita (`tem_justica_gratuita` = false):**
+→ Liste os valores que a pessoa deve pagar
+→ Exemplo: "Você deve pagar R$ 500,00 de custas e R$ 1.000,00 de honorários."
 
-3. **Se tem justiça gratuita COM condenação E suspensão da exigibilidade (caso especial):**
-   → "Você tem justiça gratuita. Esse pagamento está SUSPENSO, ou seja, você NÃO precisa pagar agora."
-   → NÃO mencione "se situação melhorar" ou "no futuro"
-   → Use linguagem clara e SEM contradições
-   → SUSPENSO = NÃO paga agora
+═══════════════════════════════════════════════════════════════════
 
-4. **Se NÃO tem justiça gratuita:**
-   → Liste claramente os valores a pagar
+**❌ PROIBIDO quando tem justiça gratuita:**
+- "Você tem justiça gratuita. Esse pagamento está SUSPENSO..." ← ERRADO!
+- "Você NÃO precisa pagar agora" ← ERRADO! (sugere que pode pagar depois)
+- "Esse valor está suspenso até que sua situação melhore" ← ERRADO!
+- Mencionar valores de honorários/custas ← ERRADO!
 
-IMPORTANTE:
-- NUNCA use a palavra "encargos" - use sempre "custas e honorários"
-- EVITE contradições como "tem gratuita MAS deve pagar" - explique que está SUSPENSO
-- Se for MANDADO ou CITAÇÃO, só mencione valores se estiverem explícitos no documento original
-- Quando há suspensão de exigibilidade = pessoa NÃO paga agora (mesmo que haja condenação no papel)
+**✅ CORRETO quando tem justiça gratuita:**
+- "Você NÃO vai pagar custas e honorários porque tem justiça gratuita." ← Simples, claro, definitivo
+
+**Por quê essa mudança?**
+- A palavra "SUSPENSO" confunde as pessoas
+- Justiça gratuita = pessoa está ISENTA do pagamento
+- Mesmo se o documento mencionar "suspensão da exigibilidade", para o cidadão comum significa: NÃO VAI PAGAR
+- Melhor ser direto e claro do que tecnicamente preciso e confuso
+
+═══════════════════════════════════════════════════════════════════
 
 **Próximos passos:**
 [O que você deve fazer agora? Seja ESPECÍFICO e PRÁTICO]
@@ -940,6 +953,31 @@ Analise o documento e retorne JSON com:
     "honorarios": "X% ou R$ XXX ou null",
     "custas": "quem paga ou null"
   }},
+
+**🚨 INSTRUÇÕES CRÍTICAS PARA HONORÁRIOS E CUSTAS (LEIA COM ATENÇÃO):**
+
+**REGRA ABSOLUTA:**
+- Se `tem_justica_gratuita` = true → SEMPRE use:
+  * "honorarios": "Isento (justiça gratuita)"
+  * "custas": "Isento (justiça gratuita)"
+
+- Se `tem_justica_gratuita` = false:
+  * Preencha normalmente com valores ou percentuais
+
+**❌ NUNCA faça isso quando tem justiça gratuita:**
+- "honorarios": "10% do valor da condenação (devido pelo autor)" ← ERRADO!
+- "honorarios": "R$ 3.000,00 a pagar" ← ERRADO!
+
+**✅ SEMPRE faça isso quando tem justiça gratuita:**
+- "honorarios": "Isento (justiça gratuita)" ← CORRETO!
+- "custas": "Isento (justiça gratuita)" ← CORRETO!
+
+**Por quê?**
+- Justiça gratuita = pessoa NÃO paga custas e honorários
+- Mesmo se houver "suspensão da exigibilidade" = pessoa está ISENTA
+- O frontend vai mostrar isso na seção de valores, então deve estar claro que NÃO há pagamento
+
+═══════════════════════════════════════════════════════════════════
 
 **INSTRUÇÕES PARA VALORES DISCRIMINADOS:**
 - Se o documento detalha os valores (ex: "R$ 1.362,14 de passagens + R$ 65,50 de alimentação"), preencha os arrays "_discriminado"
