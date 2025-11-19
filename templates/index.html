@@ -1740,6 +1740,214 @@
                 font-size: 0.75rem;
             }
         }
+
+        /* ===== SCROLL CONTAINER COM DETECÇÃO ===== */
+        .scroll-container {
+            max-height: 70vh;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 1.5rem;
+            background: var(--light);
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+            position: relative;
+            scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* Scroll customizado */
+        .scroll-container::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .scroll-container::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+
+        body.dark-mode .scroll-container::-webkit-scrollbar-track {
+            background: #2d2d2d;
+        }
+
+        .scroll-container::-webkit-scrollbar-thumb {
+            background: var(--jus-dourado);
+            border-radius: 10px;
+        }
+
+        .scroll-container::-webkit-scrollbar-thumb:hover {
+            background: var(--jus-azul);
+        }
+
+        /* Marcador invisível para detectar fim do scroll */
+        .scroll-sentinel {
+            height: 1px;
+            width: 100%;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        /* ===== BOTÕES DE AÇÃO COM ANIMAÇÃO ===== */
+        .action-buttons {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin-bottom: 1.5rem;
+            padding: 1.5rem;
+            background: linear-gradient(135deg,
+                rgba(109, 41, 50, 0.05) 0%,
+                rgba(44, 79, 94, 0.05) 50%,
+                rgba(184, 150, 60, 0.05) 100%
+            );
+            border-radius: 12px;
+            opacity: 1;
+            transform: translateY(0);
+            transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* Estado oculto dos botões */
+        .action-buttons.hidden-actions {
+            opacity: 0;
+            transform: translateY(30px);
+            pointer-events: none;
+            max-height: 0;
+            overflow: hidden;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* Animação de entrada dos botões */
+        @keyframes slideInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .action-buttons.show-actions {
+            animation: slideInUp 0.6s ease-out forwards;
+        }
+
+        /* Botão individual */
+        .btn-action {
+            flex: 1;
+            min-width: 150px;
+        }
+
+        /* Botão WhatsApp especial */
+        .btn-whatsapp {
+            background: linear-gradient(135deg, #25D366 0%, #128C7E 100%) !important;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-whatsapp:hover {
+            background: linear-gradient(135deg, #128C7E 0%, #075E54 100%) !important;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(37, 211, 102, 0.4) !important;
+        }
+
+        .btn-whatsapp::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.5);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+
+        .btn-whatsapp:active::after {
+            width: 300px;
+            height: 300px;
+        }
+
+        /* ===== TOAST MELHORADO ===== */
+        .toast-notification {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 15px 25px;
+            border-radius: 10px;
+            color: white;
+            font-weight: 600;
+            font-size: 0.95rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            z-index: 10000;
+            animation: slideInRight 0.3s ease;
+            max-width: 90%;
+            word-wrap: break-word;
+        }
+
+        .toast-success {
+            background: #48bb78;
+        }
+
+        .toast-error {
+            background: #f56565;
+        }
+
+        .toast-info {
+            background: #4299e1;
+        }
+
+        .toast-warning {
+            background: #ed8936;
+        }
+
+        @keyframes slideInRight {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideOutRight {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+        }
+
+        /* ===== RESPONSIVIDADE MOBILE ===== */
+        @media (max-width: 768px) {
+            .scroll-container {
+                max-height: 60vh;
+                padding: 1rem;
+            }
+
+            .action-buttons {
+                flex-direction: column;
+                gap: 0.75rem;
+                padding: 1rem;
+            }
+
+            .btn-action {
+                width: 100%;
+                min-width: unset;
+            }
+
+            .toast-notification {
+                bottom: 10px;
+                right: 10px;
+                left: 10px;
+                max-width: calc(100% - 20px);
+            }
+        }
     </style>
 </head>
 <body>
@@ -2009,25 +2217,32 @@
 
                 <!-- REMOVIDO: Seção de Perguntas Frequentes -->
 
-                <!-- Simplified Text -->
-                <div id="simplifiedText" style="background: var(--light); padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem; max-height: 500px; overflow-y: auto;">
-                    <!-- Filled dynamically -->
+                <!-- Simplified Text Container com Scroll Detection -->
+                <div id="scrollContainer" class="scroll-container">
+                    <div id="simplifiedText" style="line-height: 1.8; color: var(--text);">
+                        <!-- Filled dynamically -->
+                    </div>
+                    <!-- Marcador invisível para detectar fim do scroll -->
+                    <div id="scrollSentinel" class="scroll-sentinel"></div>
                 </div>
 
                 <!-- CHAT DESABILITADO -->
 
-                <!-- Action Buttons -->
-                <div style="display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem;">
-                    <a href="#" class="button" id="downloadBtn" style="display: none;">
+                <!-- Action Buttons - INICIALMENTE OCULTOS -->
+                <div id="actionButtons" class="action-buttons hidden-actions">
+                    <a href="#" class="button btn-action" id="downloadBtn" style="display: none;">
                         <span>📥</span> Baixar PDF
                     </a>
-                    <button class="button" onclick="copyText()">
+                    <button class="button btn-action" onclick="copyText()">
                         <span>📋</span> Copiar Texto
                     </button>
-                    <button class="button" onclick="speakText()" id="speakBtn">
+                    <button class="button btn-action btn-whatsapp" onclick="compartilharWhatsApp()">
+                        <span>📱</span> Compartilhar
+                    </button>
+                    <button class="button btn-action" onclick="speakText()" id="speakBtn">
                         <span>🔊</span> Ler em Voz Alta
                     </button>
-                    <button class="button button-new-doc" onclick="novaDocumentacao()">
+                    <button class="button btn-action button-new-doc" onclick="novaDocumentacao()">
                         <span>📄</span> Nova Simplificação
                     </button>
                 </div>
@@ -2890,6 +3105,11 @@
                 behavior: 'smooth',
                 block: 'start'
             });
+
+            // Configurar detecção de scroll para mostrar botões
+            setTimeout(() => {
+                setupScrollDetection();
+            }, 300);
         }
 
         function showResultAnalysis(analise) {
@@ -3408,15 +3628,20 @@
         function copyText() {
             const element = document.getElementById('simplifiedText');
             const text = element.innerText || element.textContent;
-            
+
             if (!text) {
-                showToast('Nenhum texto para copiar', 'warning');
+                showToastNotification('⚠️ Nenhum texto para copiar', 'warning');
                 return;
             }
-            
+
             navigator.clipboard.writeText(text)
                 .then(() => {
-                    showToast('Texto copiado com sucesso!', 'success');
+                    showToastNotification('✅ Texto copiado com sucesso!', 'success');
+
+                    // Vibração em mobile
+                    if ('vibrate' in navigator) {
+                        navigator.vibrate(50);
+                    }
                 })
                 .catch(() => {
                     const textarea = document.createElement('textarea');
@@ -3425,7 +3650,7 @@
                     textarea.select();
                     document.execCommand('copy');
                     document.body.removeChild(textarea);
-                    showToast('Texto copiado!', 'success');
+                    showToastNotification('✅ Texto copiado!', 'success');
                 });
         }
 
@@ -3433,43 +3658,58 @@
         function speakText() {
             const text = document.getElementById('simplifiedText').textContent;
             const btn = document.getElementById('speakBtn');
-            
+
             if (!text) {
-                showToast('Nenhum texto para ler', 'warning');
+                showToastNotification('⚠️ Nenhum texto para ler', 'warning');
                 return;
             }
-            
+
             if (isSpeaking) {
                 window.speechSynthesis.cancel();
                 btn.innerHTML = '<span>🔊</span> Ler em Voz Alta';
                 isSpeaking = false;
+                showToastNotification('⏸️ Leitura pausada', 'info');
                 return;
             }
-            
+
             const utterance = new SpeechSynthesisUtterance(text);
             utterance.lang = 'pt-BR';
             utterance.rate = 0.9;
-            
+
             utterance.onend = () => {
                 btn.innerHTML = '<span>🔊</span> Ler em Voz Alta';
                 isSpeaking = false;
+                showToastNotification('✅ Leitura concluída', 'success');
             };
-            
+
             utterance.onerror = () => {
-                showToast('Erro ao ler o texto', 'error');
+                showToastNotification('❌ Erro ao ler o texto', 'error');
                 btn.innerHTML = '<span>🔊</span> Ler em Voz Alta';
                 isSpeaking = false;
             };
-            
+
             window.speechSynthesis.speak(utterance);
             btn.innerHTML = '<span>⏹️</span> Parar Leitura';
             isSpeaking = true;
+            showToastNotification('🔊 Iniciando leitura...', 'info');
         }
 
         // Nova Simplificação - Reseta a página para processar outro documento
         function novaDocumentacao() {
             // Confirmar ação
             if (confirm('Deseja processar um novo documento? O resultado atual será limpo.')) {
+                // Parar leitura se estiver ativa
+                if (window.speechSynthesis && isSpeaking) {
+                    window.speechSynthesis.cancel();
+                    isSpeaking = false;
+                }
+
+                // Resetar scroll detection
+                if (window.scrollObserver) {
+                    window.scrollObserver.disconnect();
+                    window.scrollObserver = null;
+                }
+
                 // Limpar seções de resultado
                 document.getElementById('resultSection').style.display = 'none';
                 document.getElementById('fileInfo').style.display = 'none';
@@ -3490,8 +3730,212 @@
                 window.scrollTo({ top: 0, behavior: 'smooth' });
 
                 // Toast de confirmação
-                showToast('Pronto! Você pode enviar um novo documento.', 'success');
+                showToastNotification('Pronto! Você pode enviar um novo documento.', 'success');
             }
+        }
+
+        // ===== DETECÇÃO DE SCROLL E EXIBIÇÃO DE BOTÕES =====
+
+        let scrollObserver = null;
+        let hasShownButtons = false;
+
+        /**
+         * Configura o Intersection Observer para detectar quando o usuário
+         * chegou ao final do texto simplificado
+         */
+        function setupScrollDetection() {
+            // Resetar flag
+            hasShownButtons = false;
+
+            // Remover observer anterior se existir
+            if (scrollObserver) {
+                scrollObserver.disconnect();
+            }
+
+            const sentinel = document.getElementById('scrollSentinel');
+            const actionButtons = document.getElementById('actionButtons');
+
+            if (!sentinel || !actionButtons) {
+                console.warn('Elementos de scroll detection não encontrados');
+                return;
+            }
+
+            // Ocultar botões inicialmente
+            actionButtons.classList.add('hidden-actions');
+            actionButtons.classList.remove('show-actions');
+
+            // Configurar Intersection Observer
+            const options = {
+                root: document.getElementById('scrollContainer'),
+                rootMargin: '0px',
+                threshold: 0.1 // Detecta quando 10% do sentinel está visível
+            };
+
+            scrollObserver = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    // Se o sentinel está visível E ainda não mostramos os botões
+                    if (entry.isIntersecting && !hasShownButtons) {
+                        mostrarBotoesComAnimacao();
+                        hasShownButtons = true;
+                    }
+                });
+            }, options);
+
+            // Observar o sentinel
+            scrollObserver.observe(sentinel);
+
+            console.log('✅ Scroll detection configurado');
+
+            // Verificar se o texto é curto e forçar exibição
+            setTimeout(forcarExibicaoBotoes, 500);
+        }
+
+        /**
+         * Exibe os botões com animação suave
+         */
+        function mostrarBotoesComAnimacao() {
+            const actionButtons = document.getElementById('actionButtons');
+
+            if (!actionButtons) return;
+
+            // Remover classe hidden e adicionar show
+            actionButtons.classList.remove('hidden-actions');
+
+            // Pequeno delay para garantir a transição CSS
+            setTimeout(() => {
+                actionButtons.classList.add('show-actions');
+            }, 50);
+
+            console.log('✅ Botões exibidos após scroll completo');
+
+            // Vibração suave em mobile (se suportado)
+            if ('vibrate' in navigator) {
+                navigator.vibrate(50);
+            }
+        }
+
+        /**
+         * Força a exibição dos botões (útil para textos muito curtos)
+         */
+        function forcarExibicaoBotoes() {
+            const container = document.getElementById('scrollContainer');
+            const actionButtons = document.getElementById('actionButtons');
+
+            if (!container || !actionButtons) return;
+
+            // Se o conteúdo é menor que o container (não tem scroll)
+            if (container.scrollHeight <= container.clientHeight) {
+                console.log('ℹ️ Texto curto detectado - exibindo botões imediatamente');
+                mostrarBotoesComAnimacao();
+                hasShownButtons = true;
+            }
+        }
+
+        // ===== COMPARTILHAMENTO VIA WHATSAPP =====
+
+        /**
+         * Compartilha o documento simplificado via WhatsApp
+         */
+        function compartilharWhatsApp() {
+            const textoElement = document.getElementById('simplifiedText');
+            const tipoDoc = document.getElementById('documentType')?.textContent || 'Documento Jurídico';
+
+            if (!textoElement) {
+                showToastNotification('❌ Nenhum documento para compartilhar', 'error');
+                return;
+            }
+
+            const textoCompleto = textoElement.innerText || textoElement.textContent;
+
+            // Preparar mensagem otimizada para WhatsApp
+            const mensagem = formatarMensagemWhatsApp(textoCompleto, tipoDoc);
+
+            // Compartilhar diretamente
+            enviarWhatsApp(mensagem);
+        }
+
+        /**
+         * Formata o texto para envio no WhatsApp
+         * Remove formatações excessivas e otimiza para leitura mobile
+         */
+        function formatarMensagemWhatsApp(texto, tipoDoc) {
+            // Remover múltiplas quebras de linha
+            let mensagem = texto.replace(/\n{3,}/g, '\n\n');
+
+            // Limpar separadores desnecessários
+            mensagem = mensagem.replace(/---+/g, '');
+            mensagem = mensagem.replace(/═══+/g, '');
+
+            // Adicionar cabeçalho
+            const cabecalho = `📱 *${tipoDoc}*\n_Simplificado automaticamente_\n\n`;
+
+            // Adicionar rodapé
+            const rodape = `\n\n━━━━━━━━━━━━━━━\n📲 Simplificado por: *Entenda Aqui*\n🌐 ${window.location.origin}\n\n_Este documento foi simplificado usando Inteligência Artificial. Para orientação jurídica completa, consulte um advogado ou a Defensoria Pública._`;
+
+            // Limitar tamanho (WhatsApp tem limite de ~4096 caracteres por mensagem)
+            const maxLength = 3500; // Deixar margem para cabeçalho e rodapé
+
+            if (mensagem.length > maxLength) {
+                mensagem = mensagem.substring(0, maxLength) + '\n\n... _(texto completo truncado - baixe o PDF para versão completa)_';
+            }
+
+            return cabecalho + mensagem + rodape;
+        }
+
+        /**
+         * Abre o WhatsApp com a mensagem preparada
+         */
+        function enviarWhatsApp(mensagem) {
+            // Codificar mensagem para URL
+            const mensagemCodificada = encodeURIComponent(mensagem);
+
+            // Detectar se é mobile ou desktop
+            const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+            // URLs do WhatsApp
+            const urlMobile = `whatsapp://send?text=${mensagemCodificada}`;
+            const urlDesktop = `https://web.whatsapp.com/send?text=${mensagemCodificada}`;
+
+            const url = isMobile ? urlMobile : urlDesktop;
+
+            // Abrir WhatsApp
+            window.open(url, '_blank');
+
+            // Feedback
+            showToastNotification('📱 Abrindo WhatsApp...', 'success');
+
+            // Vibração em mobile
+            if ('vibrate' in navigator) {
+                navigator.vibrate([50, 100, 50]);
+            }
+
+            // Analytics (opcional)
+            console.log('📊 Compartilhamento WhatsApp:', {
+                timestamp: new Date().toISOString(),
+                tamanho_mensagem: mensagem.length,
+                dispositivo: isMobile ? 'mobile' : 'desktop'
+            });
+        }
+
+        // ===== TOAST NOTIFICATIONS MELHORADO =====
+
+        function showToastNotification(message, type = 'info') {
+            // Remover toasts anteriores
+            const existingToasts = document.querySelectorAll('.toast-notification');
+            existingToasts.forEach(t => t.remove());
+
+            // Criar elemento toast
+            const toast = document.createElement('div');
+            toast.className = `toast-notification toast-${type}`;
+            toast.textContent = message;
+
+            document.body.appendChild(toast);
+
+            // Remover após 3 segundos
+            setTimeout(() => {
+                toast.style.animation = 'slideOutRight 0.3s ease';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
         }
 
         // Sistema de Feedback - LGPD Compliant (só estatísticas agregadas)
