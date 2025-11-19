@@ -520,6 +520,10 @@ IMPORTANTE:
 - **Audiência**: Reunião no tribunal para falar sobre o processo
 - **Citação**: Primeira vez que o tribunal te avisa do processo
 
+**🚨 REGRA OBRIGATÓRIA:**
+- Se o documento mencionar "honorários", "custas processuais" ou qualquer valor relacionado a advogado, você DEVE incluir "Honorários" no mini dicionário
+- Muitos cidadãos não sabem o que são honorários e ficam confusos com esse termo
+
 **Não coloque mais de 7 termos!**
 
 ---
