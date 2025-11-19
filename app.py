@@ -316,7 +316,7 @@ IMPORTANTE: Explique o PORQUÊ da decisão de forma simples.
 
 **REGRA OBRIGATÓRIA PARA O TOTAL GERAL:**
 Sempre que mostrar o TOTAL GERAL, adicione logo abaixo esta explicação:
-"⚠️ Este valor terá correção monetária. Isso significa que o valor vai aumentar um pouquinho até o dia do pagamento, para não perder valor com o tempo."
+"⚠️ Este valor será atualizado! Isso quer dizer que ele vai sofrer um pequeno ajuste até o dia do pagamento, para garantir que você receba um valor justo."
 
 **EXEMPLOS CORRETOS:**
 
