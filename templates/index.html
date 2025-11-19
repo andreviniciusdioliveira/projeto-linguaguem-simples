@@ -2314,6 +2314,26 @@
                 <div class="progress-fill" id="progressFill" style="width: 0%"></div>
             </div>
 
+            <!-- Estatísticas de Feedback - Sempre Visível -->
+            <div class="feedback-stats" id="feedbackStatsMain" style="margin-top: 1rem;">
+                <div class="feedback-stat-item">
+                    <span>👍</span>
+                    <strong id="feedbackPositivoCountMain">0</strong>
+                    <span>útil</span>
+                </div>
+                <div class="feedback-divider"></div>
+                <div class="feedback-stat-item">
+                    <span>👎</span>
+                    <strong id="feedbackNegativoCountMain">0</strong>
+                    <span>não útil</span>
+                </div>
+                <div class="feedback-divider"></div>
+                <div class="satisfaction-rate">
+                    <strong class="percentage" id="satisfactionRateMain">0%</strong>
+                    <span>satisfação</span>
+                </div>
+            </div>
+
             <div class="stats-footer-minimal">
                 <div class="badges-minimal">
                     <span class="badge-mini locked" id="mini-bronze" title="Bronze - 100">🥉</span>
@@ -4651,19 +4671,37 @@ P.R.I.`;
                     }
                 });
 
-                // Atualizar estatísticas de feedback
+                // Atualizar estatísticas de feedback (ambas as instâncias)
                 if (stats.feedback) {
                     const feedbackPositivo = stats.feedback.positivo || 0;
                     const feedbackNegativo = stats.feedback.negativo || 0;
                     const taxaSatisfacao = stats.feedback.taxa_satisfacao || 0;
 
-                    document.getElementById('feedbackPositivoCount').textContent = feedbackPositivo;
-                    document.getElementById('feedbackNegativoCount').textContent = feedbackNegativo;
-                    document.getElementById('satisfactionRate').textContent = taxaSatisfacao + '%';
+                    // Atualizar painel principal (sempre visível)
+                    document.getElementById('feedbackPositivoCountMain').textContent = feedbackPositivo;
+                    document.getElementById('feedbackNegativoCountMain').textContent = feedbackNegativo;
+                    document.getElementById('satisfactionRateMain').textContent = taxaSatisfacao + '%';
 
-                    // Animar contadores de feedback
-                    animateCounter(document.getElementById('feedbackPositivoCount'), feedbackPositivo, 1000);
-                    animateCounter(document.getElementById('feedbackNegativoCount'), feedbackNegativo, 1000);
+                    // Atualizar painel do resultado (se existir)
+                    const feedbackPosResult = document.getElementById('feedbackPositivoCount');
+                    const feedbackNegResult = document.getElementById('feedbackNegativoCount');
+                    const satisfactionResult = document.getElementById('satisfactionRate');
+
+                    if (feedbackPosResult) {
+                        feedbackPosResult.textContent = feedbackPositivo;
+                        animateCounter(feedbackPosResult, feedbackPositivo, 1000);
+                    }
+                    if (feedbackNegResult) {
+                        feedbackNegResult.textContent = feedbackNegativo;
+                        animateCounter(feedbackNegResult, feedbackNegativo, 1000);
+                    }
+                    if (satisfactionResult) {
+                        satisfactionResult.textContent = taxaSatisfacao + '%';
+                    }
+
+                    // Animar contadores do painel principal
+                    animateCounter(document.getElementById('feedbackPositivoCountMain'), feedbackPositivo, 1000);
+                    animateCounter(document.getElementById('feedbackNegativoCountMain'), feedbackNegativo, 1000);
                 }
 
             } catch (error) {
