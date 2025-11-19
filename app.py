@@ -543,13 +543,29 @@ IMPORTANTE:
 **Próximos passos:**
 [O que você deve fazer agora? Seja ESPECÍFICO e PRÁTICO]
 
-**REGRA CRÍTICA - NÃO ORIENTE "AGUARDE O TRIBUNAL":**
+**REGRA CRÍTICA - QUANDO ORIENTAR A CONSULTAR ADVOGADO:**
 - ❌ NUNCA diga: "Aguarde o tribunal te avisar" ou "Aguarde contato do tribunal"
+- ❌ NUNCA diga: "Aguarde o pagamento - será executado automaticamente" (execução raramente é automática!)
 - ✅ O tribunal NÃO entra em contato direto com a parte
 - ✅ As intimações vão para o advogado ou são publicadas em Diário Oficial
-- ✅ Use: "Fale com advogado(a) ou defensoria pública"
-- ✅ Use: "Consulte advogado(a) ou defensoria pública"
-- ✅ Use: "Acompanhe com advogado(a) ou defensoria pública"
+
+**🚨 SEMPRE oriente a consultar advogado(a) ou defensoria pública quando:**
+1. A parte ganhou PARCIALMENTE (conseguiu só parte do que pediu)
+2. A parte perdeu (não conseguiu nada)
+3. Cabe recurso (tanto ganhou parcialmente quanto perdeu pode recorrer)
+4. Houver valores a receber mas sem indicação de como/quando será pago
+5. Houver condenação mas sem prazo específico para cumprimento
+6. Na dúvida, SEMPRE oriente a consultar advogado
+
+**✅ Exemplos de orientações corretas:**
+- "Consulte advogado(a) ou defensoria pública para avaliar se vale recorrer"
+- "Fale com advogado(a) ou defensoria pública sobre os próximos passos"
+- "Consulte advogado(a) ou defensoria pública para saber como receber"
+
+**⚠️ Use "Aguarde" APENAS em casos MUITO específicos como:**
+- Mandados com data/hora marcada: "Compareça na data e hora indicadas"
+- Ordens diretas e claras: "Vá ao endereço indicado no prazo"
+- ❌ NUNCA para sentenças ou acórdãos genéricos
 
 **REGRA CRÍTICA SOBRE PRAZOS (MUITO IMPORTANTE):**
 - Se NÃO houver prazos específicos → NÃO mencione prazos, omita completamente a informação
@@ -866,9 +882,7 @@ Analise o documento e retorne JSON com:
   * ❌ ERRADO: "Aguardar cumprimento da decisão judicial"
   * ❌ ERRADO: "Aguarde o cumprimento da decisão"
   * ❌ ERRADO: "Aguarde o pagamento da indenização"
-  * ✅ CORRETO: "Aguarde - você vai receber automaticamente"
   * ❌ ERRADO: "Aguardar cumprimento da decisão ou informações sobre recursos"
-  * ✅ CORRETO: "Aguarde - será executado automaticamente"
   * ❌ ERRADO: "Verificar se cabe recurso e prazo"
   * ✅ CORRETO: "Fale com advogado(a) ou defensoria pública"
   * ❌ ERRADO: "Apresentar-se para cumprimento da medida"
@@ -879,6 +893,12 @@ Analise o documento e retorne JSON com:
   * ✅ CORRETO: "Fale com advogado(a) ou defensoria pública"
   * ❌ ERRADO: "Cumprir obrigação de fazer"
   * ✅ CORRETO: "Faça o que foi pedido na decisão"
+
+**🚨 REGRA CRÍTICA SOBRE "AGUARDE":**
+- ⚠️ CUIDADO ao usar "Aguarde..." - geralmente é melhor orientar a CONSULTAR ADVOGADO
+- ❌ NUNCA use "Aguarde - será executado automaticamente" para sentenças/acórdãos
+- ✅ Em sentenças/acórdãos, SEMPRE prefira: "Fale com advogado(a) ou defensoria pública"
+- ✅ A execução raramente é automática - geralmente requer ação do advogado
 
   "tem_justica_gratuita": true|false,
   "trecho_justica_gratuita": "trecho literal ou vazio",
