@@ -1552,63 +1552,56 @@
             display: block;
         }
 
-        /* Feedback Stats Section */
+        /* Feedback Stats Section - Minimalista */
         .feedback-stats {
             display: flex;
             justify-content: center;
             align-items: center;
-            gap: 2rem;
-            margin: 1rem 0;
-            padding: 1rem;
-            background: linear-gradient(135deg, rgba(52, 168, 83, 0.1) 0%, rgba(234, 67, 53, 0.1) 100%);
-            border-radius: 8px;
+            gap: 1.2rem;
+            margin: 0.6rem 0;
+            padding: 0.6rem 1rem;
+            background: var(--light);
+            border-radius: 6px;
             border: 1px solid var(--border);
         }
 
         .feedback-stat-item {
             display: flex;
-            flex-direction: column;
             align-items: center;
-            gap: 0.5rem;
+            gap: 0.4rem;
         }
 
         .feedback-stat-item .emoji {
-            font-size: 2rem;
+            font-size: 1.1rem;
         }
 
         .feedback-stat-item strong {
-            font-size: 1.5rem;
-            font-weight: 700;
+            font-size: 1rem;
+            font-weight: 600;
             color: var(--text);
         }
 
         .feedback-stat-item span {
-            font-size: 0.75rem;
+            font-size: 0.7rem;
             color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
         }
 
         .feedback-divider {
             width: 1px;
-            height: 50px;
+            height: 24px;
             background: var(--border);
         }
 
         .satisfaction-rate {
             display: flex;
-            flex-direction: column;
             align-items: center;
-            gap: 0.3rem;
+            gap: 0.4rem;
         }
 
         .satisfaction-rate .percentage {
-            font-size: 2rem;
+            font-size: 1.1rem;
             font-weight: 700;
-            background: linear-gradient(135deg, var(--jus-vinho), var(--jus-azul));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+            color: var(--jus-azul);
         }
 
         .satisfaction-rate span {
@@ -1655,16 +1648,16 @@
             }
 
             .feedback-stats {
-                gap: 1rem;
-                padding: 0.8rem;
+                gap: 0.8rem;
+                padding: 0.5rem 0.8rem;
             }
 
             .feedback-stat-item .emoji {
-                font-size: 1.5rem;
+                font-size: 1rem;
             }
 
             .feedback-stat-item strong {
-                font-size: 1.2rem;
+                font-size: 0.9rem;
             }
 
             .feedback-stat-item span {
@@ -1672,11 +1665,11 @@
             }
 
             .satisfaction-rate .percentage {
-                font-size: 1.5rem;
+                font-size: 1rem;
             }
 
             .feedback-divider {
-                height: 40px;
+                height: 20px;
             }
         }
 
@@ -2302,23 +2295,23 @@
                 </div>
             </div>
 
-            <!-- Estatísticas de Feedback -->
+            <!-- Estatísticas de Feedback - Minimalista -->
             <div class="feedback-stats" id="feedbackStats">
                 <div class="feedback-stat-item">
-                    <div class="emoji">👍</div>
+                    <span>👍</span>
                     <strong id="feedbackPositivoCount">0</strong>
-                    <span>Útil</span>
+                    <span>útil</span>
                 </div>
                 <div class="feedback-divider"></div>
                 <div class="feedback-stat-item">
-                    <div class="emoji">👎</div>
+                    <span>👎</span>
                     <strong id="feedbackNegativoCount">0</strong>
-                    <span>Não útil</span>
+                    <span>não útil</span>
                 </div>
                 <div class="feedback-divider"></div>
                 <div class="satisfaction-rate">
-                    <div class="percentage" id="satisfactionRate">0%</div>
-                    <span>Taxa de Satisfação</span>
+                    <strong class="percentage" id="satisfactionRate">0%</strong>
+                    <span>satisfação</span>
                 </div>
             </div>
 
