@@ -388,7 +388,7 @@ def gerar_pdf_simplificado(texto, metadados=None, filename="documento_simplifica
         )
     else:
         caixa_resultado = criar_caixa_destaque(
-            'DOCUMENTO PROCESSADO',
+            'Entenda Aqui',
             COR_AZUL,
             white,
             ICONES['documento']
