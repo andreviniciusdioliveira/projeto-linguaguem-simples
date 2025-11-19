@@ -147,9 +147,9 @@ class HeaderFooterCanvas(canvas.Canvas):
         # Informações INOVASSOL no final
         self.setFont('Helvetica', 6)
         self.setFillColor(colors.grey)
-        info_text = "SEDE: Palácio da Justiça Rio Tocantins, Praça dos Girassóis, s/nº Centro | Palmas - Tocantins / CEP: 77015-007"
+        info_text = "SEDE: Palacio da Justica Rio Tocantins, Praca dos Girassois, s/no Centro | Palmas - Tocantins / CEP: 77015-007"
         self.drawCentredString(page_width/2, 0.7*cm, info_text)
-        contato_text = "☎ (63) 3142-2200 / (63) 3142-2201 | ⏰ Atendimento ao público: 12:00 às 18:00 | 🌐 www.tjto.jus.br"
+        contato_text = "Tel: (63) 3142-2200 / (63) 3142-2201 | Atendimento: 12:00 as 18:00 | www.tjto.jus.br"
         self.drawCentredString(page_width/2, 0.3*cm, contato_text)
         
         self.restoreState()
@@ -271,7 +271,14 @@ def processar_markdown_para_pdf(texto, styles):
             texto_limpo = linha
             for emoji, icone in emoji_map.items():
                 texto_limpo = texto_limpo.replace(emoji, icone)
-            texto_limpo = limpar_markdown(texto_limpo)
+            texto_limpo = limpar_markdown(texto_limpo).strip()
+
+            # Ignorar linhas que são apenas ícones sem texto significativo
+            icones_sozinhos = ['[RESULTADO]', '[CONTEXTO]', '[DECISÃO]', '[VALORES]',
+                              '[PRAZOS]', '[OK]', '[X]', '[!]', '[-]', '»', '[DICA]', '[GLOSSÁRIO]']
+            if texto_limpo in icones_sozinhos:
+                continue
+
             elementos.append(Paragraph(f'<b>{texto_limpo}</b>', styles['Secao']))
             elementos.append(Spacer(1, 0.3*cm))
         
@@ -454,9 +461,9 @@ def gerar_pdf_simplificado(texto, metadados=None, output_path='documento_simplif
         story.append(Spacer(1, 1*cm))
         aviso_final = Table(
             [[Paragraph(
-                '<b>💡 Lembre-se:</b><br/>'
-                'Este documento não substitui orientação jurídica profissional. '
-                'Em caso de dúvidas, procure um(a) advogado(a) ou a Defensoria Pública.',
+                '<b>LEMBRE-SE:</b><br/>'
+                'Este documento nao substitui orientacao juridica profissional. '
+                'Em caso de duvidas, procure um(a) advogado(a) ou a Defensoria Publica.',
                 styles['Observacao']
             )]],
             colWidths=[16*cm],
