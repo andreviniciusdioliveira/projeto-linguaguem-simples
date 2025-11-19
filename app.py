@@ -679,28 +679,35 @@ def analisar_documento_completo_gemini(texto, perspectiva="nao_informado"):
 
 **INSTRUÇÕES ABSOLUTAS:**
 
-1️⃣ Use **"VOCÊ"** para se referir ao **AUTOR/REQUERENTE** do processo
-2️⃣ Use o **NOME DO RÉU** diretamente (ex: "Empresa XYZ") ao invés de "a outra parte" quando mencionar contra quem você processou
-3️⃣ NUNCA troque essas referências!
+1️⃣ Use **"VOCÊ"** para se referir ao **AUTOR/REQUERENTE** em TODO o texto
+2️⃣ Use o **NOME DO RÉU** diretamente (ex: "Estado de Goiás", "Empresa XYZ")
+3️⃣ Escreva como se estivesse FALANDO DIRETAMENTE com o autor
+4️⃣ NUNCA use o nome do autor - sempre "VOCÊ"
 
 **EXEMPLOS OBRIGATÓRIOS:**
 
-❌ ERRADO: "O autor João Silva foi condenado..."
-✅ CORRETO: "VOCÊ foi condenado..."
+❌ ERRADO: "Andresley Carlos entrou com um processo..."
+✅ CORRETO: "VOCÊ entrou com um processo..."
 
-❌ ERRADO: "O requerente deve pagar..."
-✅ CORRETO: "VOCÊ deve pagar..."
+❌ ERRADO: "O juiz decidiu que o Estado de Goiás deve pagar a Andresley Carlos..."
+✅ CORRETO: "O juiz decidiu que o Estado de Goiás deve pagar a VOCÊ..."
 
-❌ ERRADO: "João Silva ganhou o processo..."
-✅ CORRETO: "VOCÊ ganhou o processo..."
+❌ ERRADO: "Para Andresley Carlos: R$ 30.000,00"
+✅ CORRETO: "Para VOCÊ: R$ 30.000,00"
 
-❌ ERRADO: "O Estado de Goiás deve pagar ao autor..."
-❌ ERRADO: "A outra parte deve pagar a você..."
-✅ CORRETO: "O Estado de Goiás deve pagar a VOCÊ..." (use o nome do réu)
+❌ ERRADO: "Andresley Carlos pediu indenização..."
+✅ CORRETO: "VOCÊ pediu indenização..."
+
+❌ ERRADO: "Ele disse que foi preso por engano..."
+✅ CORRETO: "VOCÊ disse que foi preso por engano..."
+
+❌ ERRADO: "O autor ganhou..."
+✅ CORRETO: "VOCÊ ganhou..."
 
 **REGRA DE OURO:**
-Sempre que o documento mencionar "AUTOR", "REQUERENTE", "APELANTE" (se for quem apelou primeiro), substitua por "VOCÊ".
-Sempre que mencionar "RÉU", "REQUERIDO", "APELADO" (se for o adversário), USE O NOME COMPLETO do réu (não diga "a outra parte").
+- SUBSTITUA TODO "autor", "requerente", "apelante", nome do autor → **VOCÊ**
+- MANTENHA o nome do réu/empresa/Estado (ex: "Estado de Goiás", "GOL", "Banco")
+- Escreva em segunda pessoa (você, seu, sua) - seja PESSOAL e DIRETO
 
 **ATENÇÃO REDOBRADA EM:**
 - Seção "O QUE ESTÁ ACONTECENDO" → Diga "Você entrou com um processo contra [NOME DO RÉU]..."
@@ -717,28 +724,35 @@ Sempre que mencionar "RÉU", "REQUERIDO", "APELADO" (se for o adversário), USE 
 
 **INSTRUÇÕES ABSOLUTAS:**
 
-1️⃣ Use **"VOCÊ"** para se referir ao **RÉU/REQUERIDO** do processo
-2️⃣ Use o **NOME DO AUTOR** diretamente (ex: "João Silva") ao invés de "a outra parte" quando mencionar quem processou você
-3️⃣ NUNCA troque essas referências!
+1️⃣ Use **"VOCÊ"** para se referir ao **RÉU/REQUERIDO** em TODO o texto
+2️⃣ Use o **NOME DO AUTOR** diretamente (ex: "Andresley Carlos", "João Silva")
+3️⃣ Escreva como se estivesse FALANDO DIRETAMENTE com o réu
+4️⃣ NUNCA use "o réu", "o requerido", "o Estado" se for você - sempre "VOCÊ"
 
 **EXEMPLOS OBRIGATÓRIOS:**
 
-❌ ERRADO: "O réu Estado de Goiás foi condenado..."
+❌ ERRADO: "O Estado de Goiás foi condenado..."
 ✅ CORRETO: "VOCÊ foi condenado..."
 
-❌ ERRADO: "O requerido deve pagar..."
-✅ CORRETO: "VOCÊ deve pagar..."
+❌ ERRADO: "O juiz decidiu que o Estado deve pagar..."
+✅ CORRETO: "O juiz decidiu que VOCÊ deve pagar..."
 
-❌ ERRADO: "Maria Santos foi absolvida..."
-✅ CORRETO: "VOCÊ foi absolvida..."
+❌ ERRADO: "Andresley Carlos entrou com processo contra o Estado de Goiás..."
+✅ CORRETO: "Andresley Carlos entrou com processo contra VOCÊ..."
 
-❌ ERRADO: "O autor entrou com processo contra o Estado..."
-❌ ERRADO: "A outra parte entrou com processo contra você..."
-✅ CORRETO: "João Silva entrou com processo contra VOCÊ..." (use o nome do autor)
+❌ ERRADO: "O autor pediu indenização ao réu..."
+✅ CORRETO: "Andresley Carlos pediu indenização a VOCÊ..."
+
+❌ ERRADO: "A outra parte entrou com processo..."
+✅ CORRETO: "Andresley Carlos entrou com processo..."
+
+❌ ERRADO: "O Estado de Goiás deve pagar R$ 30.000,00"
+✅ CORRETO: "VOCÊ deve pagar R$ 30.000,00"
 
 **REGRA DE OURO:**
-Sempre que o documento mencionar "RÉU", "REQUERIDO", "APELADO" (se for você), substitua por "VOCÊ".
-Sempre que mencionar "AUTOR", "REQUERENTE", "APELANTE" (se for o adversário), USE O NOME COMPLETO da pessoa (não diga "a outra parte").
+- SUBSTITUA TODO "réu", "requerido", "apelado", nome do Estado/empresa → **VOCÊ**
+- MANTENHA o nome do autor (ex: "Andresley Carlos", "João Silva")
+- Escreva em segunda pessoa (você, seu, sua) - seja PESSOAL e DIRETO
 
 **REGRAS CRÍTICAS ESPECÍFICAS PARA RÉU:**
 
