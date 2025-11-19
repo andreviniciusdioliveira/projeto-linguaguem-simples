@@ -545,13 +545,11 @@ IMPORTANTE:
 ---
 
 📚 **PALAVRAS QUE PODEM APARECER NO DOCUMENTO**
-[Liste APENAS 5-7 termos mais importantes]
+[Liste APENAS 5-7 termos mais importantes QUE REALMENTE APARECEM NO DOCUMENTO]
 
 - **[Termo]**: Significa [explicação em 5-10 palavras]
 
-**PRIORIZE SEMPRE explicar estes termos comuns se aparecerem no documento:**
-- **Ato Infracional**: Conduta de adolescente que seria crime se fosse cometida por adulto
-- **Decisão sobre Ato Infracional**: Quando o juiz decide a medida educativa para o adolescente
+**PRIORIZE explicar estes termos se aparecerem no documento:**
 - **Cumprimento da decisão**: Quando a decisão será colocada em prática
 - **Indenização**: Dinheiro que alguém deve pagar de volta
 - **Honorários**: Pagamento ao advogado pelo trabalho no processo
@@ -560,12 +558,21 @@ IMPORTANTE:
 - **Trânsito em julgado**: Quando não dá mais para contestar
 - **Audiência**: Reunião no tribunal para falar sobre o processo
 - **Citação**: Primeira vez que o tribunal te avisa do processo
+- **Danos Materiais**: Dinheiro para cobrir prejuízos concretos
+- **Danos Morais**: Dinheiro para compensar sofrimento ou aborrecimento
+- **Revelia**: Quando uma parte não comparece ou não responde
+
+**TERMOS ESPECÍFICOS - só inclua se for o caso:**
+- **Ato Infracional**: (SÓ se for processo de adolescente/ECA) Conduta de adolescente que seria crime se fosse adulto
+- **Medida Socioeducativa**: (SÓ se for processo de adolescente/ECA) Punição educativa para adolescente
 
 **🚨 REGRAS OBRIGATÓRIAS:**
-- Se o documento mencionar "honorários", "custas processuais" ou qualquer valor relacionado a advogado, você DEVE incluir "Honorários" no mini dicionário
-- Se o documento for sobre adolescente/ECA ou mencionar "ato infracional", você DEVE incluir "Ato Infracional" no glossário
-- SEMPRE explique termos jurídicos complexos em linguagem do dia a dia
-- Muitos cidadãos não sabem o que são honorários e ficam confusos com esse termo
+- ❌ NÃO inclua termos que não aparecem no documento
+- ❌ NÃO inclua "Ato Infracional" em processos entre adultos/empresas (consumidor, cível, trabalhista)
+- ✅ APENAS inclua termos relevantes para ESTE documento específico
+- ✅ Se mencionar "honorários" ou "custas": inclua "Honorários" no glossário
+- ✅ Se for caso de adolescente/ECA: inclua "Ato Infracional" e "Medida Socioeducativa"
+- ✅ Explique termos jurídicos em linguagem do dia a dia
 
 **Não coloque mais de 7 termos!**
 
