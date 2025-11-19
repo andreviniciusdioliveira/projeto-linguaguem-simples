@@ -1635,6 +1635,94 @@
             margin: 0;
         }
 
+        /* Footer INOVASSOL */
+        .footer-inovassol {
+            background: linear-gradient(135deg, var(--jus-vinho) 0%, var(--jus-azul) 100%);
+            color: white;
+            padding: 2.5rem 1rem 1.5rem;
+            margin-top: 4rem;
+            text-align: center;
+            border-top: 4px solid var(--jus-dourado);
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.1);
+        }
+
+        .footer-inovassol h3 {
+            margin: 0 0 1rem 0;
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--jus-dourado);
+            text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .footer-content {
+            max-width: 800px;
+            margin: 0 auto;
+            line-height: 1.8;
+        }
+
+        .footer-content p {
+            margin: 0.5rem 0;
+            font-size: 0.95rem;
+            opacity: 0.95;
+        }
+
+        .footer-contact {
+            display: flex;
+            justify-content: center;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+            margin: 1rem 0;
+            font-size: 0.95rem;
+        }
+
+        .footer-contact span {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .footer-link {
+            color: var(--jus-dourado);
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            border-bottom: 1px solid transparent;
+        }
+
+        .footer-link:hover {
+            border-bottom-color: var(--jus-dourado);
+            text-shadow: 0 0 10px rgba(184, 150, 60, 0.5);
+        }
+
+        .footer-divider {
+            width: 80%;
+            max-width: 600px;
+            height: 1px;
+            background: rgba(255, 255, 255, 0.3);
+            margin: 1.5rem auto;
+        }
+
+        @media (max-width: 768px) {
+            .footer-inovassol {
+                padding: 2rem 1rem 1rem;
+                margin-top: 3rem;
+            }
+
+            .footer-inovassol h3 {
+                font-size: 1.1rem;
+            }
+
+            .footer-content p {
+                font-size: 0.85rem;
+            }
+
+            .footer-contact {
+                flex-direction: column;
+                gap: 0.8rem;
+                font-size: 0.85rem;
+            }
+        }
+
         /* Estilos para botão Nova Simplificação */
         .button-new-doc {
             background: linear-gradient(135deg, var(--jus-azul) 0%, var(--jus-vinho) 100%) !important;
@@ -2455,6 +2543,30 @@
             </div>
         </div>
     </div>
+
+    <!-- Footer INOVASSOL -->
+    <footer class="footer-inovassol">
+        <div class="footer-content">
+            <h3>Desenvolvido pelo INOVASSOL</h3>
+            <p><strong>Centro de Inovação do Tribunal de Justiça do Estado do Tocantins</strong></p>
+
+            <div class="footer-divider"></div>
+
+            <p>
+                <strong>SEDE:</strong> Palácio da Justiça Rio Tocantins, Praça dos Girassóis, s/nº Centro<br>
+                Palmas - Tocantins / CEP: 77015-007
+            </p>
+
+            <div class="footer-contact">
+                <span>📞 (63) 3142-2200 / (63) 3142-2201</span>
+                <span>🕐 Atendimento: 12:00 às 18:00</span>
+            </div>
+
+            <p style="margin-top: 1rem;">
+                🌐 <a href="https://www.tjto.jus.br" target="_blank" class="footer-link">www.tjto.jus.br</a>
+            </p>
+        </div>
+    </footer>
 
     <script>
         // AVATAR SYSTEM
