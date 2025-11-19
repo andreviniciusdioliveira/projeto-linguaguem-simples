@@ -286,7 +286,12 @@ Use blocos curtos:
 - Sobre [assunto X]: O juiz (ou desembargador/a) decidiu que...
 - Sobre [assunto Y]: O juiz (ou desembargador/a) entendeu que...
 
-IMPORTANTE: Explique o PORQUÊ da decisão de forma simples.
+IMPORTANTE:
+- Explique o PORQUÊ da decisão de forma simples
+- Nesta seção, mencione os valores de forma RESUMIDA (ex: "R$ 1.427,64 de danos materiais")
+- NÃO discrimine os valores aqui - a discriminação detalhada vai na seção "VALORES E O QUE VOCÊ PRECISA FAZER"
+- Exemplo correto: "O juiz decidiu que a empresa deve pagar R$ 1.427,64 de danos materiais e R$ 6.000,00 de danos morais"
+- Exemplo ERRADO: Colocar a estrutura "📋 **Danos Materiais: R$ 1.427,64**" nesta seção
 
 ---
 
@@ -322,7 +327,7 @@ Sobre os danos materiais: O juiz determinou que a GOL deve pagar R$ 1.427,64:
 
 📋 **Danos Materiais: R$ 1.427,64**
 - Reembolso de passagens aéreas: R$ 1.362,14
-- Alimentação durante a viagem: R$ 65,50
+- Reembolso de alimentação durante a viagem: R$ 65,50
 ```
 
 ═══════════════════════════════════════════════════════════════════
@@ -369,8 +374,7 @@ Se houver discriminação por pessoa:
 Após mostrar o TOTAL GERAL:
 ```
 📋 **TOTAL GERAL: R$ 7.427,64**
-⚠️ Este valor será atualizado! Isso quer dizer que ele vai sofrer um pequeno
-ajuste até o dia do pagamento, para garantir que você receba um valor justo.
+⚠️ Este valor será atualizado! Isso quer dizer que ele vai sofrer um pequeno ajuste até o dia do pagamento.
 ```
 
 ═══════════════════════════════════════════════════════════════════
@@ -487,6 +491,7 @@ IMPORTANTE:
 **PRIORIZE SEMPRE explicar estes termos comuns se aparecerem no documento:**
 - **Cumprimento da decisão**: Quando a decisão será colocada em prática
 - **Indenização**: Dinheiro que alguém deve pagar de volta
+- **Honorários**: Pagamento ao advogado pelo trabalho no processo
 - **Intimação**: Aviso oficial do tribunal para você
 - **Recurso**: Pedido para outros juízes reverem a decisão
 - **Trânsito em julgado**: Quando não dá mais para contestar
@@ -839,7 +844,7 @@ Você DEVE preencher o JSON assim:
     "danos_materiais": "R$ 1.427,64",
     "danos_materiais_discriminado": [
       {{"item": "Reembolso de passagens aéreas", "valor": "R$ 1.362,14"}},
-      {{"item": "Alimentação durante a viagem", "valor": "R$ 65,50"}}
+      {{"item": "Reembolso de alimentação durante a viagem", "valor": "R$ 65,50"}}
     ],
     "honorarios": "Não há cobrança (justiça gratuita)",
     "custas": "Não há cobrança (justiça gratuita)"
@@ -860,7 +865,7 @@ O juiz determinou o pagamento de R$ 1.427,64 de danos materiais:
 
 📋 **Danos Materiais: R$ 1.427,64**
 - Reembolso de passagens aéreas: R$ 1.362,14
-- Alimentação durante a viagem: R$ 65,50
+- Reembolso de alimentação durante a viagem: R$ 65,50
 ```
 
   "prazos": [
@@ -967,7 +972,7 @@ Para outros tipos de documento, "cabe_recurso":
 ```
 📋 **Danos Materiais: R$ 1.427,64**
 - Reembolso de passagens aéreas: R$ 1.362,14
-- Alimentação durante a viagem: R$ 65,50
+- Reembolso de alimentação durante a viagem: R$ 65,50
 ```
 
 3️⃣ **NÃO simplifique demais:**
