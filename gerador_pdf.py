@@ -94,15 +94,15 @@ class HeaderFooterCanvas(canvas.Canvas):
                 logging.warning(f"⚠️ Não foi possível carregar logo JUS: {e}")
 
         # Título do documento (centro)
-        self.setFont('Helvetica-Bold', 12)
+        self.setFont('Helvetica-Bold', 11)
         self.setFillColor(JUS_AZUL)
-        self.drawCentredString(page_width/2, page_height - 2.2*cm, "Documento em Linguagem Simples")
+        self.drawCentredString(page_width/2, page_height - 2.1*cm, "PODER JUDICIARIO DO ESTADO DO TOCANTINS")
 
         # Subtítulo
-        self.setFont('Helvetica', 8)
+        self.setFont('Helvetica-Bold', 10)
         self.setFillColor(colors.grey)
         self.drawCentredString(page_width/2, page_height - 2.6*cm,
-                              "Desenvolvido pelo INOVASSOL - Centro de Inovação do TJTO")
+                              "Documento em Linguagem Simples")
 
         # Logo INOVASSOL (direita)
         logo_inovassol_path = 'static/inovassol.png'
@@ -144,13 +144,20 @@ class HeaderFooterCanvas(canvas.Canvas):
         self.setStrokeColor(colors.lightgrey)
         self.line(1.5*cm, 2.2*cm, page_width - 1.5*cm, 2.2*cm)
         
-        # Informações INOVASSOL no final
-        self.setFont('Helvetica', 6)
+        # Informações institucionais no rodapé
+        self.setFont('Helvetica-Bold', 7)
         self.setFillColor(colors.grey)
-        info_text = "SEDE: Palacio da Justica Rio Tocantins, Praca dos Girassois, s/no Centro | Palmas - Tocantins / CEP: 77015-007"
-        self.drawCentredString(page_width/2, 0.7*cm, info_text)
-        contato_text = "Tel: (63) 3142-2200 / (63) 3142-2201 | Atendimento: 12:00 as 18:00 | www.tjto.jus.br"
-        self.drawCentredString(page_width/2, 0.3*cm, contato_text)
+        self.drawCentredString(page_width/2, 1.1*cm, "Poder Judiciario do Estado do Tocantins")
+
+        self.setFont('Helvetica', 6)
+        sede_text = "SEDE: Palacio da Justica Rio Tocantins, Praca dos Girassois, s/no Centro | Palmas - Tocantins / CEP: 77015-007"
+        self.drawCentredString(page_width/2, 0.8*cm, sede_text)
+
+        contato_text = "Tel: (63) 3142-2200 / (63) 3142-2201 | Atendimento ao publico: 12:00 as 18:00 | www.tjto.jus.br"
+        self.drawCentredString(page_width/2, 0.5*cm, contato_text)
+
+        inovassol_text = "Desenvolvido pelo INOVASSOL - Centro de Inovacao do Poder Judiciario do Estado do Tocantins"
+        self.drawCentredString(page_width/2, 0.2*cm, inovassol_text)
         
         self.restoreState()
 
