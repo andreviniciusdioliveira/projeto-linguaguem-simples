@@ -4614,6 +4614,13 @@ P.R.I.`;
 
         // === FUNÇÕES DO TERMÔMETRO MINIMALISTA ===
 
+        // Cache para evitar animação quando valor não muda
+        let feedbackCache = {
+            positivo: null,
+            negativo: null,
+            satisfacao: null
+        };
+
         async function carregarEstatisticas() {
             try {
                 const response = await fetch('/api/stats');
@@ -4677,10 +4684,31 @@ P.R.I.`;
                     const feedbackNegativo = stats.feedback.negativo || 0;
                     const taxaSatisfacao = stats.feedback.taxa_satisfacao || 0;
 
+                    // Verificar se os valores mudaram
+                    const positivoMudou = feedbackCache.positivo !== feedbackPositivo;
+                    const negativoMudou = feedbackCache.negativo !== feedbackNegativo;
+                    const satisfacaoMudou = feedbackCache.satisfacao !== taxaSatisfacao;
+
                     // Atualizar painel principal (sempre visível)
-                    document.getElementById('feedbackPositivoCountMain').textContent = feedbackPositivo;
-                    document.getElementById('feedbackNegativoCountMain').textContent = feedbackNegativo;
-                    document.getElementById('satisfactionRateMain').textContent = taxaSatisfacao + '%';
+                    const mainPosElement = document.getElementById('feedbackPositivoCountMain');
+                    const mainNegElement = document.getElementById('feedbackNegativoCountMain');
+                    const mainSatElement = document.getElementById('satisfactionRateMain');
+
+                    if (positivoMudou && mainPosElement) {
+                        animateCounter(mainPosElement, feedbackPositivo, 800);
+                    } else if (mainPosElement) {
+                        mainPosElement.textContent = feedbackPositivo;
+                    }
+
+                    if (negativoMudou && mainNegElement) {
+                        animateCounter(mainNegElement, feedbackNegativo, 800);
+                    } else if (mainNegElement) {
+                        mainNegElement.textContent = feedbackNegativo;
+                    }
+
+                    if (mainSatElement) {
+                        mainSatElement.textContent = taxaSatisfacao + '%';
+                    }
 
                     // Atualizar painel do resultado (se existir)
                     const feedbackPosResult = document.getElementById('feedbackPositivoCount');
@@ -4688,20 +4716,27 @@ P.R.I.`;
                     const satisfactionResult = document.getElementById('satisfactionRate');
 
                     if (feedbackPosResult) {
-                        feedbackPosResult.textContent = feedbackPositivo;
-                        animateCounter(feedbackPosResult, feedbackPositivo, 1000);
+                        if (positivoMudou) {
+                            animateCounter(feedbackPosResult, feedbackPositivo, 800);
+                        } else {
+                            feedbackPosResult.textContent = feedbackPositivo;
+                        }
                     }
                     if (feedbackNegResult) {
-                        feedbackNegResult.textContent = feedbackNegativo;
-                        animateCounter(feedbackNegResult, feedbackNegativo, 1000);
+                        if (negativoMudou) {
+                            animateCounter(feedbackNegResult, feedbackNegativo, 800);
+                        } else {
+                            feedbackNegResult.textContent = feedbackNegativo;
+                        }
                     }
                     if (satisfactionResult) {
                         satisfactionResult.textContent = taxaSatisfacao + '%';
                     }
 
-                    // Animar contadores do painel principal
-                    animateCounter(document.getElementById('feedbackPositivoCountMain'), feedbackPositivo, 1000);
-                    animateCounter(document.getElementById('feedbackNegativoCountMain'), feedbackNegativo, 1000);
+                    // Atualizar cache
+                    feedbackCache.positivo = feedbackPositivo;
+                    feedbackCache.negativo = feedbackNegativo;
+                    feedbackCache.satisfacao = taxaSatisfacao;
                 }
 
             } catch (error) {
