@@ -244,10 +244,12 @@ Se for MANDADO/CITAÇÃO/INTIMAÇÃO:
 → Escreva apenas: "📋 ORDEM JUDICIAL PARA [ação específica]"
 → Exemplo real: "📋 ORDEM JUDICIAL PARA COMPARECER À AUDIÊNCIA"
 
-Se for PROCESSO DE ATO INFRACIONAL (ECA):
+Se for PROCESSO DE ATO INFRACIONAL (ECA - adolescente):
 → Escreva apenas: "⚖️ DECISÃO SOBRE ATO INFRACIONAL"
+→ **ATENÇÃO:** Só use este título se o documento envolver ADOLESCENTE (menor de 18 anos)
+→ Se for processo comum entre adultos, NÃO use este título!
 
-Se for SENTENÇA/ACÓRDÃO/DECISÃO CÍVEL/TRABALHISTA:
+Se for SENTENÇA/ACÓRDÃO/DECISÃO CÍVEL/TRABALHISTA/CONSUMIDOR:
 → Escolha UM destes (adapte conforme a perspectiva):
 
   **Para AUTOR que ganhou tudo:**
@@ -345,12 +347,17 @@ para cobrir os prejuízos que vocês tiveram com as passagens.
 
 **✅ CORRETO (O QUE VOCÊ DEVE FAZER):**
 ```
-Sobre os danos materiais: O juiz determinou que a GOL deve pagar R$ 1.427,64:
-
 📋 **Danos Materiais: R$ 1.427,64**
 - Reembolso de passagens aéreas: R$ 1.362,14
 - Reembolso de alimentação durante a viagem: R$ 65,50
+
+**TOTAL GERAL: R$ 1.427,64**
 ```
+
+**IMPORTANTE:**
+- NÃO repita "Sobre os danos materiais:" aqui (isso já foi dito na seção A DECISÃO DO JUIZ)
+- Vá DIRETO para a discriminação dos valores
+- Use a estrutura 📋 **[Categoria]: R$ [TOTAL]**
 
 ═══════════════════════════════════════════════════════════════════
 
@@ -396,7 +403,7 @@ Se houver discriminação por pessoa:
 Após mostrar o TOTAL GERAL:
 ```
 📋 **TOTAL GERAL: R$ 7.427,64**
-⚠️ Este valor será atualizado! Isso quer dizer que ele vai sofrer um pequeno ajuste até o dia do pagamento.
+⚠️ Este valor será atualizado! Isso quer dizer que ele poderá sofrer um pequeno aumento até o dia do pagamento.
 ```
 
 ═══════════════════════════════════════════════════════════════════

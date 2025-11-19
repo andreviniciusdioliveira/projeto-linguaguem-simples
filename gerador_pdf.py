@@ -441,9 +441,8 @@ def gerar_pdf_simplificado(texto, metadados=None, output_path='documento_simplif
         # AVISO INICIAL DESTACADO
         aviso_table = Table(
             [[Paragraph(
-                '<b>AVISO IMPORTANTE</b><br/>'
-                'Este documento foi simplificado usando Inteligência Artificial. '
-                'Para orientação jurídica adequada, consulte um(a) advogado(a) ou a Defensoria Pública.',
+                'Este documento foi simplificado usando Inteligencia Artificial. '
+                'Para orientacao juridica completa, consulte um advogado ou a Defensoria Publica.',
                 styles['Observacao']
             )]],
             colWidths=[16*cm],
