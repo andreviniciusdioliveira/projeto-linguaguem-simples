@@ -1958,11 +1958,10 @@
         /* Logo INOVASSOL à esquerda - INTERATIVO */
         .header-logo-left {
             position: absolute;
-            left: 0;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 140px;
-            height: 140px;
+            left: 20px;
+            top: 25px;
+            width: 80px;
+            height: 80px;
             cursor: pointer;
             transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
             animation: floatLeft 4s ease-in-out infinite;
@@ -1970,7 +1969,7 @@
         }
 
         .header-logo-left:hover {
-            transform: translateY(-50%) scale(1.2) rotate(-8deg);
+            transform: scale(1.2) rotate(-8deg);
             filter: drop-shadow(0 12px 32px rgba(109, 41, 50, 0.5));
         }
 
@@ -1990,16 +1989,16 @@
 
         @keyframes floatLeft {
             0%, 100% {
-                transform: translateY(-50%) translateX(0) rotate(0deg);
+                transform: translateY(0) translateX(0) rotate(0deg);
             }
             25% {
-                transform: translateY(-55%) translateX(8px) rotate(3deg);
+                transform: translateY(-5px) translateX(8px) rotate(3deg);
             }
             50% {
-                transform: translateY(-50%) translateX(0) rotate(0deg);
+                transform: translateY(0) translateX(0) rotate(0deg);
             }
             75% {
-                transform: translateY(-45%) translateX(-8px) rotate(-3deg);
+                transform: translateY(5px) translateX(-8px) rotate(-3deg);
             }
         }
 
@@ -2074,17 +2073,19 @@
         /* Responsivo */
         @media (max-width: 768px) {
             .header-logo-left {
-                width: 80px;
-                height: 80px;
+                width: 60px;
+                height: 60px;
                 left: 10px;
+                top: 20px;
             }
         }
 
         @media (max-width: 480px) {
             .header-logo-left {
-                width: 60px;
-                height: 60px;
+                width: 50px;
+                height: 50px;
                 left: 5px;
+                top: 15px;
             }
         }
     </style>
@@ -2118,9 +2119,9 @@
         <header class="header">
             <!-- Logo INOVASSOL Interativo -->
             <div class="header-logo-left"
-                 onclick="window.open('https://www.tjto.jus.br/inovassol', '_blank')"
+                 onclick="window.open('https://www.tjto.jus.br', '_blank')"
                  title="INOVASSOL - Centro de Inovação do TJTO">
-                <img src="/static/__inovassol.png"
+                <img src="/static/inovassol.png"
                      alt="INOVASSOL Logo"
                      onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ccircle cx=%2250%22 cy=%2250%22 r=%2240%22 fill=%22%236d2932%22/%3E%3Ctext x=%2250%22 y=%2265%22 text-anchor=%22middle%22 font-size=%2240%22 fill=%22white%22 font-weight=%22bold%22%3EI%3C/text%3E%3C/svg%3E'">
             </div>
