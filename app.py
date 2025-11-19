@@ -475,16 +475,19 @@ REGRAS PARA JUSTIÇA GRATUITA (MUITO IMPORTANTE - LEIA COM ATENÇÃO):
 2. **Se tem justiça gratuita E não há menção de condenação ao pagamento:**
    → "Você NÃO vai pagar custas e honorários porque tem justiça gratuita."
 
-3. **Se tem justiça gratuita MAS foi expressamente condenado SEM suspensão da exigibilidade (raro):**
-   → "Você tem justiça gratuita, MAS neste caso o juiz decidiu que você deve pagar [valores específicos]."
+3. **Se tem justiça gratuita COM condenação E suspensão da exigibilidade (caso especial):**
+   → "Você tem justiça gratuita. O juiz determinou valores de [especificar], mas esse pagamento está SUSPENSO. Isso significa que você NÃO precisa pagar agora. Só precisará pagar no futuro se sua situação financeira melhorar significativamente."
+   → Use linguagem clara e SEM contradições
+   → SUSPENSO = NÃO paga agora
 
 4. **Se NÃO tem justiça gratuita:**
    → Liste claramente os valores a pagar
 
 IMPORTANTE:
 - NUNCA use a palavra "encargos" - use sempre "custas e honorários"
+- EVITE contradições como "tem gratuita MAS deve pagar" - explique que está SUSPENSO
 - Se for MANDADO ou CITAÇÃO, só mencione valores se estiverem explícitos no documento original
-- Quando há suspensão de exigibilidade + justiça gratuita = pessoa NÃO paga (é como se fosse isentada)
+- Quando há suspensão de exigibilidade = pessoa NÃO paga agora (mesmo que haja condenação no papel)
 
 **Próximos passos:**
 [O que você deve fazer agora? Seja ESPECÍFICO e PRÁTICO]
@@ -513,6 +516,8 @@ IMPORTANTE:
 - **[Termo]**: Significa [explicação em 5-10 palavras]
 
 **PRIORIZE SEMPRE explicar estes termos comuns se aparecerem no documento:**
+- **Ato Infracional**: Conduta de adolescente que seria crime se fosse cometida por adulto
+- **Decisão sobre Ato Infracional**: Quando o juiz decide a medida educativa para o adolescente
 - **Cumprimento da decisão**: Quando a decisão será colocada em prática
 - **Indenização**: Dinheiro que alguém deve pagar de volta
 - **Honorários**: Pagamento ao advogado pelo trabalho no processo
@@ -522,8 +527,10 @@ IMPORTANTE:
 - **Audiência**: Reunião no tribunal para falar sobre o processo
 - **Citação**: Primeira vez que o tribunal te avisa do processo
 
-**🚨 REGRA OBRIGATÓRIA:**
+**🚨 REGRAS OBRIGATÓRIAS:**
 - Se o documento mencionar "honorários", "custas processuais" ou qualquer valor relacionado a advogado, você DEVE incluir "Honorários" no mini dicionário
+- Se o documento for sobre adolescente/ECA ou mencionar "ato infracional", você DEVE incluir "Ato Infracional" no glossário
+- SEMPRE explique termos jurídicos complexos em linguagem do dia a dia
 - Muitos cidadãos não sabem o que são honorários e ficam confusos com esse termo
 
 **Não coloque mais de 7 termos!**
