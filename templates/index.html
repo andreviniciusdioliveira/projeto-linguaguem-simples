@@ -127,6 +127,7 @@
             transform-style: preserve-3d;
             cursor: pointer;
             transition: all 0.3s ease;
+            margin-left: 1rem;
         }
 
         .header-avatar:hover {
@@ -1955,17 +1956,15 @@
             }
         }
 
-        /* Logo INOVASSOL à esquerda - INTERATIVO */
+        /* Logo INOVASSOL à esquerda - INTERATIVO (inline como JUS) */
         .header-logo-left {
-            position: absolute;
-            left: 20px;
-            top: 25px;
             width: 80px;
             height: 80px;
             cursor: pointer;
             transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
             animation: floatLeft 4s ease-in-out infinite;
-            z-index: 10;
+            position: relative;
+            margin-right: 1rem;
         }
 
         .header-logo-left:hover {
@@ -1977,8 +1976,15 @@
             width: 100%;
             height: 100%;
             object-fit: contain;
-            filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.2));
+            border-radius: 50%;
+            box-shadow:
+                0 0 20px rgba(109, 41, 50, 0.4),
+                0 0 30px rgba(44, 79, 94, 0.3),
+                0 0 40px rgba(184, 150, 60, 0.2);
+            border: 4px solid var(--jus-dourado);
             transition: all 0.3s ease;
+            position: relative;
+            z-index: 2;
         }
 
         .header-logo-left:hover img {
@@ -2075,8 +2081,7 @@
             .header-logo-left {
                 width: 60px;
                 height: 60px;
-                left: 10px;
-                top: 20px;
+                margin-right: 0.75rem;
             }
         }
 
@@ -2084,8 +2089,7 @@
             .header-logo-left {
                 width: 50px;
                 height: 50px;
-                left: 5px;
-                top: 15px;
+                margin-right: 0.5rem;
             }
         }
     </style>
@@ -2117,19 +2121,19 @@
     <div class="container">
         <!-- Header -->
         <header class="header">
-            <!-- Logo INOVASSOL Interativo -->
-            <div class="header-logo-left"
-                 onclick="window.open('https://www.tjto.jus.br', '_blank')"
-                 title="INOVASSOL - Centro de Inovação do TJTO">
-                <img src="/static/inovassol.png"
-                     alt="INOVASSOL Logo"
-                     onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ccircle cx=%2250%22 cy=%2250%22 r=%2240%22 fill=%22%236d2932%22/%3E%3Ctext x=%2250%22 y=%2265%22 text-anchor=%22middle%22 font-size=%2240%22 fill=%22white%22 font-weight=%22bold%22%3EI%3C/text%3E%3C/svg%3E'">
-            </div>
             <h1>
+                <!-- Logo INOVASSOL Interativo -->
+                <div class="header-logo-left"
+                     onclick="window.open('https://www.tjto.jus.br', '_blank')"
+                     title="INOVASSOL - Centro de Inovação do TJTO">
+                    <img src="/static/inovassol.png"
+                         alt="INOVASSOL Logo"
+                         onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ccircle cx=%2250%22 cy=%2250%22 r=%2240%22 fill=%22%236d2932%22/%3E%3Ctext x=%2250%22 y=%2265%22 text-anchor=%22middle%22 font-size=%2240%22 fill=%22white%22 font-weight=%22bold%22%3EI%3C/text%3E%3C/svg%3E'">
+                </div>
+                Entenda Aqui
                 <div class="header-avatar">
                     <img src="/static/avatar.png" alt="JUS Bot Avatar" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ccircle cx=%2250%22 cy=%2250%22 r=%2240%22 fill=%22%236d2932%22/%3E%3Ctext x=%2250%22 y=%2265%22 text-anchor=%22middle%22 font-size=%2250%22%3E⚖️%3C/text%3E%3C/svg%3E'">
                 </div>
-                Entenda Aqui
             </h1>
             <p>Transforme documentos complexos em linguagem clara com IA</p>
             <div class="format-badges">
