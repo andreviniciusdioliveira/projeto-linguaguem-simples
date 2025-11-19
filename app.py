@@ -240,11 +240,23 @@ PROMPT_SIMPLIFICACAO_MELHORADO = """
 
 **INSTRUÇÕES PARA ESCOLHER O TIPO DE TÍTULO (não copie isso para o texto final):**
 
-**🚨 ANTES DE ESCOLHER O TÍTULO, RESPONDA:**
-1. O documento menciona "ato infracional", "adolescente representado" ou "medida socioeducativa"?
-2. As partes envolvidas incluem um ADOLESCENTE (menor de 18 anos)?
-3. Se SIM para ambas: use "DECISÃO SOBRE ATO INFRACIONAL"
-4. Se NÃO: escolha um dos outros títulos apropriados abaixo
+**🚨 VERIFICAÇÃO OBRIGATÓRIA - RESPONDA ANTES DE ESCOLHER TÍTULO:**
+
+PASSO 1: Quem são as partes do processo?
+- [ ] ADOLESCENTE (menor de 18 anos) vs Ministério Público/Estado?
+- [ ] ADULTO vs ADULTO/EMPRESA/ESTADO?
+
+PASSO 2: O documento menciona EXPLICITAMENTE:
+- [ ] "ato infracional"
+- [ ] "adolescente representado"
+- [ ] "medida socioeducativa"
+- [ ] "Estatuto da Criança e do Adolescente"
+
+DECISÃO:
+→ Se PASSO 1 = ADOLESCENTE E PASSO 2 = SIM → Use "DECISÃO SOBRE ATO INFRACIONAL"
+→ Se PASSO 1 = ADULTO → NUNCA use "ATO INFRACIONAL", escolha título apropriado abaixo
+
+════════════════════════════════════════════════════════════════
 
 Se for MANDADO/CITAÇÃO/INTIMAÇÃO:
 → Escreva apenas: "📋 ORDEM JUDICIAL PARA [ação específica]"
@@ -297,16 +309,20 @@ Se for SENTENÇA/ACÓRDÃO/DECISÃO CÍVEL/TRABALHISTA/CONSUMIDOR (casos entre a
 **🚨 EXEMPLOS PRÁTICOS - O QUE NÃO É ATO INFRACIONAL:**
 
 ❌ ERRADO usar "DECISÃO SOBRE ATO INFRACIONAL" nestes casos:
-- Pessoa física vs GOL Linhas Aéreas (direito do consumidor) → Use "CONSEGUIU PARTE DO QUE PEDIU"
-- Pessoa vs Banco (cobrança indevida) → Use "CONSEGUIU O QUE PEDIU"
-- Pessoa vs Empresa (indenização) → Use "CONSEGUIU PARTE DO QUE PEDIU"
-- Divórcio, pensão alimentícia (família) → Use títulos apropriados
-- Trabalhador vs Empresa (trabalhista) → Use títulos apropriados
+- Pessoa vs GOL (consumidor) → Use "CONSEGUIU PARTE DO QUE PEDIU"
+- Pessoa vs Banco (cobrança) → Use "CONSEGUIU O QUE PEDIU"
+- Pessoa vs Estado (prisão indevida, indenização) → Use "CONSEGUIU PARTE DO QUE PEDIU"
+- Adulto vs Estado (erro judicial) → Use títulos apropriados
+- Divórcio, pensão alimentícia → Use títulos apropriados
+- Trabalhista → Use títulos apropriados
 
-✅ CORRETO usar "DECISÃO SOBRE ATO INFRACIONAL" apenas:
-- Adolescente de 15 anos que furtou → "DECISÃO SOBRE ATO INFRACIONAL"
-- Menor praticou lesão corporal → "DECISÃO SOBRE ATO INFRACIONAL"
-- Jovem de 17 anos em medida socioeducativa → "DECISÃO SOBRE ATO INFRACIONAL"
+🚨 LEMBRE-SE: Se as partes são ADULTOS, NUNCA use "ATO INFRACIONAL"!
+
+✅ CORRETO usar "DECISÃO SOBRE ATO INFRACIONAL" SOMENTE:
+- Adolescente 15 anos furtou → "DECISÃO SOBRE ATO INFRACIONAL"
+- Menor 16 anos lesão corporal → "DECISÃO SOBRE ATO INFRACIONAL"
+- Jovem 17 anos medida socioeducativa → "DECISÃO SOBRE ATO INFRACIONAL"
+- Documento menciona "ECA" + adolescente → "DECISÃO SOBRE ATO INFRACIONAL"
 
 ════════════════════════════════════════════════════════════════
 
@@ -510,7 +526,8 @@ REGRAS PARA JUSTIÇA GRATUITA (MUITO IMPORTANTE - LEIA COM ATENÇÃO):
    → "Você NÃO vai pagar custas e honorários porque tem justiça gratuita."
 
 3. **Se tem justiça gratuita COM condenação E suspensão da exigibilidade (caso especial):**
-   → "Você tem justiça gratuita. O juiz determinou valores de [especificar], mas esse pagamento está SUSPENSO. Isso significa que você NÃO precisa pagar agora. Só precisará pagar no futuro se sua situação financeira melhorar significativamente."
+   → "Você tem justiça gratuita. Esse pagamento está SUSPENSO, ou seja, você NÃO precisa pagar agora."
+   → NÃO mencione "se situação melhorar" ou "no futuro"
    → Use linguagem clara e SEM contradições
    → SUSPENSO = NÃO paga agora
 
