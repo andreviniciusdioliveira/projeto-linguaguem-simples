@@ -296,53 +296,140 @@ IMPORTANTE: Explique o PORQUÊ da decisão de forma simples.
 
 ✅ **O QUE VOCÊ VAI GANHAR:**
 
-**REGRA CRÍTICA - DISCRIMINAÇÃO DE VALORES:**
-- SEMPRE discrimine os valores por categoria quando o documento detalhar
-- NÃO agrupe valores diferentes em uma explicação genérica
-- Use a estrutura de lista detalhada abaixo
+**🚨 REGRAS CRÍTICAS PARA DISCRIMINAÇÃO DE VALORES - LEIA COM ATENÇÃO 🚨**
 
-**Estrutura obrigatória quando houver discriminação:**
+═══════════════════════════════════════════════════════════════════
 
-📋 **Danos Materiais: R$ X.XXX,XX**
-- [Descrição item 1]: R$ XXX,XX
-- [Descrição item 2]: R$ XXX,XX
-- [Descrição item N]: R$ XXX,XX
+**REGRA ABSOLUTA:**
+Quando o documento discrimina valores (ex: "R$ 1.362,14 de passagens + R$ 65,50 de alimentação"),
+você DEVE OBRIGATORIAMENTE manter essa discriminação no texto simplificado.
 
-📋 **Danos Morais: R$ X.XXX,XX**
-- Para [nome pessoa 1]: R$ X.XXX,XX
-- Para [nome pessoa 2]: R$ X.XXX,XX
+**NUNCA agrupe valores discriminados em uma frase genérica!**
 
-📋 **TOTAL GERAL: R$ XX.XXX,XX**
+═══════════════════════════════════════════════════════════════════
 
-**REGRA OBRIGATÓRIA PARA O TOTAL GERAL:**
-Sempre que mostrar o TOTAL GERAL, adicione logo abaixo esta explicação:
-"⚠️ Este valor será atualizado! Isso quer dizer que ele vai sofrer um pequeno ajuste até o dia do pagamento, para garantir que você receba um valor justo."
+**EXEMPLO REAL - CASO GOL LINHAS AÉREAS (USE COMO REFERÊNCIA):**
 
-**EXEMPLOS CORRETOS:**
+**❌ ERRADO (O QUE VOCÊ NÃO DEVE FAZER):**
+```
+Sobre os danos materiais: O juiz determinou que a GOL deve pagar R$ 1.427,64
+para cobrir os prejuízos que vocês tiveram com as passagens.
+```
 
-✅ **Exemplo 1 - Valores discriminados (PREFERÍVEL):**
+**✅ CORRETO (O QUE VOCÊ DEVE FAZER):**
+```
+Sobre os danos materiais: O juiz determinou que a GOL deve pagar R$ 1.427,64:
+
 📋 **Danos Materiais: R$ 1.427,64**
 - Reembolso de passagens aéreas: R$ 1.362,14
 - Alimentação durante a viagem: R$ 65,50
+```
 
+═══════════════════════════════════════════════════════════════════
+
+**POR QUE ISSO É IMPORTANTE?**
+- O cidadão tem DIREITO de saber exatamente o que compõe cada valor
+- Facilita a conferência quando o pagamento for feito
+- Transparência total sobre a decisão judicial
+- Cumprimento da Lei de Acesso à Informação
+
+═══════════════════════════════════════════════════════════════════
+
+**INSTRUÇÕES PASSO A PASSO:**
+
+1️⃣ **IDENTIFICAR DISCRIMINAÇÃO:**
+   - Procure no documento por valores detalhados
+   - Exemplos de discriminação:
+     * "R$ 1.362,14 de passagens + R$ 65,50 de alimentação"
+     * "R$ 3.000,00 para João + R$ 3.000,00 para Maria"
+     * "R$ 500,00 de táxi + R$ 200,00 de hotel + R$ 100,00 de refeições"
+
+2️⃣ **MANTER ESTRUTURA:**
+   - Use sempre a estrutura de lista com bullet points (-)
+   - Mostre o TOTAL GERAL em destaque
+   - Discrimine cada item com seu respectivo valor
+
+3️⃣ **FORMATO OBRIGATÓRIO:**
+```
+📋 **[Categoria]: R$ [TOTAL]**
+- [Descrição item 1]: R$ [valor1]
+- [Descrição item 2]: R$ [valor2]
+- [Descrição item N]: R$ [valorN]
+```
+
+4️⃣ **DANOS MORAIS PARA MÚLTIPLAS PESSOAS:**
+Se houver discriminação por pessoa:
+```
 📋 **Danos Morais: R$ 6.000,00**
 - Para Thiago José de Arruda Oliveira: R$ 3.000,00
 - Para Kamilla Sousa Prado: R$ 3.000,00
+```
 
+5️⃣ **SEMPRE ADICIONE A OBSERVAÇÃO SOBRE ATUALIZAÇÃO:**
+Após mostrar o TOTAL GERAL:
+```
 📋 **TOTAL GERAL: R$ 7.427,64**
+⚠️ Este valor será atualizado! Isso quer dizer que ele vai sofrer um pequeno
+ajuste até o dia do pagamento, para garantir que você receba um valor justo.
+```
 
-✅ **Exemplo 2 - Valor único (quando não há discriminação):**
-- Indenização por danos morais: R$ 5.000,00
+═══════════════════════════════════════════════════════════════════
 
-❌ **ERRADO - NÃO FAÇA ASSIM:**
-- "R$ 1.427,64 referente ao prejuízo com a compra das passagens"
-- "Valores relacionados a danos materiais: R$ 1.427,64"
-- "Este valor é para cobrir os custos da viagem"
+**MAIS EXEMPLOS CORRETOS:**
 
-**Por que discriminar é importante:**
-- O cidadão tem direito de saber EXATAMENTE o que compõe cada valor
-- Facilita a conferência quando o pagamento for feito
-- Transparência total sobre a decisão judicial
+**Exemplo 2 - Danos materiais diversos:**
+```
+📋 **Danos Materiais: R$ 2.150,00**
+- Despesas médicas: R$ 1.500,00
+- Medicamentos: R$ 450,00
+- Transporte para tratamento: R$ 200,00
+```
+
+**Exemplo 3 - Quando NÃO há discriminação:**
+Se o documento só diz "R$ 5.000,00 de danos materiais" SEM detalhes:
+```
+- Danos materiais: R$ 5.000,00
+```
+(Neste caso, NÃO invente discriminação - use apenas o total)
+
+**Exemplo 4 - Honorários discriminados:**
+```
+📋 **Honorários Advocatícios: R$ 3.500,00**
+- Honorários de sucumbência: R$ 2.000,00
+- Honorários contratuais: R$ 1.500,00
+```
+
+═══════════════════════════════════════════════════════════════════
+
+**❌ ERROS COMUNS A EVITAR:**
+
+1. ❌ "R$ 1.427,64 referente ao prejuízo com a compra das passagens"
+2. ❌ "Valores relacionados a danos materiais: R$ 1.427,64"
+3. ❌ "Este valor é para cobrir os custos da viagem"
+4. ❌ "O juiz determinou o pagamento de R$ 1.427,64 para ressarcir os danos"
+5. ❌ "Você vai receber R$ 1.427,64 de indenização"
+
+**✅ SEMPRE USE:**
+```
+📋 **Danos Materiais: R$ 1.427,64**
+- Reembolso de passagens: R$ 1.362,14
+- Alimentação: R$ 65,50
+```
+
+═══════════════════════════════════════════════════════════════════
+
+**REGRA FINAL - CHECKLIST ANTES DE GERAR O TEXTO:**
+
+□ Verifiquei se há discriminação de valores no documento original?
+□ Se SIM, mantive TODA a discriminação no texto simplificado?
+□ Usei a estrutura 📋 **[Categoria]: R$ [TOTAL]** com subitens?
+□ Mostrei o TOTAL GERAL ao final?
+□ Adicionei a observação sobre atualização monetária?
+□ NÃO inventei discriminação quando o documento só tem total?
+
+Se você respondeu SIM para todas, está correto! ✅
+
+═══════════════════════════════════════════════════════════════════
 
 ❌ **O QUE VOCÊ NÃO VAI GANHAR:**
 - [Liste valores negados. Se não houver, omita esta seção]
@@ -727,6 +814,55 @@ Analise o documento e retorne JSON com:
 - Se o documento só menciona o total sem discriminação, deixe os arrays vazios []
 - Isso permite que o frontend exiba valores de forma detalhada quando possível
 
+**🎯 EXEMPLO REAL DE PREENCHIMENTO - CASO GOL LINHAS AÉREAS:**
+
+Se o documento diz:
+"CONDENO a requerida ao pagamento de R$ 1.427,64 (danos materiais), sendo:
+- R$ 1.362,14 de reembolso de passagens aéreas
+- R$ 65,50 de alimentação
+
+E R$ 6.000,00 (danos morais), sendo:
+- R$ 3.000,00 para Thiago José de Arruda Oliveira
+- R$ 3.000,00 para Kamilla Sousa Prado"
+
+Você DEVE preencher o JSON assim:
+
+```json
+{{
+  "valores_principais": {{
+    "total_a_receber": "R$ 7.427,64",
+    "danos_morais": "R$ 6.000,00",
+    "danos_morais_discriminado": [
+      {{"beneficiario": "Thiago José de Arruda Oliveira", "valor": "R$ 3.000,00"}},
+      {{"beneficiario": "Kamilla Sousa Prado", "valor": "R$ 3.000,00"}}
+    ],
+    "danos_materiais": "R$ 1.427,64",
+    "danos_materiais_discriminado": [
+      {{"item": "Reembolso de passagens aéreas", "valor": "R$ 1.362,14"}},
+      {{"item": "Alimentação durante a viagem", "valor": "R$ 65,50"}}
+    ],
+    "honorarios": "Não há cobrança (justiça gratuita)",
+    "custas": "Não há cobrança (justiça gratuita)"
+  }}
+}}
+```
+
+**🚨 ATENÇÃO:** Se você preencheu "danos_materiais_discriminado" com 2+ itens,
+o texto simplificado DEVE OBRIGATORIAMENTE usar essa discriminação!
+
+**NÃO FAÇA ISSO:**
+❌ Texto: "O juiz determinou o pagamento de R$ 1.427,64 de danos materiais"
+
+**FAÇA ISSO:**
+✅ Texto:
+```
+O juiz determinou o pagamento de R$ 1.427,64 de danos materiais:
+
+📋 **Danos Materiais: R$ 1.427,64**
+- Reembolso de passagens aéreas: R$ 1.362,14
+- Alimentação durante a viagem: R$ 65,50
+```
+
   "prazos": [
     {{"tipo": "recurso", "prazo": "15 dias", "destinatario": "para quem é o prazo", "finalidade": "para que serve"}},
     {{"tipo": "contestacao", "prazo": "30 dias", "destinatario": "para quem é o prazo", "finalidade": "para que serve"}}
@@ -959,6 +1095,28 @@ Responda EXATAMENTE neste formato:
             analise["texto_simplificado"] = texto_simplificado
             analise["modelo_usado"] = modelo_nome
             analise["perspectiva_aplicada"] = perspectiva  # 🔥 NOVO - registrar perspectiva
+
+            # 🔥 VALIDAÇÃO DE DISCRIMINAÇÃO DE VALORES
+            valores = analise.get("valores_principais", {})
+
+            # Log para debug
+            if valores.get("danos_materiais_discriminado") and len(valores.get("danos_materiais_discriminado", [])) > 1:
+                logging.info(f"✅ Discriminação de danos materiais detectada: {len(valores['danos_materiais_discriminado'])} itens")
+
+            if valores.get("danos_morais_discriminado") and len(valores.get("danos_morais_discriminado", [])) > 1:
+                logging.info(f"✅ Discriminação de danos morais detectada: {len(valores['danos_morais_discriminado'])} beneficiários")
+
+            # Verificar se o texto simplificado está usando a discriminação
+            # Checagem básica: se há discriminação no JSON, deve ter estrutura de lista no texto
+            if valores.get("danos_materiais_discriminado") and len(valores.get("danos_materiais_discriminado", [])) > 1:
+                tem_estrutura = "📋 **Danos Materiais:" in texto_simplificado and "-" in texto_simplificado
+                if not tem_estrutura:
+                    logging.warning("⚠️ AVISO: JSON tem discriminação de danos materiais, mas texto simplificado pode não estar discriminado!")
+
+            if valores.get("danos_morais_discriminado") and len(valores.get("danos_morais_discriminado", [])) > 1:
+                tem_estrutura = "📋 **Danos Morais:" in texto_simplificado and "-" in texto_simplificado
+                if not tem_estrutura:
+                    logging.warning("⚠️ AVISO: JSON tem discriminação de danos morais, mas texto simplificado pode não estar discriminado!")
 
             # Atualizar estatísticas de sucesso
             model_usage_stats[modelo_nome]["attempts"] += 1
