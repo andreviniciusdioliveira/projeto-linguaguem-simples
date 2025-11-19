@@ -197,7 +197,7 @@ def criar_estilos():
         leading=14,
         alignment=TA_JUSTIFY,
         spaceAfter=6,
-        leftIndent=10,
+        leftIndent=0,
         fontName='Helvetica'
     ))
 
@@ -210,7 +210,7 @@ def criar_estilos():
         textColor=JUS_AZUL,
         fontName='Helvetica-Bold',
         spaceAfter=6,
-        leftIndent=10
+        leftIndent=0
     ))
     
     # Estilo para observações
@@ -377,13 +377,13 @@ def gerar_pdf_simplificado(texto, metadados=None, output_path='documento_simplif
         # Registrar fontes
         registrar_fontes()
         
-        # Criar documento com margens adequadas
+        # Criar documento com margens adequadas para 16cm de conteúdo
         doc = SimpleDocTemplate(
             output_path,
             pagesize=A4,
-            rightMargin=1.5*cm,
-            leftMargin=1.5*cm,
-            topMargin=3.5*cm,  # Espaço para cabeçalho
+            rightMargin=2.5*cm,  # (21cm - 16cm) / 2 = 2.5cm
+            leftMargin=2.5*cm,   # (21cm - 16cm) / 2 = 2.5cm
+            topMargin=3.5*cm,    # Espaço para cabeçalho
             bottomMargin=2.5*cm,  # Espaço para rodapé
             title='Documento em Linguagem Simples',
             author='INOVASSOL - TJTO'
