@@ -547,7 +547,11 @@ IMPORTANTE:
 **Próximos passos:**
 [O que você deve fazer agora? Seja ESPECÍFICO e PRÁTICO]
 
-**REGRA CRÍTICA - NÃO ORIENTE "AGUARDE O TRIBUNAL":**
+**🚨 REGRA CRÍTICA - ORIENTAÇÃO PADRÃO SEGURA:**
+- ✅ **PREFERÊNCIA SEMPRE:** "Consulte um advogado(a) ou a Defensoria Pública"
+- ✅ Esta é a orientação MAIS SEGURA e PADRÃO para a maioria dos casos
+- ❌ EVITE: "Aguarde o pagamento - será executado automaticamente"
+- ❌ EVITE: "Aguarde - você vai receber automaticamente"
 - ❌ NUNCA diga: "Aguarde o tribunal te avisar" ou "Aguarde contato do tribunal"
 - ✅ O tribunal NÃO entra em contato direto com a parte
 - ✅ As intimações vão para o advogado ou são publicadas em Diário Oficial
@@ -872,23 +876,32 @@ Analise o documento e retorne JSON com:
 - Use linguagem de CONVERSA DIRETA, como se estivesse orientando um amigo ou familiar
 - NUNCA use palavras difíceis: "cumprimento", "recursos", "decisão judicial", "indenização", "intimação", "trânsito em julgado"
 - Diga EXATAMENTE o que a pessoa deve fazer AGORA, de forma ULTRA PRÁTICA
-- Máximo 8 palavras
+- Máximo 10 palavras
 - Pense: "Como eu explicaria isso para minha avó?"
-- Exemplos PROIBIDOS e CORRETOS:
+
+**🚨 REGRA PRINCIPAL - ORIENTAÇÃO SEGURA:**
+- ✅ SEMPRE que houver dúvida sobre próximos passos: "Consulte um advogado(a) ou a Defensoria Pública"
+- ✅ Esta é a orientação PADRÃO e MAIS SEGURA
+- ❌ EVITE "Aguarde - será executado automaticamente" (isso gera expectativas falsas)
+- ❌ NUNCA sugira que algo vai acontecer automaticamente sem que a pessoa precise fazer nada
+
+**Exemplos PROIBIDOS e CORRETOS:**
   * ❌ ERRADO: "Aguardar cumprimento da decisão judicial"
   * ❌ ERRADO: "Aguarde o cumprimento da decisão"
   * ❌ ERRADO: "Aguarde o pagamento da indenização"
-  * ✅ CORRETO: "Aguarde - você vai receber automaticamente"
+  * ❌ ERRADO: "Aguarde - você vai receber automaticamente"
+  * ❌ ERRADO: "Aguarde - será executado automaticamente"
+  * ✅ CORRETO: "Consulte um advogado(a) ou a Defensoria Pública"
   * ❌ ERRADO: "Aguardar cumprimento da decisão ou informações sobre recursos"
-  * ✅ CORRETO: "Aguarde - será executado automaticamente"
+  * ✅ CORRETO: "Consulte um advogado(a) ou a Defensoria Pública"
   * ❌ ERRADO: "Verificar se cabe recurso e prazo"
-  * ✅ CORRETO: "Fale com advogado(a) ou defensoria pública"
+  * ✅ CORRETO: "Consulte um advogado(a) ou a Defensoria Pública"
   * ❌ ERRADO: "Apresentar-se para cumprimento da medida"
   * ✅ CORRETO: "Vá ao endereço indicado no prazo"
   * ❌ ERRADO: "Acompanhar andamento processual"
   * ✅ CORRETO: "Acompanhe online no site do tribunal"
   * ❌ ERRADO: "Aguardar intimação"
-  * ✅ CORRETO: "Fale com advogado(a) ou defensoria pública"
+  * ✅ CORRETO: "Consulte um advogado(a) ou a Defensoria Pública"
   * ❌ ERRADO: "Cumprir obrigação de fazer"
   * ✅ CORRETO: "Faça o que foi pedido na decisão"
 
