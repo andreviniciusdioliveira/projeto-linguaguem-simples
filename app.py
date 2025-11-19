@@ -240,16 +240,29 @@ PROMPT_SIMPLIFICACAO_MELHORADO = """
 
 **INSTRUÇÕES PARA ESCOLHER O TIPO DE TÍTULO (não copie isso para o texto final):**
 
+**🚨 ANTES DE ESCOLHER O TÍTULO, RESPONDA:**
+1. O documento menciona "ato infracional", "adolescente representado" ou "medida socioeducativa"?
+2. As partes envolvidas incluem um ADOLESCENTE (menor de 18 anos)?
+3. Se SIM para ambas: use "DECISÃO SOBRE ATO INFRACIONAL"
+4. Se NÃO: escolha um dos outros títulos apropriados abaixo
+
 Se for MANDADO/CITAÇÃO/INTIMAÇÃO:
 → Escreva apenas: "📋 ORDEM JUDICIAL PARA [ação específica]"
 → Exemplo real: "📋 ORDEM JUDICIAL PARA COMPARECER À AUDIÊNCIA"
 
 Se for PROCESSO DE ATO INFRACIONAL (ECA - adolescente):
 → Escreva apenas: "⚖️ DECISÃO SOBRE ATO INFRACIONAL"
-→ **ATENÇÃO:** Só use este título se o documento envolver ADOLESCENTE (menor de 18 anos)
-→ Se for processo comum entre adultos, NÃO use este título!
+→ **🚨 ATENÇÃO - LEIA COM CUIDADO:**
+  • Só use este título se o documento mencionar EXPLICITAMENTE:
+    - "ato infracional"
+    - "adolescente representado"
+    - "medida socioeducativa"
+    - "Estatuto da Criança e do Adolescente (ECA)"
+  • ❌ NÃO use para: processos cíveis, consumidor, trabalhista, família
+  • ❌ NÃO use se as partes são ADULTOS/EMPRESAS (ex: pessoa vs GOL, pessoa vs banco)
+  • ✅ Só use se envolver ADOLESCENTE (menor de 18 anos) que praticou ato infracional
 
-Se for SENTENÇA/ACÓRDÃO/DECISÃO CÍVEL/TRABALHISTA/CONSUMIDOR:
+Se for SENTENÇA/ACÓRDÃO/DECISÃO CÍVEL/TRABALHISTA/CONSUMIDOR (casos entre adultos):
 → Escolha UM destes (adapte conforme a perspectiva):
 
   **Para AUTOR que ganhou tudo:**
@@ -278,6 +291,22 @@ Se for SENTENÇA/ACÓRDÃO/DECISÃO CÍVEL/TRABALHISTA/CONSUMIDOR:
   **Outros estados:**
   "⏳ AGUARDANDO JULGAMENTO - Ainda não foi decidido"
   "📋 ANDAMENTO DO PROCESSO - Apenas uma movimentação"
+
+════════════════════════════════════════════════════════════════
+
+**🚨 EXEMPLOS PRÁTICOS - O QUE NÃO É ATO INFRACIONAL:**
+
+❌ ERRADO usar "DECISÃO SOBRE ATO INFRACIONAL" nestes casos:
+- Pessoa física vs GOL Linhas Aéreas (direito do consumidor) → Use "CONSEGUIU PARTE DO QUE PEDIU"
+- Pessoa vs Banco (cobrança indevida) → Use "CONSEGUIU O QUE PEDIU"
+- Pessoa vs Empresa (indenização) → Use "CONSEGUIU PARTE DO QUE PEDIU"
+- Divórcio, pensão alimentícia (família) → Use títulos apropriados
+- Trabalhador vs Empresa (trabalhista) → Use títulos apropriados
+
+✅ CORRETO usar "DECISÃO SOBRE ATO INFRACIONAL" apenas:
+- Adolescente de 15 anos que furtou → "DECISÃO SOBRE ATO INFRACIONAL"
+- Menor praticou lesão corporal → "DECISÃO SOBRE ATO INFRACIONAL"
+- Jovem de 17 anos em medida socioeducativa → "DECISÃO SOBRE ATO INFRACIONAL"
 
 ════════════════════════════════════════════════════════════════
 
