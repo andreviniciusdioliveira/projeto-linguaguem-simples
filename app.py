@@ -330,15 +330,19 @@ Se for SENTENÇA/ACÓRDÃO/DECISÃO CÍVEL/TRABALHISTA/CONSUMIDOR (casos entre a
 
 📊 [TÍTULO ESCOLHIDO CONFORME AS INSTRUÇÕES ACIMA]
 
-**Em uma frase simples:** [Explique o resultado direto]
+**Em uma frase simples:** [Explique o resultado direto - USE A PERSPECTIVA CORRETA]
+
+🚨 **LEMBRETE CRÍTICO ANTES DE ESCREVER:**
+Antes de escrever cada seção, releia as INSTRUÇÕES DE PERSPECTIVA acima e aplique rigorosamente:
+- Se AUTOR: Use "VOCÊ" para o autor, nome do réu diretamente
+- Se RÉU: Use "VOCÊ" para o réu, nome do autor diretamente
+- Se ECA: Use nome completo do adolescente, NUNCA "você"
+**Aplique isso em TODAS as seções abaixo!**
 
 ---
 
 📑 **O QUE ESTÁ ACONTECENDO**
-[Em 2-3 parágrafos curtos, conte a história do processo]
-- O que você pediu na Justiça?
-- O que a outra parte disse?
-- Qual foi a decisão até agora?
+[Em 2-3 parágrafos curtos, conte a história do processo - RESPEITANDO A PERSPECTIVA]
 
 Use frases de 10-15 palavras. Seja direto e claro.
 
@@ -631,14 +635,22 @@ def analisar_documento_completo_gemini(texto, perspectiva="nao_informado"):
     else:
         texto_analise = texto
 
-    # 🔥 DETECTAR PROCESSO DE ATO INFRACIONAL (tem prioridade sobre perspectiva)
-    is_ato_infracional = any([
-        "ato infracional" in texto.lower(),
-        "adolescente representado" in texto.lower(),
-        "medida socioeducativa" in texto.lower(),
-        "estatuto da criança" in texto.lower(),
-        "eca" in texto.lower() and ("adolescente" in texto.lower() or "menor" in texto.lower())
-    ])
+    # 🔥 DETECTAR PROCESSO DE ATO INFRACIONAL - VERSÃO RESTRITIVA
+    # Só considera ato infracional se tiver MÚLTIPLOS indicadores fortes
+    indicadores_eca = 0
+
+    if "ato infracional" in texto.lower():
+        indicadores_eca += 2  # Indicador forte
+    if "adolescente representado" in texto.lower():
+        indicadores_eca += 2  # Indicador forte
+    if "medida socioeducativa" in texto.lower():
+        indicadores_eca += 2  # Indicador forte
+    if "estatuto da criança e do adolescente" in texto.lower():
+        indicadores_eca += 2  # Indicador forte
+
+    # Só considera ECA se tiver indicadores FORTES (pontuação >= 2)
+    # E NÃO sobrescreve a perspectiva do usuário se ela foi informada
+    is_ato_infracional = (indicadores_eca >= 2) and (perspectiva == "nao_informado")
 
     # 🔥 MAPEAR PERSPECTIVA DE FORMA EXPLÍCITA E FORTE
     if is_ato_infracional:
