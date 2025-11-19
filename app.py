@@ -314,6 +314,10 @@ IMPORTANTE: Explique o PORQUÊ da decisão de forma simples.
 
 📋 **TOTAL GERAL: R$ XX.XXX,XX**
 
+**REGRA OBRIGATÓRIA PARA O TOTAL GERAL:**
+Sempre que mostrar o TOTAL GERAL, adicione logo abaixo esta explicação:
+"⚠️ Este valor terá correção monetária. Isso significa que o valor vai aumentar um pouquinho até o dia do pagamento, para não perder valor com o tempo."
+
 **EXEMPLOS CORRETOS:**
 
 ✅ **Exemplo 1 - Valores discriminados (PREFERÍVEL):**
