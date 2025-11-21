@@ -400,6 +400,28 @@ Nas vezes seguintes, pode usar apenas "juiz" ou "juiz de primeira instância"
 SEÇÃO 2: TEMPLATE DO QUE VOCÊ VAI GERAR (SUA RESPOSTA FINAL)
 ═══════════════════════════════════════════════════════════════════
 
+🚨🚨🚨 ANTES DE COMEÇAR A ESCREVER - CHECKLIST OBRIGATÓRIO 🚨🚨🚨
+
+PASSO 1: Procure no documento por valores discriminados
+- Busque palavras: "sendo", "compreendido", "soma de", "referente a", "gastos com"
+- Procure múltiplos valores R$ próximos com descrições
+- Se encontrar → marque SIM
+- Se não encontrar nada → marque NÃO
+
+PASSO 2: Se marcou SIM no Passo 1
+→ Você é OBRIGADO a usar o formato discriminado com 📋
+→ NUNCA use formato simples quando há discriminação
+→ Exemplo: Se viu "R$ 1.362,14 de passagens" + "R$ 65,50 de alimentação"
+  ENTÃO use:
+  📋 **Danos Materiais: R$ 1.427,64**
+  - Reembolso de passagens aéreas: R$ 1.362,14
+  - Reembolso de alimentação: R$ 65,50
+
+PASSO 3: Se marcou NÃO no Passo 1
+→ Use formato simples: "- Danos materiais: R$ X"
+
+═══════════════════════════════════════════════════════════════════
+
 [TÍTULO ESCOLHIDO CONFORME INSTRUÇÕES ACIMA]
 
 **Em uma frase simples:** [Explique o resultado direto - use a perspectiva correta]
@@ -431,7 +453,9 @@ SEÇÃO 2: TEMPLATE DO QUE VOCÊ VAI GERAR (SUA RESPOSTA FINAL)
 
 **O QUE VOCÊ VAI GANHAR:** (ou "O QUE VOCÊ VAI PAGAR:" se for réu condenado, ou "BOA NOTÍCIA - VOCÊ NÃO VAI PAGAR:" se réu absolvido)
 
-[Se houver valores discriminados no documento, use o formato:]
+🚨 RELEIA O CHECKLIST OBRIGATÓRIO ACIMA ANTES DE ESCREVER ESTA SEÇÃO! 🚨
+
+[FORMATO DISCRIMINADO - Use quando encontrou detalhamento no documento:]
 📋 **[Categoria]: R$ [TOTAL]**
 - [Descrição item 1]: R$ [valor1]
 - [Descrição item 2]: R$ [valor2]
@@ -439,7 +463,7 @@ SEÇÃO 2: TEMPLATE DO QUE VOCÊ VAI GERAR (SUA RESPOSTA FINAL)
 📋 **TOTAL GERAL: R$ [total]**
 ⚠️ Este valor será atualizado! Isso quer dizer que ele poderá sofrer um pequeno aumento até o dia do pagamento.
 
-[Se NÃO houver discriminação, use formato simples:]
+[FORMATO SIMPLES - Use SOMENTE quando documento não tem detalhamento:]
 - Danos materiais: R$ X
 - Danos morais: R$ Y
 
@@ -1151,24 +1175,38 @@ Analise o documento e retorne JSON com:
 
 **🚨🚨🚨 INSTRUÇÕES CRÍTICAS PARA VALORES DISCRIMINADOS 🚨🚨🚨**
 
-TAREFA OBRIGATÓRIA: Procure no documento por QUALQUER detalhamento de valores!
+⚠️⚠️⚠️ LEIA ESTA SEÇÃO 3 VEZES ANTES DE PREENCHER O JSON ⚠️⚠️⚠️
 
-PROCURE POR ESTAS PALAVRAS NO DOCUMENTO:
-- "sendo:", "consistindo", "compreendido", "soma de", "dividido", "discriminado"
-- "referente a", "relativos a", "gastos com", "despesas de"
-- Múltiplos valores com R$ próximos uns dos outros
-- Valores entre parênteses explicativos
+TAREFA OBRIGATÓRIA EM 3 ETAPAS:
 
-SE ENCONTRAR DETALHAMENTO:
+ETAPA 1: PROCURE ATIVAMENTE POR DETALHAMENTOS
+Leia TODO o documento procurando por estas palavras-chave:
+✓ "sendo:" ou "sendo,"
+✓ "consistindo" ou "compreendido"
+✓ "soma de" ou "dividido"
+✓ "referente a" ou "referente ao"
+✓ "gastos com" ou "despesas de"
+✓ Múltiplos valores R$ próximos com descrições entre eles
+
+ETAPA 2: SE ENCONTROU QUALQUER DETALHAMENTO
 → Preencha OBRIGATORIAMENTE os arrays "_discriminado"
-→ Exemplo: Se ver "R$ 1.362,14 referente às passagens" e "R$ 65,50 de alimentação"
-  ENTÃO crie 2 itens no array danos_materiais_discriminado
+→ EXEMPLO REAL:
+  Documento diz: "R$ 1.362,14 de passagens aéreas" + "R$ 65,50 de alimentação"
+  Você DEVE criar:
+  "danos_materiais_discriminado": [
+    {"item": "Reembolso de passagens aéreas", "valor": "R$ 1.362,14"},
+    {"item": "Reembolso de alimentação durante a viagem", "valor": "R$ 65,50"}
+  ]
 
-SE NÃO ENCONTRAR NENHUM DETALHAMENTO:
-→ Deixe os arrays vazios []
-→ Apenas preencha "danos_materiais": "R$ X" com o total
+→ OUTRO EXEMPLO:
+  Documento diz: "R$ 65,50 compreendido pela soma de R$ 54,00 e R$ 11,50"
+  Você DEVE discriminar os dois valores, mesmo que seja uma "soma"
 
-IMPORTANTE: Leia o documento inteiro procurando por detalhamentos de valores!
+ETAPA 3: SE NÃO ENCONTROU NENHUM DETALHAMENTO
+→ Deixe os arrays vazios: "danos_materiais_discriminado": []
+→ Apenas preencha: "danos_materiais": "R$ X" com o total
+
+🚨 LEMBRE-SE: Se você preencher arrays "_discriminado" com 2+ itens, o texto simplificado DEVE usar o formato discriminado com 📋 e lista!
 
 **🎯 EXEMPLO REAL DE PREENCHIMENTO - CASO GOL LINHAS AÉREAS:**
 
