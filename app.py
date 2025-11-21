@@ -1194,8 +1194,8 @@ ETAPA 2: SE ENCONTROU QUALQUER DETALHAMENTO
   Documento diz: "R$ 1.362,14 de passagens aéreas" + "R$ 65,50 de alimentação"
   Você DEVE criar:
   "danos_materiais_discriminado": [
-    {"item": "Reembolso de passagens aéreas", "valor": "R$ 1.362,14"},
-    {"item": "Reembolso de alimentação durante a viagem", "valor": "R$ 65,50"}
+    {{"item": "Reembolso de passagens aéreas", "valor": "R$ 1.362,14"}},
+    {{"item": "Reembolso de alimentação durante a viagem", "valor": "R$ 65,50"}}
   ]
 
 → OUTRO EXEMPLO:
