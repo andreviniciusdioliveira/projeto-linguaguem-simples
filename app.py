@@ -310,18 +310,34 @@ Se NEUTRO (não informado):
 
 **REGRAS SOBRE VALORES DISCRIMINADOS:**
 
-REGRA ABSOLUTA: Se o documento discrimina valores (ex: "R$ 1.362,14 de passagens + R$ 65,50 de alimentação"), você DEVE manter essa discriminação completa no texto simplificado.
+🚨🚨🚨 REGRA ABSOLUTA - LEIA ISSO 3 VEZES: 🚨🚨🚨
 
-NUNCA simplifique valores discriminados em uma frase genérica.
+Se o documento original menciona QUALQUER detalhamento de valores, você é OBRIGADO a manter essa discriminação completa no texto simplificado.
 
-Formato obrigatório para valores discriminados:
+EXEMPLOS DE DETALHAMENTO QUE VOCÊ DEVE PROCURAR:
+- "R$ 1.362,14 referente às passagens aéreas"
+- "R$ 65,50 compreendido pela soma de R$ 54,00 e R$ 11,50 gastos com alimentação"
+- "R$ 3.000,00 para João + R$ 3.000,00 para Maria"
+- "sendo: R$ X de item A e R$ Y de item B"
+
+SE ENCONTROU DETALHAMENTO → USE O FORMATO DISCRIMINADO (OBRIGATÓRIO):
+
+✅ FORMATO CORRETO:
 ```
 📋 **Danos Materiais: R$ 1.427,64**
 - Reembolso de passagens aéreas: R$ 1.362,14
 - Reembolso de alimentação durante a viagem: R$ 65,50
+
+📋 **TOTAL GERAL: R$ 7.427,64**
+⚠️ Este valor será atualizado até o pagamento.
 ```
 
-Se o documento só menciona total sem discriminação, use apenas o total simples.
+❌ FORMATO ERRADO (NÃO FAÇA ISSO):
+```
+Danos Materiais: R$ 1.427,64
+```
+
+Se o documento REALMENTE só menciona total sem nenhum detalhamento, use formato simples.
 
 **REGRAS SOBRE JUSTIÇA GRATUITA:**
 
@@ -352,10 +368,31 @@ Use "Aguarde" APENAS para:
 - Exemplo CORRETO: "A Secretaria tem 15 dias para realizar avaliação"
 - Exemplo ERRADO: "15 dias" (sem contexto)
 
+**REGRAS SOBRE TERMOS TÉCNICOS:**
+
+🚨 SEMPRE explique ou substitua estes termos quando aparecerem:
+
+TERMOS QUE DEVEM SER EXPLICADOS NO GLOSSÁRIO (obrigatório):
+- "Juiz de primeira instância" → Explique: "O primeiro juiz que analisa o caso"
+- "Segunda instância" ou "Tribunal" → Explique: "Juízes que analisam recursos"
+- "Honorários" → Explique: "Pagamento ao advogado pelo trabalho"
+- "Trânsito em julgado" → Explique: "Quando não dá mais para contestar"
+
+TERMOS QUE DEVEM SER SUBSTITUÍDOS NO TEXTO (sempre):
+- "Parcialmente procedente" → Use: "Você ganhou parte do que pediu"
+- "Procedente" → Use: "Você ganhou"
+- "Improcedente" → Use: "Você perdeu"
+- "Deferido" → Use: "aprovado" ou "aceito"
+- "Indeferido" → Use: "negado" ou "recusado"
+
+QUANDO MENCIONAR "JUIZ DE PRIMEIRA INSTÂNCIA" NO TEXTO:
+Na primeira vez, escreva: "juiz de primeira instância (o primeiro juiz que analisa o caso)"
+Nas vezes seguintes, pode usar apenas "juiz" ou "juiz de primeira instância"
+
 **REGRAS DE ESCRITA:**
 
 - Máximo 15 palavras por frase
-- NUNCA use: "exequente", "executado", "lide", "mérito", "parcialmente procedente"
+- NUNCA use: "exequente", "executado", "lide", "mérito"
 - Seja empático conforme a perspectiva
 - Use linguagem simples e conversacional
 
@@ -1112,10 +1149,26 @@ Analise o documento e retorne JSON com:
 
 ═══════════════════════════════════════════════════════════════════
 
-**INSTRUÇÕES PARA VALORES DISCRIMINADOS:**
-- Se o documento detalha os valores (ex: "R$ 1.362,14 de passagens + R$ 65,50 de alimentação"), preencha os arrays "_discriminado"
-- Se o documento só menciona o total sem discriminação, deixe os arrays vazios []
-- Isso permite que o frontend exiba valores de forma detalhada quando possível
+**🚨🚨🚨 INSTRUÇÕES CRÍTICAS PARA VALORES DISCRIMINADOS 🚨🚨🚨**
+
+TAREFA OBRIGATÓRIA: Procure no documento por QUALQUER detalhamento de valores!
+
+PROCURE POR ESTAS PALAVRAS NO DOCUMENTO:
+- "sendo:", "consistindo", "compreendido", "soma de", "dividido", "discriminado"
+- "referente a", "relativos a", "gastos com", "despesas de"
+- Múltiplos valores com R$ próximos uns dos outros
+- Valores entre parênteses explicativos
+
+SE ENCONTRAR DETALHAMENTO:
+→ Preencha OBRIGATORIAMENTE os arrays "_discriminado"
+→ Exemplo: Se ver "R$ 1.362,14 referente às passagens" e "R$ 65,50 de alimentação"
+  ENTÃO crie 2 itens no array danos_materiais_discriminado
+
+SE NÃO ENCONTRAR NENHUM DETALHAMENTO:
+→ Deixe os arrays vazios []
+→ Apenas preencha "danos_materiais": "R$ X" com o total
+
+IMPORTANTE: Leia o documento inteiro procurando por detalhamentos de valores!
 
 **🎯 EXEMPLO REAL DE PREENCHIMENTO - CASO GOL LINHAS AÉREAS:**
 
