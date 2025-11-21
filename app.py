@@ -233,420 +233,541 @@ def rate_limit(f):
 # ============= PROMPT DE SIMPLIFICAÇÃO =============
 
 PROMPT_SIMPLIFICACAO_MELHORADO = """
-╔════════════════════════════════════════════════════════════════╗
-║  ⚠️ ATENÇÃO: ESTAS SÃO INSTRUÇÕES - NÃO COPIE PARA O TEXTO   ║
-║  Você deve SEGUIR estas regras, mas NÃO incluí-las no output  ║
-╚════════════════════════════════════════════════════════════════╝
+╔══════════════════════════════════════════════════════════════════╗
+║  ⚠️⚠️⚠️ IMPORTANTE: NÃO COPIE ESTAS INSTRUÇÕES PARA O OUTPUT ⚠️⚠️⚠️  ║
+║                                                                  ║
+║  As instruções abaixo são para VOCÊ SEGUIR internamente.        ║
+║  O texto que você vai GERAR deve ser APENAS o documento         ║
+║  simplificado, SEM incluir nenhuma destas instruções,           ║
+║  marcadores (🚨, ■, ═), ou lembretes.                          ║
+╚══════════════════════════════════════════════════════════════════╝
 
-**INSTRUÇÕES PARA ESCOLHER O TIPO DE TÍTULO (não copie isso para o texto final):**
+═══════════════════════════════════════════════════════════════════
+SEÇÃO 1: INSTRUÇÕES PARA VOCÊ SEGUIR (NÃO INCLUIR NO OUTPUT)
+═══════════════════════════════════════════════════════════════════
 
-**🚨 VERIFICAÇÃO OBRIGATÓRIA - RESPONDA ANTES DE ESCOLHER TÍTULO:**
+**INSTRUÇÕES PARA ESCOLHER O TIPO DE TÍTULO:**
+
+**VERIFICAÇÃO OBRIGATÓRIA:**
 
 PASSO 1: Quem são as partes do processo?
-- [ ] ADOLESCENTE (menor de 18 anos) vs Ministério Público/Estado?
-- [ ] ADULTO vs ADULTO/EMPRESA/ESTADO?
+- ADOLESCENTE (menor de 18 anos) vs Ministério Público/Estado?
+- ADULTO vs ADULTO/EMPRESA/ESTADO?
 
 PASSO 2: O documento menciona EXPLICITAMENTE:
-- [ ] "ato infracional"
-- [ ] "adolescente representado"
-- [ ] "medida socioeducativa"
-- [ ] "Estatuto da Criança e do Adolescente"
+- "ato infracional"
+- "adolescente representado"
+- "medida socioeducativa"
+- "Estatuto da Criança e do Adolescente"
 
 DECISÃO:
 → Se PASSO 1 = ADOLESCENTE E PASSO 2 = SIM → Use "DECISÃO SOBRE ATO INFRACIONAL"
 → Se PASSO 1 = ADULTO → NUNCA use "ATO INFRACIONAL", escolha título apropriado abaixo
 
-════════════════════════════════════════════════════════════════
+**OPÇÕES DE TÍTULOS:**
 
 Se for MANDADO/CITAÇÃO/INTIMAÇÃO:
-→ Escreva apenas: "📋 ORDEM JUDICIAL PARA [ação específica]"
-→ Exemplo real: "📋 ORDEM JUDICIAL PARA COMPARECER À AUDIÊNCIA"
+→ "📋 ORDEM JUDICIAL PARA [ação específica]"
+→ Exemplo: "📋 ORDEM JUDICIAL PARA COMPARECER À AUDIÊNCIA"
 
 Se for PROCESSO DE ATO INFRACIONAL (ECA - adolescente):
-→ Escreva apenas: "⚖️ DECISÃO SOBRE ATO INFRACIONAL"
-→ **🚨 ATENÇÃO - LEIA COM CUIDADO:**
-  • Só use este título se o documento mencionar EXPLICITAMENTE:
-    - "ato infracional"
-    - "adolescente representado"
-    - "medida socioeducativa"
-    - "Estatuto da Criança e do Adolescente (ECA)"
-  • ❌ NÃO use para: processos cíveis, consumidor, trabalhista, família
-  • ❌ NÃO use se as partes são ADULTOS/EMPRESAS (ex: pessoa vs GOL, pessoa vs banco)
-  • ✅ Só use se envolver ADOLESCENTE (menor de 18 anos) que praticou ato infracional
+→ "⚖️ DECISÃO SOBRE ATO INFRACIONAL"
+→ Só use se o documento mencionar explicitamente termos do ECA
+→ NÃO use para processos cíveis, consumidor, trabalhista, família entre adultos
 
-Se for SENTENÇA/ACÓRDÃO/DECISÃO CÍVEL/TRABALHISTA/CONSUMIDOR (casos entre adultos):
-→ Escolha UM destes (adapte conforme a perspectiva):
+Se for SENTENÇA/ACÓRDÃO/DECISÃO CÍVEL/TRABALHISTA/CONSUMIDOR:
+→ Para AUTOR que ganhou tudo: "✅ CONSEGUIU O QUE PEDIU"
+→ Para AUTOR que ganhou parte: "🟡 CONSEGUIU PARTE DO QUE PEDIU"
+→ Para AUTOR que perdeu: "❌ NÃO CONSEGUIU O QUE PEDIU"
+→ Para RÉU absolvido: "✅ VITÓRIA TOTAL - Você foi absolvido de tudo"
+→ Para RÉU parcialmente condenado: "🟡 CONDENAÇÃO PARCIAL"
+→ Para RÉU totalmente condenado: "⚪ PEDIDO NEGADO - Você foi condenado"
+→ Para perspectiva NEUTRA: "✅ VITÓRIA TOTAL", "🟡 VITÓRIA PARCIAL", "⚪ PEDIDO NEGADO"
 
-  **Para AUTOR que ganhou tudo:**
-  "✅ CONSEGUIU O QUE PEDIU"
+**REGRAS CRÍTICAS DE PERSPECTIVA:**
 
-  **Para AUTOR que ganhou parte:**
-  "🟡 CONSEGUIU PARTE DO QUE PEDIU"
+Se AUTOR:
+- Use "VOCÊ" para o autor
+- Use nome do réu diretamente (ex: "Estado de Goiás", "GOL")
+- Nunca use o nome do autor
 
-  **Para AUTOR que perdeu:**
-  "❌ NÃO CONSEGUIU O QUE PEDIU"
+Se RÉU:
+- Use "VOCÊ" para o réu
+- Use nome do autor diretamente (ex: "João Silva")
+- Para valores, use "O QUE VOCÊ VAI PAGAR" se condenado
+- Adapte títulos (ex: "Você foi condenado" ao invés de "Você ganhou")
 
-  **Para RÉU que foi totalmente absolvido:**
-  "✅ VITÓRIA TOTAL - Você foi absolvido de tudo"
+Se ECA (Ato Infracional):
+- NUNCA use "você"
+- Use nome completo do adolescente
+- Não use conceitos de vitória/derrota
+- Foque na medida socioeducativa aplicada
 
-  **Para RÉU que foi parcialmente condenado:**
-  "🟡 CONDENAÇÃO PARCIAL"
+Se NEUTRO (não informado):
+- Use nomes reais das partes
+- Não use "você"
+- Mantenha imparcialidade
 
-  **Para RÉU que foi totalmente condenado:**
-  "⚪ PEDIDO NEGADO - Você foi condenado"
+**REGRAS SOBRE VALORES DISCRIMINADOS:**
 
-  **Para perspectiva NEUTRA:**
-  "✅ VITÓRIA TOTAL"
-  "🟡 VITÓRIA PARCIAL"
-  "⚪ PEDIDO NEGADO"
+REGRA ABSOLUTA: Se o documento discrimina valores (ex: "R$ 1.362,14 de passagens + R$ 65,50 de alimentação"), você DEVE manter essa discriminação completa no texto simplificado.
 
-  **Outros estados:**
-  "⏳ AGUARDANDO JULGAMENTO - Ainda não foi decidido"
-  "📋 ANDAMENTO DO PROCESSO - Apenas uma movimentação"
+NUNCA simplifique valores discriminados em uma frase genérica.
 
-════════════════════════════════════════════════════════════════
-
-**🚨 EXEMPLOS PRÁTICOS - O QUE NÃO É ATO INFRACIONAL:**
-
-❌ ERRADO usar "DECISÃO SOBRE ATO INFRACIONAL" nestes casos:
-- Pessoa vs GOL (consumidor) → Use "CONSEGUIU PARTE DO QUE PEDIU"
-- Pessoa vs Banco (cobrança) → Use "CONSEGUIU O QUE PEDIU"
-- Pessoa vs Estado (prisão indevida, indenização) → Use "CONSEGUIU PARTE DO QUE PEDIU"
-- Adulto vs Estado (erro judicial) → Use títulos apropriados
-- Divórcio, pensão alimentícia → Use títulos apropriados
-- Trabalhista → Use títulos apropriados
-
-🚨 LEMBRE-SE: Se as partes são ADULTOS, NUNCA use "ATO INFRACIONAL"!
-
-✅ CORRETO usar "DECISÃO SOBRE ATO INFRACIONAL" SOMENTE:
-- Adolescente 15 anos furtou → "DECISÃO SOBRE ATO INFRACIONAL"
-- Menor 16 anos lesão corporal → "DECISÃO SOBRE ATO INFRACIONAL"
-- Jovem 17 anos medida socioeducativa → "DECISÃO SOBRE ATO INFRACIONAL"
-- Documento menciona "ECA" + adolescente → "DECISÃO SOBRE ATO INFRACIONAL"
-
-════════════════════════════════════════════════════════════════
-
-**ESTRUTURA DO TEXTO SIMPLIFICADO (o que você VAI escrever):**
-
-📊 [TÍTULO ESCOLHIDO CONFORME AS INSTRUÇÕES ACIMA]
-
-**Em uma frase simples:** [Explique o resultado direto - USE A PERSPECTIVA CORRETA]
-
-🚨 **LEMBRETE CRÍTICO ANTES DE ESCREVER:**
-Antes de escrever cada seção, releia as INSTRUÇÕES DE PERSPECTIVA acima e aplique rigorosamente:
-- Se AUTOR: Use "VOCÊ" para o autor, nome do réu diretamente
-- Se RÉU: Use "VOCÊ" para o réu, nome do autor diretamente
-- Se ECA: Use nome completo do adolescente, NUNCA "você"
-**Aplique isso em TODAS as seções abaixo!**
-
----
-
-📑 **O QUE ESTÁ ACONTECENDO**
-[Em 2-3 parágrafos curtos, conte a história do processo - RESPEITANDO A PERSPECTIVA]
-
-Use frases de 10-15 palavras. Seja direto e claro.
-
----
-
-⚖️ **A DECISÃO DO [AUTORIDADE]**
-
-**REGRA IMPORTANTE - ESCOLHA O TÍTULO CORRETO:**
-- Se for SENTENÇA, DECISÃO ou DESPACHO → use "**A DECISÃO DO JUIZ**"
-- Se for ACÓRDÃO → use "**A DECISÃO DO DESEMBARGADOR(A)**"
-- Se for MANDADO → use "**ORDEM JUDICIAL**"
-
-[Explique em linguagem super simples o que foi decidido]
-
-Use blocos curtos:
-- Sobre [assunto X]: O juiz (ou desembargador/a) decidiu que...
-- Sobre [assunto Y]: O juiz (ou desembargador/a) entendeu que...
-
-IMPORTANTE:
-- Explique o PORQUÊ da decisão de forma simples
-- Nesta seção, mencione os valores de forma RESUMIDA (ex: "R$ 1.427,64 de danos materiais")
-- NÃO discrimine os valores aqui - a discriminação detalhada vai na seção "VALORES E O QUE VOCÊ PRECISA FAZER"
-- Exemplo correto: "O juiz decidiu que a empresa deve pagar R$ 1.427,64 de danos materiais e R$ 6.000,00 de danos morais"
-- Exemplo ERRADO: Colocar a estrutura "📋 **Danos Materiais: R$ 1.427,64**" nesta seção
-
----
-
-💰 **VALORES E O QUE VOCÊ PRECISA FAZER**
-
-✅ **O QUE VOCÊ VAI GANHAR:**
-
-**🚨 REGRA CRÍTICA #1 - JUSTIÇA GRATUITA:**
-
-**❌ NÃO MOSTRE HONORÁRIOS/CUSTAS NESTA SEÇÃO SE TEM JUSTIÇA GRATUITA!**
-
-- Se `tem_justica_gratuita` = true → NÃO inclua honorários ou custas nesta seção de valores
-- Honorários e custas serão mencionados APENAS na seção "Sobre custas e honorários" (mais abaixo)
-- Exemplo ERRADO: "• Honorários: 10% do valor da condenação (devido pelo autor)" ← NÃO FAÇA ISSO!
-- Exemplo CORRETO: Não mencionar honorários aqui, só os valores que a pessoa VAI RECEBER (danos morais, materiais, etc)
-
-═══════════════════════════════════════════════════════════════════
-
-**🚨 REGRA CRÍTICA #2 - DISCRIMINAÇÃO DE VALORES:**
-
-**REGRA ABSOLUTA:**
-Quando o documento discrimina valores (ex: "R$ 1.362,14 de passagens + R$ 65,50 de alimentação"),
-você DEVE OBRIGATORIAMENTE manter essa discriminação no texto simplificado.
-
-**NUNCA agrupe valores discriminados em uma frase genérica!**
-
-═══════════════════════════════════════════════════════════════════
-
-**EXEMPLO REAL - CASO GOL LINHAS AÉREAS (USE COMO REFERÊNCIA):**
-
-**❌ ERRADO (O QUE VOCÊ NÃO DEVE FAZER):**
-```
-Sobre os danos materiais: O juiz determinou que a GOL deve pagar R$ 1.427,64
-para cobrir os prejuízos que vocês tiveram com as passagens.
-```
-
-**✅ CORRETO (O QUE VOCÊ DEVE FAZER):**
+Formato obrigatório para valores discriminados:
 ```
 📋 **Danos Materiais: R$ 1.427,64**
 - Reembolso de passagens aéreas: R$ 1.362,14
 - Reembolso de alimentação durante a viagem: R$ 65,50
-
-**TOTAL GERAL: R$ 1.427,64**
 ```
 
-**IMPORTANTE:**
-- NÃO repita "Sobre os danos materiais:" aqui (isso já foi dito na seção A DECISÃO DO JUIZ)
-- Vá DIRETO para a discriminação dos valores
-- Use a estrutura 📋 **[Categoria]: R$ [TOTAL]**
+Se o documento só menciona total sem discriminação, use apenas o total simples.
+
+**REGRAS SOBRE JUSTIÇA GRATUITA:**
+
+Se tem_justica_gratuita = true:
+- NÃO inclua honorários/custas na seção "O QUE VOCÊ VAI GANHAR"
+- Na seção "Sobre custas e honorários", escreva APENAS: "Você NÃO vai pagar custas e honorários porque tem justiça gratuita."
+- NÃO mencione valores, não use "suspenso", "agora", "futuramente"
+
+**REGRAS SOBRE PRÓXIMOS PASSOS:**
+
+SEMPRE oriente a consultar advogado(a) ou defensoria pública quando:
+- Ganhou parcialmente
+- Perdeu
+- Cabe recurso
+- Valores a receber sem indicação de como/quando
+- Na dúvida
+
+NUNCA diga "Aguarde o tribunal te avisar" ou "Aguarde pagamento automático"
+
+Use "Aguarde" APENAS para:
+- Mandados com data/hora marcada
+- Ordens diretas e claras
+
+**REGRAS SOBRE PRAZOS:**
+
+- Se NÃO houver prazos específicos → NÃO mencione prazos
+- Se houver → especifique PARA QUEM e PARA QUÊ
+- Exemplo CORRETO: "A Secretaria tem 15 dias para realizar avaliação"
+- Exemplo ERRADO: "15 dias" (sem contexto)
+
+**REGRAS DE ESCRITA:**
+
+- Máximo 15 palavras por frase
+- NUNCA use: "exequente", "executado", "lide", "mérito", "parcialmente procedente"
+- Seja empático conforme a perspectiva
+- Use linguagem simples e conversacional
 
 ═══════════════════════════════════════════════════════════════════
-
-**POR QUE ISSO É IMPORTANTE?**
-- O cidadão tem DIREITO de saber exatamente o que compõe cada valor
-- Facilita a conferência quando o pagamento for feito
-- Transparência total sobre a decisão judicial
-- Cumprimento da Lei de Acesso à Informação
-
+SEÇÃO 2: TEMPLATE DO QUE VOCÊ VAI GERAR (SUA RESPOSTA FINAL)
 ═══════════════════════════════════════════════════════════════════
 
-**INSTRUÇÕES PASSO A PASSO:**
+[TÍTULO ESCOLHIDO CONFORME INSTRUÇÕES ACIMA]
 
-1️⃣ **IDENTIFICAR DISCRIMINAÇÃO:**
-   - Procure no documento por valores detalhados
-   - Exemplos de discriminação:
-     * "R$ 1.362,14 de passagens + R$ 65,50 de alimentação"
-     * "R$ 3.000,00 para João + R$ 3.000,00 para Maria"
-     * "R$ 500,00 de táxi + R$ 200,00 de hotel + R$ 100,00 de refeições"
-
-2️⃣ **MANTER ESTRUTURA:**
-   - Use sempre a estrutura de lista com bullet points (-)
-   - Mostre o TOTAL GERAL em destaque
-   - Discrimine cada item com seu respectivo valor
-
-3️⃣ **FORMATO OBRIGATÓRIO:**
-```
-📋 **[Categoria]: R$ [TOTAL]**
-- [Descrição item 1]: R$ [valor1]
-- [Descrição item 2]: R$ [valor2]
-- [Descrição item N]: R$ [valorN]
-```
-
-4️⃣ **DANOS MORAIS PARA MÚLTIPLAS PESSOAS:**
-Se houver discriminação por pessoa:
-```
-📋 **Danos Morais: R$ 6.000,00**
-- Para Thiago José de Arruda Oliveira: R$ 3.000,00
-- Para Kamilla Sousa Prado: R$ 3.000,00
-```
-
-5️⃣ **SEMPRE ADICIONE A OBSERVAÇÃO SOBRE ATUALIZAÇÃO:**
-Após mostrar o TOTAL GERAL:
-```
-📋 **TOTAL GERAL: R$ 7.427,64**
-⚠️ Este valor será atualizado! Isso quer dizer que ele poderá sofrer um pequeno aumento até o dia do pagamento.
-```
-
-═══════════════════════════════════════════════════════════════════
-
-**MAIS EXEMPLOS CORRETOS:**
-
-**Exemplo 2 - Danos materiais diversos:**
-```
-📋 **Danos Materiais: R$ 2.150,00**
-- Despesas médicas: R$ 1.500,00
-- Medicamentos: R$ 450,00
-- Transporte para tratamento: R$ 200,00
-```
-
-**Exemplo 3 - Quando NÃO há discriminação:**
-Se o documento só diz "R$ 5.000,00 de danos materiais" SEM detalhes:
-```
-- Danos materiais: R$ 5.000,00
-```
-(Neste caso, NÃO invente discriminação - use apenas o total)
-
-**Exemplo 4 - Honorários e custas:**
-⚠️ IMPORTANTE: Honorários e custas NÃO vão nesta seção "O QUE VOCÊ VAI GANHAR"!
-- Se tem justiça gratuita: NÃO mencione aqui, será tratado em "Sobre custas e honorários"
-- Se NÃO tem justiça gratuita: AINDA ASSIM não inclua aqui (vai na seção específica abaixo)
-
-═══════════════════════════════════════════════════════════════════
-
-**❌ ERROS COMUNS A EVITAR:**
-
-1. ❌ "R$ 1.427,64 referente ao prejuízo com a compra das passagens"
-2. ❌ "Valores relacionados a danos materiais: R$ 1.427,64"
-3. ❌ "Este valor é para cobrir os custos da viagem"
-4. ❌ "O juiz determinou o pagamento de R$ 1.427,64 para ressarcir os danos"
-5. ❌ "Você vai receber R$ 1.427,64 de indenização"
-
-**✅ SEMPRE USE:**
-```
-📋 **Danos Materiais: R$ 1.427,64**
-- Reembolso de passagens: R$ 1.362,14
-- Reembolso de alimentação: R$ 65,50
-```
-
-═══════════════════════════════════════════════════════════════════
-
-**REGRA FINAL - CHECKLIST ANTES DE GERAR O TEXTO:**
-
-□ Verifiquei se há discriminação de valores no documento original?
-□ Se SIM, mantive TODA a discriminação no texto simplificado?
-□ Usei a estrutura 📋 **[Categoria]: R$ [TOTAL]** com subitens?
-□ Mostrei o TOTAL GERAL ao final?
-□ Adicionei a observação sobre atualização monetária?
-□ NÃO inventei discriminação quando o documento só tem total?
-
-Se você respondeu SIM para todas, está correto! ✅
-
-═══════════════════════════════════════════════════════════════════
-
-❌ **O QUE VOCÊ NÃO VAI GANHAR:**
-- [Liste valores negados. Se não houver, omita esta seção]
-
-**Sobre custas e honorários:**
-
-🚨 **REGRA SIMPLES E DEFINITIVA:**
-
-**Se tem justiça gratuita (`tem_justica_gratuita` = true):**
-→ Escreva SEMPRE E SOMENTE: "Você NÃO vai pagar custas e honorários porque tem justiça gratuita."
-→ PONTO FINAL. Não adicione mais nada.
-→ NÃO mencione valores
-→ NÃO mencione "suspenso", "agora", "futuramente", "mas", "porém"
-→ Justiça gratuita = ISENTO (não paga, ponto final)
-
-**Se NÃO tem justiça gratuita (`tem_justica_gratuita` = false):**
-→ Liste os valores que a pessoa deve pagar
-→ Exemplo: "Você deve pagar R$ 500,00 de custas e R$ 1.000,00 de honorários."
-
-═══════════════════════════════════════════════════════════════════
-
-**❌ PROIBIDO quando tem justiça gratuita:**
-- "Você tem justiça gratuita. Esse pagamento está SUSPENSO..." ← ERRADO!
-- "Você NÃO precisa pagar agora" ← ERRADO! (sugere que pode pagar depois)
-- "Esse valor está suspenso até que sua situação melhore" ← ERRADO!
-- Mencionar valores de honorários/custas ← ERRADO!
-
-**✅ CORRETO quando tem justiça gratuita:**
-- "Você NÃO vai pagar custas e honorários porque tem justiça gratuita." ← Simples, claro, definitivo
-
-**Por quê essa mudança?**
-- A palavra "SUSPENSO" confunde as pessoas
-- Justiça gratuita = pessoa está ISENTA do pagamento
-- Mesmo se o documento mencionar "suspensão da exigibilidade", para o cidadão comum significa: NÃO VAI PAGAR
-- Melhor ser direto e claro do que tecnicamente preciso e confuso
-
-═══════════════════════════════════════════════════════════════════
-
-**Próximos passos:**
-[O que você deve fazer agora? Seja ESPECÍFICO e PRÁTICO]
-
-**REGRA CRÍTICA - QUANDO ORIENTAR A CONSULTAR ADVOGADO:**
-- ❌ NUNCA diga: "Aguarde o tribunal te avisar" ou "Aguarde contato do tribunal"
-- ❌ NUNCA diga: "Aguarde o pagamento - será executado automaticamente" (execução raramente é automática!)
-- ✅ O tribunal NÃO entra em contato direto com a parte
-- ✅ As intimações vão para o advogado ou são publicadas em Diário Oficial
-
-**🚨 SEMPRE oriente a consultar advogado(a) ou defensoria pública quando:**
-1. A parte ganhou PARCIALMENTE (conseguiu só parte do que pediu)
-2. A parte perdeu (não conseguiu nada)
-3. Cabe recurso (tanto ganhou parcialmente quanto perdeu pode recorrer)
-4. Houver valores a receber mas sem indicação de como/quando será pago
-5. Houver condenação mas sem prazo específico para cumprimento
-6. Na dúvida, SEMPRE oriente a consultar advogado
-
-**✅ Exemplos de orientações corretas:**
-- "Consulte advogado(a) ou defensoria pública para avaliar se vale recorrer"
-- "Fale com advogado(a) ou defensoria pública sobre os próximos passos"
-- "Consulte advogado(a) ou defensoria pública para saber como receber"
-
-**⚠️ Use "Aguarde" APENAS em casos MUITO específicos como:**
-- Mandados com data/hora marcada: "Compareça na data e hora indicadas"
-- Ordens diretas e claras: "Vá ao endereço indicado no prazo"
-- ❌ NUNCA para sentenças ou acórdãos genéricos
-
-**REGRA CRÍTICA SOBRE PRAZOS (MUITO IMPORTANTE):**
-- Se NÃO houver prazos específicos → NÃO mencione prazos, omita completamente a informação
-- Se houver prazos → liste cada um especificando PARA QUEM e PARA QUÊ
-- Exemplo CORRETO: "A Secretaria de Saúde tem 15 dias para realizar a avaliação psicológica"
-- Exemplo CORRETO: "O adolescente tem 24 horas para se apresentar na Unidade de Semiliberdade"
-- Exemplo ERRADO: "15 dias" (sem dizer para quem e para quê)
-- Exemplo ERRADO: "Prazos: null" ou "Prazos: nenhum" (se não há, não mencione)
+**Em uma frase simples:** [Explique o resultado direto - use a perspectiva correta]
 
 ---
 
-📚 **PALAVRAS QUE PODEM APARECER NO DOCUMENTO**
+**O QUE ESTÁ ACONTECENDO**
+
+[Em 2-3 parágrafos curtos, conte a história do processo respeitando a perspectiva]
+
+[Use frases de 10-15 palavras. Seja direto e claro.]
+
+---
+
+**A DECISÃO DO JUIZ** (ou DESEMBARGADOR(A) se for acórdão, ou ORDEM JUDICIAL se for mandado)
+
+[Explique em linguagem simples o que foi decidido]
+
+[Use blocos curtos:]
+- Sobre [assunto X]: O juiz decidiu que...
+- Sobre [assunto Y]: O juiz entendeu que...
+
+[Nesta seção, mencione valores de forma RESUMIDA (ex: "R$ 1.427,64 de danos materiais")]
+[NÃO discrimine os valores aqui - discriminação vai na próxima seção]
+
+---
+
+**VALORES E O QUE VOCÊ PRECISA FAZER**
+
+**O QUE VOCÊ VAI GANHAR:** (ou "O QUE VOCÊ VAI PAGAR:" se for réu condenado, ou "BOA NOTÍCIA - VOCÊ NÃO VAI PAGAR:" se réu absolvido)
+
+[Se houver valores discriminados no documento, use o formato:]
+📋 **[Categoria]: R$ [TOTAL]**
+- [Descrição item 1]: R$ [valor1]
+- [Descrição item 2]: R$ [valor2]
+
+📋 **TOTAL GERAL: R$ [total]**
+⚠️ Este valor será atualizado! Isso quer dizer que ele poderá sofrer um pequeno aumento até o dia do pagamento.
+
+[Se NÃO houver discriminação, use formato simples:]
+- Danos materiais: R$ X
+- Danos morais: R$ Y
+
+[NÃO inclua honorários/custas aqui se tem justiça gratuita]
+
+**O QUE VOCÊ NÃO VAI GANHAR:**
+[Liste valores negados, se houver. Omita esta seção se não aplicável]
+
+**Sobre custas e honorários:**
+
+[Se tem justiça gratuita:]
+Você NÃO vai pagar custas e honorários porque tem justiça gratuita.
+
+[Se NÃO tem justiça gratuita:]
+Você deve pagar [valores específicos de custas e honorários].
+
+**Próximos passos:**
+
+[Seja ESPECÍFICO e PRÁTICO]
+[Oriente a consultar advogado(a) ou defensoria pública na maioria dos casos]
+[Só use "Aguarde" para mandados com data/hora ou ordens diretas]
+[Se houver prazos, especifique PARA QUEM e PARA QUÊ]
+
+---
+
+**PALAVRAS QUE PODEM APARECER NO DOCUMENTO**
+
 [Liste APENAS 5-7 termos mais importantes QUE REALMENTE APARECEM NO DOCUMENTO]
 
-- **[Termo]**: Significa [explicação em 5-10 palavras]
+- **[Termo]**: [Explicação simples em 5-10 palavras]
 
-**PRIORIZE explicar estes termos se aparecerem no documento:**
-- **Cumprimento da decisão**: Quando a decisão será colocada em prática
-- **Indenização**: Dinheiro que alguém deve pagar de volta
-- **Honorários**: Pagamento ao advogado pelo trabalho no processo
-- **Intimação**: Aviso oficial do tribunal para você
-- **Recurso**: Pedido para outros juízes reverem a decisão
-- **Trânsito em julgado**: Quando não dá mais para contestar
-- **Audiência**: Reunião no tribunal para falar sobre o processo
-- **Citação**: Primeira vez que o tribunal te avisa do processo
-- **Danos Materiais**: Dinheiro para cobrir prejuízos concretos
-- **Danos Morais**: Dinheiro para compensar sofrimento ou aborrecimento
-- **Revelia**: Quando uma parte não comparece ou não responde
+[Priorize termos como: Cumprimento da decisão, Indenização, Honorários, Intimação, Recurso, Trânsito em julgado, Audiência, Citação, Danos Materiais, Danos Morais, Revelia]
 
-**TERMOS ESPECÍFICOS - só inclua se for o caso:**
-- **Ato Infracional**: (SÓ se for processo de adolescente/ECA) Conduta de adolescente que seria crime se fosse adulto
-- **Medida Socioeducativa**: (SÓ se for processo de adolescente/ECA) Punição educativa para adolescente
+[Só inclua "Ato Infracional" e "Medida Socioeducativa" se for processo ECA]
 
-**🚨 REGRAS OBRIGATÓRIAS:**
-- ❌ NÃO inclua termos que não aparecem no documento
-- ❌ NÃO inclua "Ato Infracional" em processos entre adultos/empresas (consumidor, cível, trabalhista)
-- ✅ APENAS inclua termos relevantes para ESTE documento específico
-- ✅ Se mencionar "honorários" ou "custas": inclua "Honorários" no glossário
-- ✅ Se for caso de adolescente/ECA: inclua "Ato Infracional" e "Medida Socioeducativa"
-- ✅ Explique termos jurídicos em linguagem do dia a dia
-
-**Não coloque mais de 7 termos!**
+[Máximo 7 termos!]
 
 ---
 
 *💡 Dica: Este documento não substitui a orientação jurídica. Se precisar, busque ajuda com um advogado ou uma advogada ou com a Defensoria Pública.*
 
----
+═══════════════════════════════════════════════════════════════════
+FIM DO TEMPLATE
+═══════════════════════════════════════════════════════════════════
 
-**REGRAS DE ESCRITA:**
-1. Máximo 15 palavras por frase
-2. NUNCA use: "exequente", "executado", "lide", "mérito"
-3. SEMPRE use conforme a perspectiva escolhida
-4. Seja empático: "Você ganhou!", "Infelizmente você perdeu"
-5. Mini dicionário: NO MÁXIMO 7 termos
-
-**IMPORTANTE - NÃO INCLUIR NO TEXTO SIMPLIFICADO:**
-❌ NÃO crie seções sobre "Recursos" ou "Cabe recurso" no texto simplificado
-❌ NÃO mencione prazos de recurso no texto simplificado
-❌ NÃO inclua seções sobre "Audiências Marcadas" se não houver data/hora
-❌ NÃO adicione informações como "geralmente é de X dias" ou "normalmente"
-✅ Essas informações devem estar APENAS no JSON, não no texto simplificado
-✅ O frontend exibirá as informações de recursos e audiências automaticamente a partir do JSON
+LEMBRE-SE: Seu output final deve conter APENAS o documento simplificado seguindo o template acima, SEM incluir as instruções, marcadores (🚨, ■, ═), ou lembretes desta seção.
 """
+
+# ============= VALIDAÇÃO DE OUTPUT =============
+
+def validar_e_limpar_output(texto_simplificado):
+    """
+    Valida e remove qualquer vazamento de instruções do texto simplificado.
+    Retorna o texto limpo e um booleano indicando se houve vazamentos.
+    """
+    texto_original = texto_simplificado
+    vazamentos_encontrados = False
+
+    # Lista de padrões que NÃO devem aparecer no documento final
+    padroes_proibidos = [
+        # Marcadores de instrução
+        r'🚨\s*\*\*LEMBRETE CRÍTICO',
+        r'🚨\s*\*\*REGRA CRÍTICA',
+        r'■\s*LEMBRETE',
+        r'■\s*REGRA',
+        r'═+',  # Linhas de separação
+        r'╔═+╗',  # Caixas de aviso
+        r'║.*║',  # Linhas de caixas
+        r'╚═+╝',
+
+        # Textos de instrução específicos
+        r'LEMBRETE CRÍTICO ANTES DE ESCREVER:',
+        r'REGRA CRÍTICA #\d+',
+        r'INSTRUÇÕES PARA',
+        r'VERIFICAÇÃO OBRIGATÓRIA',
+        r'CHECKLIST ANTES DE GERAR',
+        r'Aplique isso em TODAS as seções abaixo!',
+        r'não copie isso para o texto final',
+        r'ESTAS SÃO INSTRUÇÕES - NÃO COPIE',
+        r'NÃO INCLUIR NO TEXTO SIMPLIFICADO',
+
+        # Checkboxes e listas de verificação
+        r'□\s*Verifiquei',
+        r'\[\s*\]\s*ADOLESCENTE',
+        r'\[\s*\]\s*ADULTO',
+
+        # Exemplos de instrução
+        r'❌\s*ERRADO\s*\(O QUE VOCÊ NÃO DEVE FAZER\):',
+        r'✅\s*CORRETO\s*\(O QUE VOCÊ DEVE FAZER\):',
+        r'EXEMPLO REAL - CASO.*\(USE COMO REFERÊNCIA\):',
+
+        # Instruções de perspectiva
+        r'Antes de escrever cada seção, releia as INSTRUÇÕES DE PERSPECTIVA',
+    ]
+
+    # Remover padrões proibidos
+    for padrao in padroes_proibidos:
+        if re.search(padrao, texto_simplificado, re.IGNORECASE):
+            vazamentos_encontrados = True
+            # Remover linha inteira que contém o padrão
+            linhas = texto_simplificado.split('\n')
+            linhas_limpas = []
+            for linha in linhas:
+                if not re.search(padrao, linha, re.IGNORECASE):
+                    linhas_limpas.append(linha)
+            texto_simplificado = '\n'.join(linhas_limpas)
+
+    # Remover blocos de código markdown que contenham exemplos de instrução
+    texto_simplificado = re.sub(
+        r'```\s*\n.*?(?:ERRADO|CORRETO).*?\n```',
+        '',
+        texto_simplificado,
+        flags=re.DOTALL | re.IGNORECASE
+    )
+
+    # Remover linhas vazias consecutivas (limpeza estética)
+    texto_simplificado = re.sub(r'\n{3,}', '\n\n', texto_simplificado)
+
+    # Log se houve vazamentos
+    if vazamentos_encontrados:
+        logging.warning("⚠️ Vazamentos de instruções detectados e removidos do output")
+        logging.debug(f"Texto antes: {texto_original[:200]}...")
+        logging.debug(f"Texto depois: {texto_simplificado[:200]}...")
+
+    return texto_simplificado.strip(), vazamentos_encontrados
+
+# ============= DETECÇÃO DE PERSPECTIVA =============
+
+def determinar_perspectiva_automatica(texto, perspectiva_usuario=None):
+    """
+    Determina a perspectiva do usuário no processo de forma mais robusta.
+
+    Args:
+        texto: Texto completo do documento
+        perspectiva_usuario: Perspectiva informada pelo usuário (se houver)
+
+    Returns:
+        tuple: (perspectiva, nome_parte, confianca)
+        - perspectiva: 'autor', 'reu', 'eca', ou 'nao_informado'
+        - nome_parte: Nome da parte identificada (se aplicável)
+        - confianca: 'alta', 'media', 'baixa'
+    """
+
+    # Se usuário já informou, usar isso
+    if perspectiva_usuario and perspectiva_usuario != "nao_informado":
+        return (perspectiva_usuario, None, "alta")
+
+    texto_lower = texto.lower()
+    confianca = "baixa"
+
+    # 1. VERIFICAR SE É PROCESSO ECA (Ato Infracional)
+    indicadores_eca = 0
+
+    if "ato infracional" in texto_lower:
+        indicadores_eca += 3  # Indicador muito forte
+    if "adolescente representado" in texto_lower:
+        indicadores_eca += 3  # Indicador muito forte
+    if "medida socioeducativa" in texto_lower or "medida sócio-educativa" in texto_lower:
+        indicadores_eca += 3  # Indicador muito forte
+    if "estatuto da criança e do adolescente" in texto_lower or "eca" in texto_lower:
+        indicadores_eca += 2  # Indicador forte
+
+    # Se tiver múltiplos indicadores ECA, é processo de adolescente
+    if indicadores_eca >= 3:
+        # Tentar extrair nome do adolescente
+        nome_adolescente = None
+
+        # Padrões comuns
+        padroes_adolescente = [
+            r'adolescente(?:\s+representado[a]?)?\s*:?\s*([A-ZÁÀÂÃÉÊÍÓÔÕÚÇ][a-záàâãéêíóôõúç]+(?:\s+[A-ZÁÀÂÃÉÊÍÓÔÕÚÇ][a-záàâãéêíóôõúç]+)*)',
+            r'representado[a]?\s+(?:pelo|por)\s+(?:seu|sua)\s+(?:genitora?|responsável)\s+([A-ZÁÀÂÃÉÊÍÓÔÕÚÇ][a-záàâãéêíóôõúç]+(?:\s+[A-ZÁÀÂÃÉÊÍÓÔÕÚÇ][a-záàâãéêíóôõúç]+)*)',
+        ]
+
+        for padrao in padroes_adolescente:
+            match = re.search(padrao, texto, re.IGNORECASE)
+            if match:
+                nome_adolescente = match.group(1).strip()
+                break
+
+        return ("eca", nome_adolescente, "alta" if nome_adolescente else "media")
+
+    # 2. TENTAR IDENTIFICAR AUTOR E RÉU
+    # Extrair autor (múltiplos padrões)
+    autor_nome = None
+    reu_nome = None
+
+    padroes_autor = [
+        r'autor[ea]?s?\s*:?\s*([A-ZÁÀÂÃÉÊÍÓÔÕÚÇ][a-záàâãéêíóôõúç]+(?:\s+[A-ZÁÀÂÃÉÊÍÓÔÕÚÇ][a-záàâãéêíóôõúç]+){1,5})',
+        r'requerente[s]?\s*:?\s*([A-ZÁÀÂÃÉÊÍÓÔÕÚÇ][a-záàâãéêíóôõúç]+(?:\s+[A-ZÁÀÂÃÉÊÍÓÔÕÚÇ][a-záàâãéêíóôõúç]+){1,5})',
+        r'apelante[s]?\s*:?\s*([A-ZÁÀÂÃÉÊÍÓÔÕÚÇ][a-záàâãéêíóôõúç]+(?:\s+[A-ZÁÀÂÃÉÊÍÓÔÕÚÇ][a-záàâãéêíóôõúç]+){1,5})',
+        r'recorrente[s]?\s*:?\s*([A-ZÁÀÂÃÉÊÍÓÔÕÚÇ][a-záàâãéêíóôõúç]+(?:\s+[A-ZÁÀÂÃÉÊÍÓÔÕÚÇ][a-záàâãéêíóôõúç]+){1,5})',
+    ]
+
+    for padrao in padroes_autor:
+        match = re.search(padrao, texto, re.IGNORECASE)
+        if match:
+            autor_nome = match.group(1).strip()
+            confianca = "alta"
+            break
+
+    # Extrair réu (múltiplos padrões)
+    padroes_reu = [
+        r'réus?\s*:?\s*([A-ZÁÀÂÃÉÊÍÓÔÕÚÇ][a-záàâãéêíóôõúç]+(?:\s+[A-ZÁÀÂÃÉÊÍÓÔÕÚÇ][a-záàâãéêíóôõúç]+){0,5})',
+        r'requerido[s]?\s*:?\s*([A-ZÁÀÂÃÉÊÍÓÔÕÚÇ][a-záàâãéêíóôõúç]+(?:\s+[A-ZÁÀÂÃÉÊÍÓÔÕÚÇ][a-záàâãéêíóôõúç]+){0,5})',
+        r'apelado[s]?\s*:?\s*([A-ZÁÀÂÃÉÊÍÓÔÕÚÇ][a-záàâãéêíóôõúç]+(?:\s+[A-ZÁÀÂÃÉÊÍÓÔÕÚÇ][a-záàâãéêíóôõúç]+){0,5})',
+        r'recorrido[s]?\s*:?\s*([A-ZÁÀÂÃÉÊÍÓÔÕÚÇ][a-záàâãéêíóôõúç]+(?:\s+[A-ZÁÀÂÃÉÊÍÓÔÕÚÇ][a-záàâãéêíóôõúç]+){0,5})',
+    ]
+
+    for padrao in padroes_reu:
+        match = re.search(padrao, texto, re.IGNORECASE)
+        if match:
+            reu_nome = match.group(1).strip()
+            if confianca != "alta":
+                confianca = "media"
+            break
+
+    # Log para debug
+    if autor_nome:
+        logging.info(f"🎯 Autor identificado: {autor_nome}")
+    if reu_nome:
+        logging.info(f"🎯 Réu identificado: {reu_nome}")
+
+    # 3. RETORNAR PERSPECTIVA NEUTRA SE NÃO CONSEGUIU DETERMINAR
+    # (O frontend pode pedir ao usuário para escolher)
+    return ("nao_informado", {"autor": autor_nome, "reu": reu_nome}, confianca)
+
+# ============= EXTRAÇÃO E VALIDAÇÃO DE VALORES =============
+
+def extrair_valores_financeiros(texto):
+    """
+    Extrai todos os valores monetários do documento e classifica por contexto.
+
+    Returns:
+        dict: Dicionário com valores extraídos e suas classificações
+    """
+    valores = {
+        'todos': [],  # Todos os valores encontrados
+        'danos_morais': [],
+        'danos_materiais': [],
+        'honorarios': [],
+        'custas': [],
+        'total': [],
+        'discriminacoes': []  # Lista de discriminações encontradas
+    }
+
+    # Regex para valores monetários (incluindo formato brasileiro)
+    # Exemplos: R$ 1.000,00 | R$1000,00 | 1.000,00 | R$ 1000
+    pattern_valor = r'R\$\s*[\d.,]+(?:\s*\([^)]+\))?'
+
+    # Encontrar todos os valores
+    matches_valores = list(re.finditer(pattern_valor, texto, re.IGNORECASE))
+
+    for match in matches_valores:
+        valor_texto = match.group()
+        inicio = match.start()
+        fim = match.end()
+
+        # Pegar contexto (100 chars antes e depois)
+        contexto_inicio = max(0, inicio - 100)
+        contexto_fim = min(len(texto), fim + 100)
+        contexto = texto[contexto_inicio:contexto_fim].lower()
+
+        # Criar entrada de valor
+        valor_info = {
+            'valor': valor_texto,
+            'contexto': contexto,
+            'posicao': inicio
+        }
+
+        valores['todos'].append(valor_info)
+
+        # Classificar por contexto
+        if any(termo in contexto for termo in ['dano moral', 'danos morais', 'indenização moral']):
+            valores['danos_morais'].append(valor_info)
+        elif any(termo in contexto for termo in ['dano material', 'danos materiais', 'prejuízo material', 'reembolso', 'passagens', 'alimentação', 'despesas']):
+            valores['danos_materiais'].append(valor_info)
+        elif any(termo in contexto for termo in ['honorário', 'honorários', 'advogado']):
+            valores['honorarios'].append(valor_info)
+        elif any(termo in contexto for termo in ['custa', 'custas', 'despesas processuais']):
+            valores['custas'].append(valor_info)
+        elif any(termo in contexto for termo in ['total', 'soma', 'totaliza']):
+            valores['total'].append(valor_info)
+
+    # Detectar discriminações (múltiplos valores próximos com descrições)
+    # Padrões de discriminação:
+    # - "R$ X de passagens + R$ Y de alimentação"
+    # - "R$ X para João + R$ Y para Maria"
+    padroes_discriminacao = [
+        r'(R\$\s*[\d.,]+)\s+(?:de|para|referente)\s+([^,\n]+?)(?:\s*\+|\s*e|\s*,)\s*(R\$\s*[\d.,]+)\s+(?:de|para|referente)\s+([^,\n]+)',
+        r'(?:sendo|consistindo|distribuídos):\s*\n?\s*-\s*([^:\n]+):\s*(R\$\s*[\d.,]+)',
+    ]
+
+    for padrao in padroes_discriminacao:
+        matches = re.finditer(padrao, texto, re.IGNORECASE | re.MULTILINE)
+        for match in matches:
+            valores['discriminacoes'].append({
+                'texto': match.group(0),
+                'posicao': match.start()
+            })
+
+    # Log para debug
+    logging.info(f"💰 Valores encontrados: {len(valores['todos'])}")
+    if valores['danos_morais']:
+        logging.info(f"   - Danos morais: {len(valores['danos_morais'])} valores")
+    if valores['danos_materiais']:
+        logging.info(f"   - Danos materiais: {len(valores['danos_materiais'])} valores")
+    if valores['discriminacoes']:
+        logging.info(f"   - Discriminações detectadas: {len(valores['discriminacoes'])}")
+
+    return valores
+
+def validar_discriminacao_valores(texto_simplificado, valores_json):
+    """
+    Valida se o texto simplificado manteve as discriminações de valores.
+
+    Args:
+        texto_simplificado: Texto simplificado gerado
+        valores_json: Objeto valores_principais do JSON
+
+    Returns:
+        tuple: (passou_validacao, avisos)
+    """
+    avisos = []
+    passou = True
+
+    # Verificar discriminação de danos materiais
+    danos_mat_disc = valores_json.get('danos_materiais_discriminado', [])
+    if danos_mat_disc and len(danos_mat_disc) > 1:
+        # Deve haver discriminação no texto
+        tem_discriminacao = False
+
+        for item in danos_mat_disc:
+            item_desc = item.get('item', '')
+            item_valor = item.get('valor', '')
+
+            # Verificar se item aparece no texto simplificado
+            if item_desc and item_desc.lower() in texto_simplificado.lower():
+                tem_discriminacao = True
+                break
+
+        if not tem_discriminacao:
+            avisos.append("⚠️ Discriminação de danos materiais esperada mas não encontrada no texto")
+            passou = False
+
+    # Verificar discriminação de danos morais
+    danos_mor_disc = valores_json.get('danos_morais_discriminado', [])
+    if danos_mor_disc and len(danos_mor_disc) > 1:
+        tem_discriminacao = False
+
+        for item in danos_mor_disc:
+            beneficiario = item.get('beneficiario', '')
+
+            if beneficiario and beneficiario.lower() in texto_simplificado.lower():
+                tem_discriminacao = True
+                break
+
+        if not tem_discriminacao:
+            avisos.append("⚠️ Discriminação de danos morais esperada mas não encontrada no texto")
+            passou = False
+
+    # Log avisos
+    for aviso in avisos:
+        logging.warning(aviso)
+
+    return passou, avisos
 
 # ============= ANÁLISE COMPLETA COM GEMINI =============
 
@@ -1273,10 +1394,14 @@ Responda EXATAMENTE neste formato:
                 logging.error(f"JSON recebido (primeiros 500 chars): {json_texto[:500]}")
                 raise ValueError(f"Gemini retornou JSON inválido: {e}")
 
+            # Validar e limpar texto simplificado
+            texto_simplificado, teve_vazamentos = validar_e_limpar_output(texto_simplificado)
+
             # Adicionar texto simplificado
             analise["texto_simplificado"] = texto_simplificado
             analise["modelo_usado"] = modelo_nome
             analise["perspectiva_aplicada"] = perspectiva  # 🔥 NOVO - registrar perspectiva
+            analise["teve_vazamentos"] = teve_vazamentos  # 🔥 NOVO - flag de vazamentos
 
             # 🔥 VALIDAÇÃO DE DISCRIMINAÇÃO DE VALORES
             valores = analise.get("valores_principais", {})
@@ -1288,17 +1413,12 @@ Responda EXATAMENTE neste formato:
             if valores.get("danos_morais_discriminado") and len(valores.get("danos_morais_discriminado", [])) > 1:
                 logging.info(f"✅ Discriminação de danos morais detectada: {len(valores['danos_morais_discriminado'])} beneficiários")
 
-            # Verificar se o texto simplificado está usando a discriminação
-            # Checagem básica: se há discriminação no JSON, deve ter estrutura de lista no texto
-            if valores.get("danos_materiais_discriminado") and len(valores.get("danos_materiais_discriminado", [])) > 1:
-                tem_estrutura = "📋 **Danos Materiais:" in texto_simplificado and "-" in texto_simplificado
-                if not tem_estrutura:
-                    logging.warning("⚠️ AVISO: JSON tem discriminação de danos materiais, mas texto simplificado pode não estar discriminado!")
-
-            if valores.get("danos_morais_discriminado") and len(valores.get("danos_morais_discriminado", [])) > 1:
-                tem_estrutura = "📋 **Danos Morais:" in texto_simplificado and "-" in texto_simplificado
-                if not tem_estrutura:
-                    logging.warning("⚠️ AVISO: JSON tem discriminação de danos morais, mas texto simplificado pode não estar discriminado!")
+            # Validar discriminação usando função robusta
+            passou_validacao, avisos_validacao = validar_discriminacao_valores(texto_simplificado, valores)
+            analise["validacao_discriminacao"] = {
+                "passou": passou_validacao,
+                "avisos": avisos_validacao
+            }
 
             # Atualizar estatísticas de sucesso
             model_usage_stats[modelo_nome]["attempts"] += 1
