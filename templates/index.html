@@ -3528,9 +3528,24 @@
             document.getElementById('resultAnalysis').innerHTML = html;
         }
 
-        function formatResultText(text) {
-            let formatted = text;
+        /**
+         * Sanitiza HTML para prevenir XSS
+         * Escapa caracteres perigosos antes de processar markdown
+         */
+        function escapeHtml(unsafe) {
+            return unsafe
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
 
+        function formatResultText(text) {
+            // SEGURANÇA: Escapar HTML antes de processar markdown
+            let formatted = escapeHtml(text);
+
+            // Agora é seguro processar markdown para HTML
             formatted = formatted.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
 
             const iconPatterns = [
@@ -3938,6 +3953,12 @@
 
             const tipoInfo = tipos[resposta.tipo] || tipos['resposta'];
 
+            // SEGURANÇA: Sanitizar todos os dados antes de inserir no HTML
+            const perguntaSegura = escapeHtml(pergunta);
+            let respostaSegura = escapeHtml(resposta.resposta);
+            respostaSegura = respostaSegura.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
+            const referenciaSegura = resposta.referencia ? escapeHtml(resposta.referencia) : '';
+
             modal.innerHTML = `
                 <div style="background: white; border-radius: 12px; max-width: 600px; width: 100%; max-height: 80vh; overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
                     <div style="padding: 2rem; border-bottom: 1px solid var(--border);">
@@ -3945,32 +3966,36 @@
                             <div style="flex: 1;">
                                 <div style="font-size: 1.5rem; margin-bottom: 0.5rem;">${tipoInfo.icon}</div>
                                 <div style="font-weight: bold; color: var(--text); margin-bottom: 0.5rem;">Sua pergunta:</div>
-                                <div style="color: var(--text-muted); font-style: italic;">"${pergunta}"</div>
+                                <div style="color: var(--text-muted); font-style: italic;">"${perguntaSegura}"</div>
                             </div>
                             <button onclick="this.closest('div[style*=fixed]').remove()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; padding: 0; margin-left: 1rem;">×</button>
                         </div>
                     </div>
                     <div style="padding: 2rem;">
                         <div style="background: ${tipoInfo.bg}; border-left: 4px solid ${tipoInfo.color}; padding: 1.5rem; border-radius: 8px; margin-bottom: 1rem;">
-                            <div style="white-space: pre-wrap; line-height: 1.6;">${resposta.resposta.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>')}</div>
+                            <div style="white-space: pre-wrap; line-height: 1.6;">${respostaSegura}</div>
                         </div>
                         ${resposta.referencia ? `
                             <div style="font-size: 0.875rem; color: var(--text-muted); margin-top: 1rem;">
-                                📍 Referência: ${resposta.referencia}
+                                📍 Referência: ${referenciaSegura}
                             </div>
                         ` : ''}
                         ${resposta.sugestoes && resposta.sugestoes.length > 0 ? `
                             <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border);">
                                 <div style="font-weight: bold; margin-bottom: 1rem;">💡 Perguntas sugeridas:</div>
                                 <div style="display: flex; flex-direction: column; gap: 0.5rem;">
-                                    ${resposta.sugestoes.map(sug => `
-                                        <button onclick="this.closest('div[style*=fixed]').remove(); askQuestion('${sug.replace(/'/g, "\\'")}')"
+                                    ${resposta.sugestoes.map(sug => {
+                                        const sugSegura = escapeHtml(sug);
+                                        const sugOnclick = sug.replace(/'/g, "\\'").replace(/"/g, "&quot;");
+                                        return `
+                                        <button onclick="this.closest('div[style*=fixed]').remove(); askQuestion('${sugOnclick}')"
                                                 style="background: var(--light); border: 2px solid var(--jus-azul); color: var(--jus-azul);
                                                        padding: 0.75rem; border-radius: 8px; cursor: pointer; text-align: left;
                                                        transition: all 0.3s ease; font-weight: 500;">
-                                            ${sug}
+                                            ${sugSegura}
                                         </button>
-                                    `).join('')}
+                                        `;
+                                    }).join('')}
                                 </div>
                             </div>
                         ` : ''}
@@ -4458,9 +4483,11 @@ P.R.I.`;
             const chatMessages = document.getElementById('chatMessages');
             const mensagem = document.createElement('div');
             mensagem.style.cssText = 'display: flex; justify-content: flex-end;';
+            // SEGURANÇA: Escapar HTML do usuário
+            const textoSeguro = escapeHtml(texto);
             mensagem.innerHTML = `
                 <div style="background: var(--primary); color: white; padding: 0.75rem 1rem; border-radius: 12px; border-top-right-radius: 4px; max-width: 70%; box-shadow: 0 1px 3px rgba(0,0,0,0.2);">
-                    <div style="line-height: 1.5;">${texto}</div>
+                    <div style="line-height: 1.5;">${textoSeguro}</div>
                     <div style="font-size: 0.7rem; opacity: 0.8; margin-top: 0.25rem; text-align: right;">
                         ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                     </div>
@@ -4483,13 +4510,18 @@ P.R.I.`;
             };
             const cor = cores[tipo] || cores['resposta'];
 
+            // SEGURANÇA: Escapar HTML e processar markdown básico
+            let textoSeguro = escapeHtml(texto);
+            textoSeguro = textoSeguro.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+            textoSeguro = textoSeguro.replace(/\n/g, '<br>');
+
             mensagem.style.cssText = 'display: flex; gap: 0.5rem; align-items: start;';
             mensagem.innerHTML = `
                 <div style="width: 32px; height: 32px; border-radius: 50%; background: white; display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden;">
                     <img src="/static/avatar.png" alt="JUS Bot" style="width: 100%; height: 100%; object-fit: cover;">
                 </div>
                 <div style="background: ${cor.bg}; padding: 0.75rem 1rem; border-radius: 12px; border-top-left-radius: 4px; max-width: 70%; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border: 1px solid ${cor.border};">
-                    <div style="color: var(--text); line-height: 1.5;">${texto}</div>
+                    <div style="color: var(--text); line-height: 1.5;">${textoSeguro}</div>
                     <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 0.25rem;">
                         ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                     </div>
