@@ -1289,7 +1289,7 @@ O juiz determinou o pagamento de R$ 1.427,64 de danos materiais:
    - ✅ Tem "Acordam os Desembargadores" ou "Acordam os Membros"?
    - ✅ Tem estrutura colegial (CÂMARA/TURMA/COLEGIADO)?
    - ✅ Tem "TRIBUNAL DE JUSTIÇA" ou "TRIBUNAL REGIONAL"?
-   - ⚠️ **IGNORE completamente** menções a "JULGO PROCEDENTE" - são citações de sentenças antigas!
+   - ⚠️ **ATENÇÃO:** Se encontrar "JULGO", verifique se refere-se ao julgamento do RECURSO (ex: "Negar provimento", "Dar provimento", "Conhecer e negar") e NÃO a citações da sentença original. Citações como "o juiz julgou procedente" devem ser ignoradas.
    - **DECISÃO: SE 3+ marcadores acima = ACÓRDÃO com confianca_tipo: "ALTA"**
 
 2️⃣ **SENTENÇA** - Verifique APENAS se NÃO for acórdão:
@@ -1660,7 +1660,8 @@ def extrair_texto_pdf(pdf_bytes):
             metadados["total_paginas"] = total_pages
             logging.info(f"Processando PDF com {total_pages} páginas")
 
-            texto_completo = ""
+            # Usar lista para melhor performance em memória (evita concatenação repetida)
+            partes_texto = []
 
             for i, page in enumerate(doc):
                 try:
@@ -1668,7 +1669,7 @@ def extrair_texto_pdf(pdf_bytes):
 
                     if conteudo.strip():
                         metadados["tem_texto"] = True
-                        texto_completo += conteudo + "\n"
+                        partes_texto.append(conteudo)
                     elif TESSERACT_AVAILABLE:
                         logging.info(f"Aplicando OCR na página {i+1}")
                         metadados["usou_ocr"] = True
@@ -1677,12 +1678,13 @@ def extrair_texto_pdf(pdf_bytes):
                         pix = page.get_pixmap(dpi=150)
                         img_data = pix.tobytes()
                         conteudo_ocr, _ = processar_imagem_para_texto(img_data, 'PNG')
-                        texto_completo += conteudo_ocr + "\n"
+                        partes_texto.append(conteudo_ocr)
 
                 except Exception as e:
                     logging.error(f"Erro ao processar página {i+1}: {e}")
 
-            texto = texto_completo.strip()
+            # Join é muito mais eficiente que concatenação repetida
+            texto = "\n".join(partes_texto).strip()
             if not texto:
                 raise ValueError("Nenhum texto extraído do PDF")
 
@@ -1951,24 +1953,38 @@ Responda em NO MÁXIMO 2-3 frases curtas e simples, respeitando a perspectiva {p
 
 @app.route("/download_pdf")
 def download_pdf():
-    """Download do PDF"""
+    """Download do PDF com validação de segurança aprimorada"""
     pdf_basename = request.args.get('path')
     pdf_filename = request.args.get('filename', 'documento_simplificado.pdf')
 
+    # Priorizar sempre os parâmetros da URL (evita race condition entre abas)
     if pdf_basename:
-        pdf_path = os.path.join(TEMP_DIR, os.path.basename(pdf_basename))
+        # Validação de segurança: previne path traversal
+        safe_basename = secure_filename(os.path.basename(pdf_basename))
+        pdf_path = os.path.join(TEMP_DIR, safe_basename)
+
+        # Validar que o arquivo está dentro do TEMP_DIR (segurança adicional)
+        pdf_path_real = os.path.realpath(pdf_path)
+        temp_dir_real = os.path.realpath(TEMP_DIR)
+        if not pdf_path_real.startswith(temp_dir_real):
+            logging.warning(f"⚠️ Tentativa de acesso fora do TEMP_DIR: {pdf_basename}")
+            return jsonify({"erro": "Acesso não autorizado"}), 403
     else:
+        # Fallback para session (legado - pode causar problemas com múltiplas abas)
+        logging.warning("⚠️ Download usando session (legado) - múltiplas abas podem causar conflito")
         pdf_path = session.get('pdf_path')
         pdf_filename = session.get('pdf_filename', 'documento_simplificado.pdf')
 
     if not pdf_path or not os.path.exists(pdf_path):
-        return jsonify({"erro": "PDF não encontrado"}), 404
+        return jsonify({"erro": "PDF não encontrado ou expirado"}), 404
 
     try:
-        return send_file(pdf_path, as_attachment=True, download_name=pdf_filename, mimetype='application/pdf')
+        # Sanitizar o filename de download também
+        safe_download_name = secure_filename(pdf_filename)
+        return send_file(pdf_path, as_attachment=True, download_name=safe_download_name, mimetype='application/pdf')
     except Exception as e:
-        logging.error(f"Erro download: {e}")
-        return jsonify({"erro": "Erro ao baixar"}), 500
+        logging.error(f"❌ Erro download: {e}")
+        return jsonify({"erro": "Erro ao baixar arquivo"}), 500
 
 @app.route("/feedback", methods=["POST"])
 def feedback():
