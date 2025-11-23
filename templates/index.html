@@ -3831,10 +3831,12 @@
             }
 
             // Autoridade
-            if (dados.autoridade) {
+            if (dados.autoridade && dados.autoridade.cargo && dados.autoridade.nome) {
+                // Escolhe emoji baseado no gênero do cargo
+                const emoji = (dados.autoridade.cargo === 'Juíza' || dados.autoridade.cargo === 'Desembargadora') ? '👩‍⚖️' : '👨‍⚖️';
                 html += `
                     <div style="background: white; padding: 1rem; border-radius: 6px;">
-                        <strong>👨‍⚖️ ${dados.autoridade}</strong>
+                        <strong>${emoji} ${dados.autoridade.cargo}: ${dados.autoridade.nome}</strong>
                     </div>
                 `;
             }
