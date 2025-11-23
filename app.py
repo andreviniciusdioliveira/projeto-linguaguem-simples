@@ -436,13 +436,18 @@ PASSO 3: Se marcou NÃO no Passo 1
 
 ---
 
-**A DECISÃO DO JUIZ** (ou DESEMBARGADOR(A) se for acórdão, ou ORDEM JUDICIAL se for mandado)
+**A DECISÃO [DA AUTORIDADE]** - Use o cargo EXATO da autoridade que você identificou no JSON:
+- Se Juíza → Título: "A DECISÃO DA JUÍZA" | No texto: "A juíza decidiu que..."
+- Se Juiz → Título: "A DECISÃO DO JUIZ" | No texto: "O juiz decidiu que..."
+- Se Desembargadora → Título: "A DECISÃO DA DESEMBARGADORA" | No texto: "A desembargadora decidiu que..."
+- Se Desembargador → Título: "A DECISÃO DO DESEMBARGADOR" | No texto: "O desembargador decidiu que..."
+- Se mandado → Título: "ORDEM JUDICIAL" | No texto: "A ordem determina que..."
 
 [Explique em linguagem simples o que foi decidido]
 
-[Use blocos curtos:]
-- Sobre [assunto X]: O juiz decidiu que...
-- Sobre [assunto Y]: O juiz entendeu que...
+[Use blocos curtos com o pronome correto da autoridade:]
+- Sobre [assunto X]: A/O [cargo] decidiu que...
+- Sobre [assunto Y]: A/O [cargo] entendeu que...
 
 [Nesta seção, mencione valores de forma RESUMIDA (ex: "R$ 1.427,64 de danos materiais")]
 [NÃO discrimine os valores aqui - discriminação vai na próxima seção]
@@ -934,7 +939,7 @@ def analisar_documento_completo_gemini(texto, perspectiva="nao_informado"):
 
 **ATENÇÃO REDOBRADA EM:**
 - Seção "O QUE ESTÁ ACONTECENDO" → Diga "Você entrou com um processo contra [NOME DO RÉU]..."
-- Seção "A DECISÃO DO JUIZ" → Diga "O juiz decidiu que [NOME DO RÉU] deve pagar a VOCÊ..." ou "O juiz decidiu que VOCÊ..."
+- Seção "A DECISÃO DA AUTORIDADE" → Use o cargo correto (juíza/juiz/desembargadora/desembargador) e diga "A/O [cargo] decidiu que [NOME DO RÉU] deve pagar a VOCÊ..." ou "A/O [cargo] decidiu que VOCÊ..."
 - Seção "VALORES E O QUE VOCÊ PRECISA FAZER" → Diga "Você vai receber de [NOME DO RÉU]..." ou "Você deve pagar..."
 - Use SEMPRE o nome do réu ao invés de "a outra parte" para evitar confusão
 '''
@@ -995,11 +1000,11 @@ Quando o réu não foi condenado a pagar nada (ou foi absolvido):
 
 🚨 **FRASE RESUMO:**
 - ❌ ERRADO: "A outra parte deve pagar a você R$ 20.000,00"
-- ✅ CORRETO: "O juiz decidiu que você deve pagar R$ 20.000,00 a [NOME DO AUTOR]"
+- ✅ CORRETO: "A/O [cargo] decidiu que você deve pagar R$ 20.000,00 a [NOME DO AUTOR]"
 
 **ATENÇÃO REDOBRADA EM:**
 - Seção "O QUE ESTÁ ACONTECENDO" → Use o nome do autor: "[NOME] entrou com um processo contra você..."
-- Seção "A DECISÃO DO JUIZ" → Diga "O juiz decidiu que VOCÊ..."
+- Seção "A DECISÃO DA AUTORIDADE" → Use o cargo correto (juíza/juiz/desembargadora/desembargador) e diga "A/O [cargo] decidiu que VOCÊ..."
 - Seção "VALORES E O QUE VOCÊ PRECISA FAZER" → Se condenado, use "O QUE VOCÊ VAI PAGAR:" (não "ganhar")
 - Use SEMPRE o nome do autor ao invés de "a outra parte" para evitar confusão
 '''
