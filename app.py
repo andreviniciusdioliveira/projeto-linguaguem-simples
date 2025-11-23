@@ -1805,7 +1805,7 @@ def processar():
             "numero_processo": extrair_numero_processo_regex(texto_original),
             "tipo_documento": tipo_doc,
             "partes": analise_completa.get("partes", {}),
-            "autoridade": f"{analise_completa.get('autoridade', {}).get('cargo', '')}: {analise_completa.get('autoridade', {}).get('nome', '')}".strip(),
+            "autoridade": analise_completa.get("autoridade", {}),  # Agora retorna objeto completo com cargo e nome
             "valores": analise_completa.get("valores_principais", {}),
             "prazos": prazos_validos,  # Agora retorna objetos completos com destinatario e finalidade
             "decisao": analise_completa.get("decisao_resumida"),
