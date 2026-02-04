@@ -246,69 +246,223 @@ PROMPT_SIMPLIFICACAO_MELHORADO = """
 SEÇÃO 1: INSTRUÇÕES PARA VOCÊ SEGUIR (NÃO INCLUIR NO OUTPUT)
 ═══════════════════════════════════════════════════════════════════
 
-🚨🚨🚨 VERIFICAÇÃO PRIORITÁRIA: SEGREDO DE JUSTIÇA 🚨🚨🚨
+🚨🚨🚨 VERIFICAÇÃO PRIORITÁRIA E OBRIGATÓRIA: SEGREDO DE JUSTIÇA 🚨🚨🚨
 
-ANTES de simplificar QUALQUER documento judicial, você DEVE verificar se o processo tramita ou deveria tramitar em segredo de justiça. Esta verificação é OBRIGATÓRIA e tem PRIORIDADE sobre todas as outras instruções.
+ANTES de simplificar QUALQUER documento judicial, você DEVE realizar uma ANÁLISE PROFUNDA E COMPLETA para verificar se o processo tramita ou DEVERIA tramitar em segredo de justiça. Esta verificação é OBRIGATÓRIA e tem PRIORIDADE ABSOLUTA sobre todas as outras instruções.
 
-**HIPÓTESES LEGAIS DE SEGREDO DE JUSTIÇA:**
+⚠️ ATENÇÃO: Você NÃO deve apenas procurar palavras-chave como "segredo de justiça". Você DEVE analisar a NATUREZA do processo, o TIPO de ação, as PARTES envolvidas e o ASSUNTO tratado para determinar se o processo se enquadra em alguma hipótese legal de sigilo.
 
-Identifique se o documento se enquadra em QUALQUER das seguintes hipóteses:
+**═══════════════════════════════════════════════════════════════════**
+**HIPÓTESES LEGAIS COMPLETAS DE SEGREDO DE JUSTIÇA:**
+**═══════════════════════════════════════════════════════════════════**
 
-**1. Art. 189, CPC (Lei 13.105/2015):**
-   - I — Processos em que o exija o interesse público ou social;
-   - II — Processos que versem sobre casamento, separação de corpos, divórcio, separação, união estável, filiação, alimentos e guarda de crianças e adolescentes;
-   - III — Processos em que constem dados protegidos pelo direito constitucional à intimidade;
-   - IV — Processos que versem sobre arbitragem (inclusive cumprimento de carta arbitral), desde que a confidencialidade estipulada na arbitragem seja comprovada.
+Analise profundamente se o documento se enquadra em QUALQUER das seguintes hipóteses:
 
-**2. Art. 234-B, Código Penal (incluído pela Lei 12.015/2009):**
-   - Processos que apuram crimes contra a dignidade sexual (Título VI do CP): estupro, violação sexual mediante fraude, assédio sexual, estupro de vulnerável, registro não autorizado da intimidade sexual e demais crimes dos arts. 213 a 234-A do CP.
+**1. Art. 189, CPC/2015 — HIPÓTESES PROCESSUAIS CIVIS:**
 
-**3. Art. 17-A, Lei Maria da Penha (incluído pela Lei 14.854/2024):**
-   - Processos que apuram crimes praticados no contexto de violência doméstica e familiar contra a mulher (sigilo do nome da ofendida).
+   **I — Interesse público ou social (inciso I):**
+   - Cláusula aberta que permite sigilo quando a publicidade puder causar prejuízo ao interesse público ou social
+   - Exemplos: processos envolvendo segurança nacional, saúde pública, segredos de Estado
+
+   **II — Direito de Família (inciso II) — BLOQUEIO OBRIGATÓRIO:**
+   - Casamento, separação de corpos, divórcio, separação judicial
+   - União estável (reconhecimento, dissolução)
+   - Filiação (investigação de paternidade, reconhecimento de filho)
+   - Alimentos (pensão alimentícia, revisional de alimentos)
+   - Guarda de crianças e adolescentes (guarda, regulamentação de visitas)
+   - Adoção
+
+   **III — Dados protegidos pela intimidade (inciso III) — BLOQUEIO OBRIGATÓRIO:**
+   - Processos com quebra de sigilo bancário
+   - Processos com quebra de sigilo fiscal
+   - Processos com dados médicos/hospitalares
+   - Processos com dados patrimoniais sensíveis
+   - Curatela e interdição (preservação da intimidade do interditando)
+
+   **IV — Arbitragem (inciso IV):**
+   - Processos que versem sobre arbitragem
+   - Cumprimento de carta arbitral
+   - Desde que haja indicação de confidencialidade
+
+**2. Art. 234-B, Código Penal — CRIMES CONTRA DIGNIDADE SEXUAL — BLOQUEIO OBRIGATÓRIO:**
+   - Estupro (art. 213)
+   - Violação sexual mediante fraude (art. 215)
+   - Importunação sexual (art. 215-A)
+   - Assédio sexual (art. 216-A)
+   - Estupro de vulnerável (art. 217-A)
+   - Corrupção de menores (art. 218)
+   - Satisfação de lascívia mediante presença de criança/adolescente (art. 218-A)
+   - Favorecimento da prostituição de criança/adolescente/vulnerável (art. 218-B)
+   - Divulgação de cena de estupro/sexo/pornografia (art. 218-C)
+   - Registro não autorizado da intimidade sexual (art. 216-B)
+   - Qualquer crime do Título VI do Código Penal (arts. 213 a 234-A)
+   - O STJ consolidou que o sigilo abrange autor e vítima, devendo constar apenas iniciais
+
+**3. Art. 17-A, Lei Maria da Penha (Lei 11.340/2006, alterada pela Lei 14.854/2024) — BLOQUEIO OBRIGATÓRIO:**
+   - Violência doméstica contra a mulher
+   - Violência familiar contra a mulher
+   - Medidas protetivas de urgência (Lei Maria da Penha)
+   - Lesão corporal em contexto de violência doméstica
+   - Ameaça em contexto doméstico/familiar
+   - Feminicídio e tentativa de feminicídio
+   - Qualquer processo que mencione Lei 11.340/2006 ou "Maria da Penha"
 
 **4. ECA — Estatuto da Criança e do Adolescente (Lei 8.069/1990):**
-   - Art. 27 — Ações de reconhecimento de estado de filiação envolvendo crianças/adolescentes;
-   - Arts. 143 e 144 — Procedimentos de apuração de ato infracional atribuído a criança ou adolescente;
-   - Quaisquer processos em que a publicidade possa identificar criança ou adolescente em situação de vulnerabilidade.
+   - Art. 27 — Ações de reconhecimento de estado de filiação
+   - Arts. 143 e 144 — Atos infracionais (COM EXCEÇÃO - ver abaixo)
+   - Destituição do poder familiar
+   - Medidas protetivas envolvendo crianças/adolescentes
+   - Qualquer processo em que a publicidade possa identificar menor em situação de vulnerabilidade
 
-**5. Lei de Interceptação Telefônica (Lei 9.296/1996):**
-   - Art. 8º — Diligências, gravações e transcrições de interceptação telefônica preservadas sob sigilo.
+**5. Lei 13.431/2017 — Sistema de Garantia de Direitos da Criança Vítima/Testemunha — BLOQUEIO OBRIGATÓRIO:**
+   - Depoimentos especiais de crianças e adolescentes vítimas
+   - Escuta especializada
+   - Processos em que criança/adolescente é vítima ou testemunha de violência
 
-**6. Art. 201, §6º, CPP:**
-   - Quando o juiz determinar segredo de justiça sobre dados, depoimentos e informações do ofendido para evitar sua exposição.
+**6. Lei de Interceptação Telefônica (Lei 9.296/1996) — BLOQUEIO OBRIGATÓRIO:**
+   - Art. 1º e 8º — Interceptação de comunicações telefônicas
+   - Interceptação telemática e de dados
+   - Captação ambiental (art. 8-A)
+   - Diligências, gravações e transcrições
+   - Qualquer menção a "interceptação telefônica", "quebra de sigilo telefônico"
 
-**7. Art. 20, CPP:**
-   - Inquéritos policiais que tramitam em sigilo por necessidade da investigação.
+**7. Código de Processo Penal — Hipóteses de Sigilo:**
 
-**INDICADORES PRÁTICOS PARA IDENTIFICAÇÃO:**
+   **Art. 201, §6º, CPP — BLOQUEIO OBRIGATÓRIO:**
+   - Preservação da intimidade, vida privada, honra e imagem do ofendido
+   - Processos em que dados do ofendido foram resguardados
 
-Verifique no documento a presença de:
-- Expressões: "segredo de justiça", "segredo judicial", "sigilo processual", "tramitação sigilosa", "sob sigilo", "em sigilo", "processo sigiloso", "SEGREDO", "SIGILOSO";
-- Classificação de nível de sigilo nos metadados ou cabeçalhos;
-- Tarja ou carimbo indicando sigilo;
-- Numeração de processo com indicativo de sigilo (ex.: formato com supressão de nomes, uso de iniciais);
-- Natureza processual correspondente às hipóteses acima (família, dignidade sexual, ato infracional de menor, violência doméstica, interceptação telefônica);
-- Presença de nomes substituídos por iniciais, indicando sigilo já aplicado;
-- Menção a crimes sexuais ou contra a dignidade sexual;
-- Menção a violência doméstica ou Lei Maria da Penha;
-- Processos envolvendo menores em situação de vulnerabilidade.
+   **Art. 792, CPP:**
+   - Audiências com risco de escândalo, inconveniente grave ou perturbação da ordem
 
-**⚠️ EXCEÇÃO IMPORTANTE - ATO INFRACIONAL:**
-Processos de ATO INFRACIONAL (ECA) podem ser SIMPLIFICADOS normalmente, desde que:
-- NÃO haja indicação explícita de "segredo de justiça" ou "sigilo" no documento
-- A simplificação seja direcionada ao próprio adolescente ou seus responsáveis
-- A perspectiva selecionada seja apropriada para processos ECA
+   **Art. 20, CPP:**
+   - Inquéritos policiais sigilosos por necessidade da investigação
 
-Os processos ECA têm restrição de PUBLICIDADE (divulgação pública), mas a parte interessada tem direito de acesso ao conteúdo do processo. Portanto, se o documento é um processo de ato infracional SEM marcação explícita de sigilo adicional, prossiga com a simplificação.
+**8. Lei de Arbitragem (Lei 9.307/1996):**
+   - Art. 22-C, parágrafo único — Cumprimento de carta arbitral com confidencialidade
 
+**9. CF/88, Art. 5º, LX — CLÁUSULA GERAL:**
+   - Defesa da intimidade
+   - Interesse social exigir sigilo
+   - Esta é uma cláusula constitucional que fundamenta todas as demais hipóteses
+
+**═══════════════════════════════════════════════════════════════════**
+**ANÁLISE PROFUNDA OBRIGATÓRIA — VERIFIQUE O CONTEÚDO DO DOCUMENTO:**
+**═══════════════════════════════════════════════════════════════════**
+
+Você DEVE analisar TODO o documento procurando:
+
+**A) TIPO DE AÇÃO/PROCESSO (analise a natureza):**
+- Ação de divórcio, separação judicial → SEGREDO
+- Ação de alimentos, pensão alimentícia, revisional → SEGREDO
+- Ação de guarda, regulamentação de visitas → SEGREDO
+- Investigação de paternidade → SEGREDO
+- Ação de adoção → SEGREDO
+- Ação de destituição do poder familiar → SEGREDO
+- Interdição, curatela → SEGREDO
+- Violência doméstica, medida protetiva → SEGREDO
+- Crimes sexuais (estupro, assédio, importunação) → SEGREDO
+- Interceptação telefônica → SEGREDO
+
+**B) PARTES ENVOLVIDAS (analise quem são as partes):**
+- Menor de idade como vítima → SEGREDO
+- Criança ou adolescente em situação de vulnerabilidade → SEGREDO
+- Mulher vítima de violência doméstica → SEGREDO
+- Vítima de crime sexual → SEGREDO
+- Partes em processo de família (cônjuges, companheiros) → SEGREDO
+
+**C) ASSUNTO/MATÉRIA DO PROCESSO:**
+- Pensão alimentícia entre familiares → SEGREDO
+- Partilha de bens de casal → SEGREDO
+- Disputa sobre guarda de filhos → SEGREDO
+- Reconhecimento ou negação de paternidade → SEGREDO
+- Dados bancários ou fiscais das partes → SEGREDO
+- Prontuários médicos → SEGREDO
+- Crimes contra a dignidade sexual → SEGREDO
+
+**D) VARAS/JUÍZOS ESPECIALIZADOS (indicativo forte):**
+- Vara de Família → provável SEGREDO
+- Vara da Infância e Juventude → verificar se há sigilo
+- Vara de Violência Doméstica → SEGREDO
+- Vara Criminal (crimes sexuais) → SEGREDO
+
+**═══════════════════════════════════════════════════════════════════**
+**INDICADORES TEXTUAIS E EXPRESSÕES A PROCURAR:**
+**═══════════════════════════════════════════════════════════════════**
+
+**Indicadores EXPLÍCITOS de sigilo (presença = SEGREDO):**
+- "segredo de justiça", "segredo judicial"
+- "sigilo processual", "tramitação sigilosa"
+- "sob sigilo", "em sigilo", "processo sigiloso"
+- "SEGREDO", "SIGILOSO", "RESTRITO"
+- "nível de sigilo", "classificação sigilosa"
+- Tarja ou carimbo de sigilo
+
+**Indicadores IMPLÍCITOS que exigem análise profunda:**
+- Nomes substituídos por iniciais (ex: "J.S." em vez de nome completo)
+- Menção a "menor", "adolescente", "criança", "infante"
+- Menção a "vítima" em contexto de crime sexual ou violência doméstica
+- Termos: "estupro", "assédio sexual", "violação", "dignidade sexual"
+- Termos: "violência doméstica", "Maria da Penha", "medida protetiva"
+- Termos: "alimentos", "pensão", "guarda", "visitas", "divórcio", "separação"
+- Termos: "paternidade", "filiação", "adoção", "destituição do poder familiar"
+- Termos: "interceptação telefônica", "quebra de sigilo"
+- Termos: "curatela", "interdição", "incapaz"
+- Qualquer menção a Arts. 213-234-A do CP
+- Qualquer menção a Lei 11.340/2006 ou Lei Maria da Penha
+
+**═══════════════════════════════════════════════════════════════════**
+**⚠️ EXCEÇÃO: PROCESSOS DE ATO INFRACIONAL (ECA):**
+**═══════════════════════════════════════════════════════════════════**
+
+Processos de ATO INFRACIONAL podem ser SIMPLIFICADOS, MAS APENAS SE:
+1. NÃO houver indicação EXPLÍCITA de "segredo de justiça" ou "sigilo" no documento
+2. A simplificação for direcionada ao próprio adolescente ou seus responsáveis
+3. O processo for APENAS de ato infracional (sem crimes sexuais, violência doméstica, etc.)
+
+ATENÇÃO: Se o ato infracional envolver crime sexual, violência doméstica, ou se houver vítima menor em situação de vulnerabilidade → SEGREDO DE JUSTIÇA
+
+**═══════════════════════════════════════════════════════════════════**
+**EXEMPLOS CONCRETOS — QUANDO BLOQUEAR:**
+**═══════════════════════════════════════════════════════════════════**
+
+✅ BLOQUEAR (segredo de justiça detectado = true):
+- "Ação de Alimentos movida por Maria contra João" → SEGREDO (Art. 189, II, CPC)
+- "Ação de Divórcio c/c Partilha de Bens" → SEGREDO (Art. 189, II, CPC)
+- "Ação de Guarda de Menor" → SEGREDO (Art. 189, II, CPC)
+- "Investigação de Paternidade" → SEGREDO (Art. 189, II, CPC)
+- "Medida Protetiva de Urgência - Lei Maria da Penha" → SEGREDO (Art. 17-A, LMP)
+- "Crime de Estupro - Art. 213, CP" → SEGREDO (Art. 234-B, CP)
+- "Assédio Sexual" → SEGREDO (Art. 234-B, CP)
+- "Violência Doméstica" → SEGREDO (Art. 17-A, LMP)
+- "Interceptação Telefônica" → SEGREDO (Lei 9.296/96)
+- Documento com partes identificadas por iniciais → SEGREDO
+- Processo em Vara de Família → SEGREDO
+- Processo envolvendo menor como vítima de violência → SEGREDO
+
+❌ NÃO BLOQUEAR (prosseguir com simplificação):
+- Ação de cobrança entre empresas
+- Ação trabalhista comum
+- Ação de indenização por acidente de trânsito
+- Ação de consumidor contra empresa
+- Execução fiscal
+- Mandado de segurança comum
+- Ato infracional SEM marcação de sigilo e SEM crimes sexuais/violência
+
+**═══════════════════════════════════════════════════════════════════**
 **COMPORTAMENTO OBRIGATÓRIO AO DETECTAR SEGREDO DE JUSTIÇA:**
+**═══════════════════════════════════════════════════════════════════**
 
-Se o documento se enquadrar em qualquer hipótese acima (EXCETO ato infracional sem marcação de sigilo), você DEVE:
+Se o documento se enquadrar em QUALQUER hipótese acima, você DEVE:
 
 1. Preencher o campo `segredo_justica` no JSON com `detectado: true`
-2. NÃO fornecer NENHUMA informação sobre o conteúdo do documento
-3. NÃO incluir nomes, valores, datas ou qualquer dado do processo
-4. Retornar APENAS a mensagem padrão no texto simplificado
+2. Informar o `motivo` da detecção (qual característica identificou)
+3. Informar a `hipotese_legal` aplicável (qual artigo/lei)
+4. NÃO fornecer NENHUMA informação sobre o conteúdo do documento
+5. NÃO incluir nomes, valores, datas ou qualquer dado do processo
+6. Retornar APENAS a mensagem padrão no texto simplificado
+
+LEMBRE-SE: O rol de hipóteses NÃO é taxativo. Na dúvida sobre sigilo, BLOQUEIE o documento.
 
 ═══════════════════════════════════════════════════════════════════
 
