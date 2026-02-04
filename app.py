@@ -246,6 +246,72 @@ PROMPT_SIMPLIFICACAO_MELHORADO = """
 SEÇÃO 1: INSTRUÇÕES PARA VOCÊ SEGUIR (NÃO INCLUIR NO OUTPUT)
 ═══════════════════════════════════════════════════════════════════
 
+🚨🚨🚨 VERIFICAÇÃO PRIORITÁRIA: SEGREDO DE JUSTIÇA 🚨🚨🚨
+
+ANTES de simplificar QUALQUER documento judicial, você DEVE verificar se o processo tramita ou deveria tramitar em segredo de justiça. Esta verificação é OBRIGATÓRIA e tem PRIORIDADE sobre todas as outras instruções.
+
+**HIPÓTESES LEGAIS DE SEGREDO DE JUSTIÇA:**
+
+Identifique se o documento se enquadra em QUALQUER das seguintes hipóteses:
+
+**1. Art. 189, CPC (Lei 13.105/2015):**
+   - I — Processos em que o exija o interesse público ou social;
+   - II — Processos que versem sobre casamento, separação de corpos, divórcio, separação, união estável, filiação, alimentos e guarda de crianças e adolescentes;
+   - III — Processos em que constem dados protegidos pelo direito constitucional à intimidade;
+   - IV — Processos que versem sobre arbitragem (inclusive cumprimento de carta arbitral), desde que a confidencialidade estipulada na arbitragem seja comprovada.
+
+**2. Art. 234-B, Código Penal (incluído pela Lei 12.015/2009):**
+   - Processos que apuram crimes contra a dignidade sexual (Título VI do CP): estupro, violação sexual mediante fraude, assédio sexual, estupro de vulnerável, registro não autorizado da intimidade sexual e demais crimes dos arts. 213 a 234-A do CP.
+
+**3. Art. 17-A, Lei Maria da Penha (incluído pela Lei 14.854/2024):**
+   - Processos que apuram crimes praticados no contexto de violência doméstica e familiar contra a mulher (sigilo do nome da ofendida).
+
+**4. ECA — Estatuto da Criança e do Adolescente (Lei 8.069/1990):**
+   - Art. 27 — Ações de reconhecimento de estado de filiação envolvendo crianças/adolescentes;
+   - Arts. 143 e 144 — Procedimentos de apuração de ato infracional atribuído a criança ou adolescente;
+   - Quaisquer processos em que a publicidade possa identificar criança ou adolescente em situação de vulnerabilidade.
+
+**5. Lei de Interceptação Telefônica (Lei 9.296/1996):**
+   - Art. 8º — Diligências, gravações e transcrições de interceptação telefônica preservadas sob sigilo.
+
+**6. Art. 201, §6º, CPP:**
+   - Quando o juiz determinar segredo de justiça sobre dados, depoimentos e informações do ofendido para evitar sua exposição.
+
+**7. Art. 20, CPP:**
+   - Inquéritos policiais que tramitam em sigilo por necessidade da investigação.
+
+**INDICADORES PRÁTICOS PARA IDENTIFICAÇÃO:**
+
+Verifique no documento a presença de:
+- Expressões: "segredo de justiça", "segredo judicial", "sigilo processual", "tramitação sigilosa", "sob sigilo", "em sigilo", "processo sigiloso", "SEGREDO", "SIGILOSO";
+- Classificação de nível de sigilo nos metadados ou cabeçalhos;
+- Tarja ou carimbo indicando sigilo;
+- Numeração de processo com indicativo de sigilo (ex.: formato com supressão de nomes, uso de iniciais);
+- Natureza processual correspondente às hipóteses acima (família, dignidade sexual, ato infracional de menor, violência doméstica, interceptação telefônica);
+- Presença de nomes substituídos por iniciais, indicando sigilo já aplicado;
+- Menção a crimes sexuais ou contra a dignidade sexual;
+- Menção a violência doméstica ou Lei Maria da Penha;
+- Processos envolvendo menores em situação de vulnerabilidade.
+
+**⚠️ EXCEÇÃO IMPORTANTE - ATO INFRACIONAL:**
+Processos de ATO INFRACIONAL (ECA) podem ser SIMPLIFICADOS normalmente, desde que:
+- NÃO haja indicação explícita de "segredo de justiça" ou "sigilo" no documento
+- A simplificação seja direcionada ao próprio adolescente ou seus responsáveis
+- A perspectiva selecionada seja apropriada para processos ECA
+
+Os processos ECA têm restrição de PUBLICIDADE (divulgação pública), mas a parte interessada tem direito de acesso ao conteúdo do processo. Portanto, se o documento é um processo de ato infracional SEM marcação explícita de sigilo adicional, prossiga com a simplificação.
+
+**COMPORTAMENTO OBRIGATÓRIO AO DETECTAR SEGREDO DE JUSTIÇA:**
+
+Se o documento se enquadrar em qualquer hipótese acima (EXCETO ato infracional sem marcação de sigilo), você DEVE:
+
+1. Preencher o campo `segredo_justica` no JSON com `detectado: true`
+2. NÃO fornecer NENHUMA informação sobre o conteúdo do documento
+3. NÃO incluir nomes, valores, datas ou qualquer dado do processo
+4. Retornar APENAS a mensagem padrão no texto simplificado
+
+═══════════════════════════════════════════════════════════════════
+
 **INSTRUÇÕES PARA ESCOLHER O TIPO DE TÍTULO:**
 
 **VERIFICAÇÃO OBRIGATÓRIA:**
@@ -1077,6 +1143,12 @@ Use APENAS informações que estão explicitamente escritas no documento.
 Analise o documento e retorne JSON com:
 ```json
 {{
+  "segredo_justica": {{
+    "detectado": true|false,
+    "motivo": "Motivo da detecção ou null se não detectado",
+    "hipotese_legal": "Art. X, Lei Y ou null se não detectado"
+  }},
+
   "tipo_documento": "acordao|sentenca|mandado|decisao|despacho|intimacao",
   "confianca_tipo": "ALTA|MÉDIA|BAIXA",
   "razao_tipo": "Explique em 1 frase por que é este tipo",
@@ -1282,6 +1354,65 @@ O juiz determinou o pagamento de R$ 1.427,64 de danos materiais:
   }}
 }}
 ```
+
+### 🚨🚨🚨 **REGRAS CRÍTICAS PARA SEGREDO DE JUSTIÇA:** 🚨🚨🚨
+
+**SE `segredo_justica.detectado` = true:**
+
+O campo `segredo_justica` DEVE ser preenchido PRIMEIRO, antes de qualquer outro campo.
+
+**Quando detectar segredo de justiça:**
+1. Preencha `segredo_justica.detectado: true`
+2. Preencha `segredo_justica.motivo` com a razão da detecção (ex: "Documento contém indicação de 'segredo de justiça'", "Processo versa sobre crimes contra dignidade sexual")
+3. Preencha `segredo_justica.hipotese_legal` com o fundamento legal (ex: "Art. 189, II, CPC", "Art. 234-B, CP")
+4. Preencha os demais campos do JSON com valores vazios/null/false
+5. No texto simplificado (após o separador), retorne APENAS:
+
+```
+O processo envolve segredo de justiça, procure a Comarca do fórum da sua cidade.
+```
+
+**NÃO inclua:**
+- Nenhum nome de parte
+- Nenhum valor monetário
+- Nenhuma data ou prazo
+- Nenhum resumo do conteúdo
+- Nenhuma informação sobre o tipo de processo
+
+**Exemplo de resposta quando segredo de justiça é detectado:**
+
+```json
+{{
+  "segredo_justica": {{
+    "detectado": true,
+    "motivo": "Documento indica expressamente 'segredo de justiça' no cabeçalho",
+    "hipotese_legal": "Art. 189, CPC"
+  }},
+  "tipo_documento": null,
+  "confianca_tipo": null,
+  "razao_tipo": null,
+  "urgencia": null,
+  "acao_necessaria": null,
+  "tem_justica_gratuita": null,
+  "trecho_justica_gratuita": null,
+  "autoridade": null,
+  "partes": null,
+  "decisao_resumida": null,
+  "valores_principais": null,
+  "prazos": [],
+  "audiencia": null,
+  "recursos_cabiveis": null
+}}
+```
+
+---SEPARADOR---
+
+O processo envolve segredo de justiça, procure a Comarca do fórum da sua cidade.
+
+**SE `segredo_justica.detectado` = false:**
+Prossiga normalmente com a análise e simplificação do documento.
+
+═══════════════════════════════════════════════════════════════════
 
 ### 🚨 **REGRAS CRÍTICAS PARA IDENTIFICAÇÃO DE TIPO:**
 
@@ -1792,6 +1923,49 @@ def processar():
             logging.error(f"❌ ERRO CRÍTICO na análise Gemini: {e}", exc_info=True)
             return jsonify({"erro": f"Erro ao analisar documento: {str(e)}"}), 500
 
+        # 🔒 VERIFICAÇÃO DE SEGREDO DE JUSTIÇA
+        segredo_justica = analise_completa.get("segredo_justica", {})
+        if segredo_justica.get("detectado") == True:
+            logging.warning(f"🔒 SEGREDO DE JUSTIÇA DETECTADO - Motivo: {segredo_justica.get('motivo', 'Não especificado')}")
+            logging.warning(f"🔒 Hipótese legal: {segredo_justica.get('hipotese_legal', 'Não especificada')}")
+
+            # Retornar resposta específica sem informações do documento
+            return jsonify({
+                "texto": "O processo envolve segredo de justiça, procure a Comarca do fórum da sua cidade.",
+                "tipo_documento": "sigiloso",
+                "confianca_tipo": "ALTA",
+                "razao_tipo": "Documento identificado como protegido por segredo de justiça",
+                "urgencia": "MÉDIA",
+                "acao_necessaria": "Procure a Comarca do fórum da sua cidade",
+                "dados_extraidos": {
+                    "numero_processo": None,
+                    "tipo_documento": "sigiloso",
+                    "partes": {},
+                    "autoridade": {},
+                    "valores": {},
+                    "prazos": [],
+                    "decisao": None,
+                    "audiencias": [],
+                    "links_audiencia": []
+                },
+                "recursos_cabiveis": {
+                    "cabe_recurso": "Não disponível",
+                    "prazo": None
+                },
+                "perguntas_sugeridas": [],
+                "tem_justica_gratuita": None,
+                "caracteres_original": len(texto_original),
+                "caracteres_simplificado": 0,
+                "modelo_usado": analise_completa.get("modelo_usado", GEMINI_MODELS[0]["name"]),
+                "perspectiva_aplicada": perspectiva,
+                "segredo_justica": {
+                    "detectado": True,
+                    "motivo": segredo_justica.get("motivo"),
+                    "hipotese_legal": segredo_justica.get("hipotese_legal")
+                },
+                "pdf_download_url": None
+            })
+
         tipo_doc = analise_completa.get("tipo_documento", "desconhecido")
         texto_simplificado = analise_completa.get("texto_simplificado", "")
         modelo_usado = analise_completa.get("modelo_usado", GEMINI_MODELS[0]["name"])
@@ -1886,6 +2060,11 @@ def processar():
             "caracteres_simplificado": len(texto_simplificado),
             "modelo_usado": modelo_usado,
             "perspectiva_aplicada": perspectiva_aplicada,  # 🔥 NOVO - confirmar perspectiva
+            "segredo_justica": {
+                "detectado": False,
+                "motivo": None,
+                "hipotese_legal": None
+            },
             "pdf_download_url": f"/download_pdf?path={os.path.basename(pdf_path)}&filename={pdf_filename}"
         })
 
