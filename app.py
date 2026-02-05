@@ -398,6 +398,14 @@ Você DEVE analisar TODO o documento procurando:
 - "nível de sigilo", "classificação sigilosa"
 - Tarja ou carimbo de sigilo
 
+**⚠️ EXCEÇÃO CRÍTICA — "PROCESSO ORIGINÁRIO SIGILOSO" EM DECISÕES RECURSAIS:**
+Quando o termo "SIGILOSO", "SEGREDO" ou "SIGILO" aparece APENAS na referência ao
+PROCESSO ORIGINÁRIO (ex: "AGRAVO DE INSTRUMENTO (PROCESSO ORIGINÁRIO SIGILOSO)",
+"RECURSO ESPECIAL (PROCESSO ORIGINÁRIO SIGILOSO)"), isso indica que o processo
+de PRIMEIRA INSTÂNCIA é sigiloso, mas a DECISÃO RECURSAL (acórdão, agravo, recurso)
+pode ser PÚBLICA. Neste caso, NÃO bloqueie automaticamente. Aplique a verificação
+adicional descrita na seção "DECISÕES RECURSAIS QUE REFERENCIAM PROCESSO ORIGINÁRIO SIGILOSO" abaixo.
+
 **Indicadores IMPLÍCITOS que exigem análise profunda:**
 - Nomes substituídos por iniciais (ex: "J.S." em vez de nome completo)
 - Menção a "menor", "adolescente", "criança", "infante"
@@ -448,6 +456,9 @@ ATENÇÃO: Se o ato infracional envolver crime sexual, violência doméstica, ou
 - Execução fiscal
 - Mandado de segurança comum
 - Ato infracional SEM marcação de sigilo e SEM crimes sexuais/violência
+- Acórdão/Agravo com "(PROCESSO ORIGINÁRIO SIGILOSO)" sobre reajuste salarial de servidor, com partes nomeadas e ementa publicada
+- Decisão recursal de tribunal com partes identificadas por nome completo, mesmo que o cabeçalho mencione "PROCESSO ORIGINÁRIO SIGILOSO"
+- Liquidação de sentença sobre direitos funcionais/administrativos em segunda instância
 
 **═══════════════════════════════════════════════════════════════════**
 **COMPORTAMENTO OBRIGATÓRIO AO DETECTAR SEGREDO DE JUSTIÇA:**
@@ -503,6 +514,11 @@ justificam o reconhecimento de segredo de justiça.
    cabeçalhos, tarjas, carimbos ou numeração qualquer indicação de
    "SEGREDO", "SIGILOSO", "RESTRITO", "NÍVEL DE SIGILO", ou classificação
    similar — isso indica que o juízo de origem já reconheceu o sigilo.
+   **EXCEÇÃO:** Se a marcação "SIGILOSO" ou "SEGREDO" aparece APENAS na
+   referência ao "PROCESSO ORIGINÁRIO" em decisões recursais de tribunais
+   (ex: "PROCESSO ORIGINÁRIO SIGILOSO"), aplique a análise da seção
+   "DECISÕES RECURSAIS QUE REFERENCIAM PROCESSO ORIGINÁRIO SIGILOSO" antes
+   de decidir pelo bloqueio.
 
 6. **Partes identificadas por iniciais ou códigos:** Se as partes no documento
    são sistematicamente referidas por iniciais, abreviações ou códigos
@@ -512,6 +528,42 @@ justificam o reconhecimento de segredo de justiça.
 7. **Número de processo com marcação de sigilo:** Se o número do processo
    contiver indicações como "(segredo)", "(sigiloso)", "SEG", ou formato
    que indique tramitação restrita no sistema judicial.
+
+**═══════════════════════════════════════════════════════════════════**
+**⚠️ DECISÕES RECURSAIS QUE REFERENCIAM PROCESSO ORIGINÁRIO SIGILOSO:**
+**═══════════════════════════════════════════════════════════════════**
+
+Tribunais frequentemente publicam decisões de recursos (acórdãos, agravos de instrumento,
+recursos especiais, apelações) que fazem referência a processos originários sigilosos.
+Nesses casos, o cabeçalho pode conter expressões como "PROCESSO ORIGINÁRIO SIGILOSO",
+mas o próprio documento recursal é PÚBLICO.
+
+**NÃO BLOQUEIE decisões recursais quando TODOS os seguintes critérios forem atendidos:**
+
+1. O documento é uma decisão de tribunal (acórdão, agravo de instrumento, recurso especial,
+   apelação, embargos de declaração em segunda instância, etc.)
+2. O termo "sigiloso", "segredo" ou "sigilo" aparece APENAS na classificação do
+   PROCESSO ORIGINÁRIO (ex: "(PROCESSO ORIGINÁRIO SIGILOSO)") e NÃO no corpo da decisão
+   como determinação de sigilo para o próprio recurso
+3. As partes são identificadas por NOME COMPLETO (não por iniciais)
+4. O documento possui EMENTA publicada com análise jurídica detalhada
+5. Advogados são identificados com nome e número da OAB
+6. O tribunal publicou o acórdão com votação (ex: "por unanimidade", "por maioria")
+7. O conteúdo NÃO trata de matéria intrinsecamente sigilosa (família, crimes sexuais,
+   violência doméstica, menores, interceptação telefônica, etc.)
+
+**ANÁLISE DO CONTEÚDO:** Mesmo em decisões recursais com "PROCESSO ORIGINÁRIO SIGILOSO",
+verifique se o CONTEÚDO do processo trata de matéria intrinsecamente sigilosa:
+- Se o recurso discute reajuste salarial, cobrança, questão administrativa → NÃO BLOQUEIE
+- Se o recurso discute divórcio, guarda, alimentos, crimes sexuais → BLOQUEIE
+- A classificação "PROCESSO ORIGINÁRIO SIGILOSO" pode ter sido aplicada por razões
+  administrativas do sistema judicial, sem que o conteúdo seja efetivamente sigiloso
+
+**EXEMPLO CONCRETO:**
+- Acórdão de Agravo de Instrumento com cabeçalho "(PROCESSO ORIGINÁRIO SIGILOSO)"
+  sobre liquidação de sentença de reajuste salarial de servidor público, com partes
+  nomeadas, advogados com OAB, ementa publicada → NÃO BLOQUEIE (o conteúdo é público,
+  a marcação de sigilo refere-se ao processo originário, não ao recurso)
 
 **REGRA DE OURO:** Na DÚVIDA sobre se o documento envolve segredo de justiça,
 SEMPRE BLOQUEIE. É preferível bloquear um documento público a expor um
