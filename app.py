@@ -254,97 +254,338 @@ ANTES de simplificar QUALQUER documento judicial, você DEVE realizar uma ANÁLI
 
 **═══════════════════════════════════════════════════════════════════**
 **HIPÓTESES LEGAIS COMPLETAS DE SEGREDO DE JUSTIÇA:**
+**RELAÇÃO CONSOLIDADA POR ÁREA DO DIREITO E FUNDAMENTO LEGAL**
 **═══════════════════════════════════════════════════════════════════**
 
 Analise profundamente se o documento se enquadra em QUALQUER das seguintes hipóteses:
 
-**1. Art. 189, CPC/2015 — HIPÓTESES PROCESSUAIS CIVIS:**
+**══════════════════════════════════════════════════════════════**
+**1. DIREITO DE FAMÍLIA (Art. 189, II, CPC) — BLOQUEIO OBRIGATÓRIO**
+**══════════════════════════════════════════════════════════════**
+Fundamento: Art. 189, II, do CPC — processos que versem sobre casamento, separação de corpos, divórcio, separação, união estável, filiação, alimentos e guarda de crianças e adolescentes.
 
-   **I — Interesse público ou social (inciso I):**
-   - Cláusula aberta que permite sigilo quando a publicidade puder causar prejuízo ao interesse público ou social
-   - Exemplos: processos envolvendo segurança nacional, saúde pública, segredos de Estado
+   **1.1 Casamento e Dissolução:**
+   - Ação de nulidade de casamento
+   - Ação de anulação de casamento
+   - Ação declaratória de existência/inexistência de casamento
+   - Separação judicial consensual
+   - Separação judicial litigiosa
+   - Conversão de separação em divórcio
+   - Divórcio consensual
+   - Divórcio litigioso
+   - Separação de corpos
+   - Partilha de bens (decorrente de dissolução)
 
-   **II — Direito de Família (inciso II) — BLOQUEIO OBRIGATÓRIO:**
-   - Casamento, separação de corpos, divórcio, separação judicial
-   - União estável (reconhecimento, dissolução)
-   - Filiação (investigação de paternidade, reconhecimento de filho)
-   - Alimentos (pensão alimentícia, revisional de alimentos)
-   - Guarda de crianças e adolescentes (guarda, regulamentação de visitas)
-   - Adoção
+   **1.2 União Estável:**
+   - Reconhecimento de união estável
+   - Dissolução de união estável
+   - União estável homoafetiva
+   - Contrato de convivência
+   - Partilha de bens da união estável
 
-   **III — Dados protegidos pela intimidade (inciso III) — BLOQUEIO OBRIGATÓRIO:**
-   - Processos com quebra de sigilo bancário
-   - Processos com quebra de sigilo fiscal
-   - Processos com dados médicos/hospitalares
-   - Processos com dados patrimoniais sensíveis
-   - Curatela e interdição (preservação da intimidade do interditando)
+   **1.3 Filiação e Parentesco:**
+   - Investigação de paternidade
+   - Investigação de maternidade
+   - Negatória de paternidade
+   - Reconhecimento de paternidade
+   - Reconhecimento de maternidade
+   - Ação de reconhecimento de filiação socioafetiva
+   - Multiparentalidade
+   - Ação anulatória de reconhecimento de filho
+   - Relações de parentesco
+   - Ação de impugnação de filiação
 
-   **IV — Arbitragem (inciso IV):**
-   - Processos que versem sobre arbitragem
-   - Cumprimento de carta arbitral
-   - Desde que haja indicação de confidencialidade
+   **1.4 Alimentos:**
+   - Ação de alimentos
+   - Revisão de alimentos
+   - Exoneração de alimentos
+   - Oferta de alimentos
+   - Alimentos provisórios
+   - Alimentos gravídicos
+   - Execução de alimentos
+   - Prisão civil por dívida de alimentos
+   - Alimentos avoengos
+   - Alimentos compensatórios
 
-**2. Art. 234-B, Código Penal — CRIMES CONTRA DIGNIDADE SEXUAL — BLOQUEIO OBRIGATÓRIO:**
+   **1.5 Guarda:**
+   - Guarda unilateral
+   - Guarda compartilhada
+   - Guarda alternada
+   - Modificação de guarda
+   - Guarda com genitor no exterior
+   - Regulamentação de visitas
+   - Busca e apreensão de menor
+   - Alienação parental (Lei 12.318/2010)
+
+   **1.6 Regime de Bens e Patrimônio:**
+   - Alteração de regime de bens
+   - Pacto antenupcial
+   - Inventário e partilha decorrente de divórcio/separação
+   - Sobrepartilha
+   - Arrolamento de bens (família)
+
+   **1.7 Outros Procedimentos de Família:**
+   - Suprimento judicial de consentimento para casamento
+   - Autorização para alienação de bem de incapaz
+   - Procedimentos de jurisdição voluntária em família
+   - Homologação de acordo extrajudicial de família
+
+**══════════════════════════════════════════════════════════════**
+**2. DIREITO DA CRIANÇA E DO ADOLESCENTE — ECA (Arts. 143/144, Lei 8.069/90) — BLOQUEIO OBRIGATÓRIO**
+**══════════════════════════════════════════════════════════════**
+Fundamento: Arts. 143 e 144 do ECA — vedada a divulgação de atos judiciais relativos a crianças e adolescentes.
+
+   **2.1 Medidas Protetivas:**
+   - Encaminhamento aos pais ou responsável
+   - Orientação, apoio e acompanhamento temporários
+   - Matrícula e frequência obrigatórias em estabelecimento de ensino
+   - Inclusão em programa de auxílio a família, criança e adolescente
+   - Requisição de tratamento médico, psicológico ou psiquiátrico
+   - Inclusão em programa de tratamento a alcoólatras e toxicômanos
+   - Acolhimento institucional
+   - Acolhimento familiar
+   - Colocação em família substituta
+
+   **2.2 Ato Infracional (COM EXCEÇÃO — ver seção específica abaixo):**
+   - Apuração de ato infracional
+   - Representação por ato infracional
+   - Remissão judicial
+   - Internação provisória
+   - Todos os tipos de atos infracionais equiparados a crimes
+
+   **2.3 Medidas Socioeducativas:**
+   - Advertência
+   - Obrigação de reparar o dano
+   - Prestação de serviços à comunidade
+   - Liberdade assistida
+   - Semiliberdade
+   - Internação
+   - Execução de medida socioeducativa
+   - Progressão/regressão de medida
+   - Unificação de medidas
+
+   **2.4 Adoção:**
+   - Adoção nacional
+   - Adoção internacional
+   - Adoção de criança
+   - Adoção de adolescente
+   - Adoção intuitu personae
+   - Adoção unilateral (pelo cônjuge)
+   - Habilitação para adoção
+   - Estágio de convivência
+
+   **2.5 Poder Familiar:**
+   - Destituição do poder familiar
+   - Suspensão do poder familiar
+   - Perda do poder familiar
+   - Restituição do poder familiar
+
+   **2.6 Tutela e Guarda (ECA):**
+   - Tutela de menor
+   - Nomeação de tutor
+   - Remoção de tutor
+   - Dispensa de tutor
+   - Prestação de contas do tutor
+
+   **2.7 Outros Procedimentos do ECA:**
+   - Autorização para viagem nacional de menor
+   - Autorização para viagem ao exterior de menor
+   - Entrada e permanência de menores em eventos
+   - Suprimento de capacidade
+   - Trabalho do adolescente
+   - Infrações administrativas (arts. 245 a 258-B do ECA)
+   - Depoimento especial (Lei 13.431/2017)
+   - Escuta especializada
+
+**══════════════════════════════════════════════════════════════**
+**3. DIREITO PENAL — CRIMES E PROCEDIMENTOS SIGILOSOS**
+**══════════════════════════════════════════════════════════════**
+
+   **3.1 Crimes Contra a Dignidade Sexual (Art. 234-B, CP) — BLOQUEIO OBRIGATÓRIO:**
+   Fundamento: Art. 234-B do Código Penal — os processos em que se apuram crimes contra a dignidade sexual correrão em segredo de justiça.
    - Estupro (art. 213)
    - Violação sexual mediante fraude (art. 215)
    - Importunação sexual (art. 215-A)
    - Assédio sexual (art. 216-A)
+   - Registro não autorizado da intimidade sexual (art. 216-B)
    - Estupro de vulnerável (art. 217-A)
    - Corrupção de menores (art. 218)
-   - Satisfação de lascívia mediante presença de criança/adolescente (art. 218-A)
-   - Favorecimento da prostituição de criança/adolescente/vulnerável (art. 218-B)
-   - Divulgação de cena de estupro/sexo/pornografia (art. 218-C)
-   - Registro não autorizado da intimidade sexual (art. 216-B)
+   - Satisfação de lascívia mediante presença de criança ou adolescente (art. 218-A)
+   - Favorecimento da prostituição ou exploração sexual de criança ou adolescente (art. 218-B)
+   - Divulgação de cena de estupro, sexo ou pornografia (art. 218-C)
+   - Mediação para satisfazer lascívia de outrem (art. 227)
+   - Favorecimento da prostituição (art. 228)
+   - Casa de prostituição (art. 229)
+   - Rufianismo (art. 230)
+   - Tráfico de pessoas (art. 149-A, quando para exploração sexual)
    - Qualquer crime do Título VI do Código Penal (arts. 213 a 234-A)
    - O STJ consolidou que o sigilo abrange autor e vítima, devendo constar apenas iniciais
 
-**3. Art. 17-A, Lei Maria da Penha (Lei 11.340/2006, alterada pela Lei 14.854/2024) — BLOQUEIO OBRIGATÓRIO:**
+   **3.2 Crimes Previstos no ECA (Lei 8.069/90) — BLOQUEIO OBRIGATÓRIO:**
+   - Pornografia envolvendo criança ou adolescente (arts. 240 a 241-E)
+   - Venda ou entrega de produto inadequado a criança ou adolescente (art. 242)
+   - Venda de arma, munição ou explosivo a criança ou adolescente (art. 242)
+   - Corrupção de menor (art. 244-B)
+   - Todos os crimes contra criança/adolescente
+
+   **3.3 Interceptação Telefônica (Lei 9.296/96) — BLOQUEIO OBRIGATÓRIO:**
+   Fundamento: Art. 1º da Lei 9.296/96 — interceptação sob segredo de justiça.
+   - Pedido de interceptação telefônica
+   - Interceptação de comunicações telemáticas
+   - Interceptação de sistemas de informática
+   - Captação ambiental (art. 8-A)
+   - Prorrogação de interceptação
+   - Quebra de sigilo de dados telefônicos
+   - Qualquer menção a "interceptação telefônica", "quebra de sigilo telefônico"
+   - Diligências, gravações e transcrições de interceptação
+
+   **3.4 Organizações Criminosas (Lei 12.850/2013) — BLOQUEIO OBRIGATÓRIO:**
+   - Colaboração premiada (art. 4º, §6º)
+   - Acordo de leniência
+   - Infiltração de agentes
+
+   **3.5 Outros Processos Criminais com Sigilo — BLOQUEIO OBRIGATÓRIO:**
+   - Processos com quebra de sigilo bancário
+   - Processos com quebra de sigilo fiscal
+   - Processos com vítima menor de idade
+   - Inquérito policial sigiloso (fase investigatória — art. 20, CPP)
+   - Medidas cautelares sigilosas
+   - Busca e apreensão sigilosa
+
+   **3.6 Código de Processo Penal — Hipóteses Adicionais:**
+
+   Art. 201, §6º, CPP — BLOQUEIO OBRIGATÓRIO:
+   - Preservação da intimidade, vida privada, honra e imagem do ofendido
+   - Processos em que dados do ofendido foram resguardados
+
+   Art. 792, CPP:
+   - Audiências com risco de escândalo, inconveniente grave ou perturbação da ordem
+
+   Art. 20, CPP:
+   - Inquéritos policiais sigilosos por necessidade da investigação
+
+**══════════════════════════════════════════════════════════════**
+**4. DIREITO CIVIL (Art. 189, III, CPC) — BLOQUEIO OBRIGATÓRIO**
+**══════════════════════════════════════════════════════════════**
+Fundamento: Art. 189, III, do CPC — processos em que constem dados protegidos pelo direito constitucional à intimidade.
+
+   **4.1 Curatela e Interdição:**
+   - Interdição
+   - Curatela
+   - Tomada de decisão apoiada
+   - Levantamento de interdição
+   - Nomeação de curador
+   - Remoção de curador
+   - Prestação de contas do curador
+
+   **4.2 Tutela (Direito Civil):**
+   - Nomeação de tutor
+   - Remoção de tutor
+   - Dispensa de tutor
+   - Prestação de contas da tutela
+
+   **4.3 Processos com Dados Sensíveis:**
+   - Ações envolvendo dados de saúde (HIV/AIDS, doenças mentais, etc.)
+   - Ações envolvendo orientação sexual
+   - Ações envolvendo identidade de gênero
+   - Ações de indenização por violação de intimidade
+   - Ações envolvendo proteção de dados pessoais (LGPD)
+   - Ações com dados bancários/financeiros sensíveis
+   - Ações envolvendo vida privada
+   - Processos com dados médicos/hospitalares
+   - Processos com dados patrimoniais sensíveis
+
+   **4.4 Ausentes e Incapazes:**
+   - Declaração de ausência
+   - Abertura de sucessão provisória/definitiva de ausente
+   - Curadoria de ausente
+
+**══════════════════════════════════════════════════════════════**
+**5. ARBITRAGEM (Art. 189, IV, CPC e Lei 9.307/96)**
+**══════════════════════════════════════════════════════════════**
+Fundamento: Art. 189, IV, do CPC e art. 22-C, parágrafo único, da Lei 9.307/96.
+   - Procedimento arbitral
+   - Cumprimento de carta arbitral
+   - Homologação de sentença arbitral
+   - Ação anulatória de sentença arbitral
+   - Execução de sentença arbitral
+   - Desde que haja indicação de confidencialidade comprovada perante o juízo
+
+**══════════════════════════════════════════════════════════════**
+**6. INTERESSE PÚBLICO OU SOCIAL (Art. 189, I, CPC)**
+**══════════════════════════════════════════════════════════════**
+Fundamento: Art. 189, I, do CPC — cláusula geral que permite ao juiz decretar segredo de justiça quando o exigir o interesse público ou social.
+   - Processos envolvendo segurança nacional
+   - Processos envolvendo segredo de Estado
+   - Processos que possam causar comoção social
+   - Processos com risco de perturbação da ordem pública
+   - Processos envolvendo pessoas em programa de proteção a testemunhas
+   - Processos com informações estratégicas do Estado
+
+**══════════════════════════════════════════════════════════════**
+**7. DIREITO DO TRABALHO — BLOQUEIO OBRIGATÓRIO quando aplicável**
+**══════════════════════════════════════════════════════════════**
+Fundamento: Art. 770 da CLT c/c art. 189 do CPC (aplicação subsidiária) e decisão judicial motivada.
+   - Reclamações trabalhistas com alegação de assédio sexual
+   - Processos envolvendo doenças ocupacionais (saúde mental, HIV, etc.)
+   - Acidentes do trabalho com exposição de dados sensíveis
+   - Processos com alegação de discriminação
+   - Processos envolvendo dados pessoais sensíveis do empregado
+
+**══════════════════════════════════════════════════════════════**
+**8. VIOLÊNCIA DOMÉSTICA E FAMILIAR — Lei Maria da Penha (Lei 11.340/2006) — BLOQUEIO OBRIGATÓRIO**
+**══════════════════════════════════════════════════════════════**
+Fundamento: Lei 11.340/2006 (alterada pela Lei 14.854/2024), Art. 17-A c/c art. 189, III, do CPC — preservação da intimidade da vítima.
+   - Medidas protetivas de urgência
+   - Ação penal por lesão corporal no âmbito doméstico
+   - Ameaça no âmbito doméstico
+   - Feminicídio e tentativa de feminicídio
+   - Violência psicológica contra a mulher
+   - Perseguição (stalking) no âmbito doméstico
    - Violência doméstica contra a mulher
    - Violência familiar contra a mulher
-   - Medidas protetivas de urgência (Lei Maria da Penha)
-   - Lesão corporal em contexto de violência doméstica
-   - Ameaça em contexto doméstico/familiar
-   - Feminicídio e tentativa de feminicídio
    - Qualquer processo que mencione Lei 11.340/2006 ou "Maria da Penha"
 
-**4. ECA — Estatuto da Criança e do Adolescente (Lei 8.069/1990):**
-   - Art. 27 — Ações de reconhecimento de estado de filiação
-   - Arts. 143 e 144 — Atos infracionais (COM EXCEÇÃO - ver abaixo)
-   - Destituição do poder familiar
-   - Medidas protetivas envolvendo crianças/adolescentes
-   - Qualquer processo em que a publicidade possa identificar menor em situação de vulnerabilidade
+**══════════════════════════════════════════════════════════════**
+**9. EXECUÇÃO PENAL — BLOQUEIO OBRIGATÓRIO quando aplicável**
+**══════════════════════════════════════════════════════════════**
+Fundamento: Lei 7.210/84 c/c art. 189, III, do CPC.
+   - Exame criminológico (quando contém dados sensíveis)
+   - Laudos psiquiátricos
+   - Incidentes de insanidade mental
+   - Medidas de segurança
+   - Condenados em crimes sexuais (quando preservação da vítima)
 
-**5. Lei 13.431/2017 — Sistema de Garantia de Direitos da Criança Vítima/Testemunha — BLOQUEIO OBRIGATÓRIO:**
+**══════════════════════════════════════════════════════════════**
+**10. Lei 13.431/2017 — Sistema de Garantia de Direitos da Criança Vítima/Testemunha — BLOQUEIO OBRIGATÓRIO**
+**══════════════════════════════════════════════════════════════**
    - Depoimentos especiais de crianças e adolescentes vítimas
    - Escuta especializada
    - Processos em que criança/adolescente é vítima ou testemunha de violência
 
-**6. Lei de Interceptação Telefônica (Lei 9.296/1996) — BLOQUEIO OBRIGATÓRIO:**
-   - Art. 1º e 8º — Interceptação de comunicações telefônicas
-   - Interceptação telemática e de dados
-   - Captação ambiental (art. 8-A)
-   - Diligências, gravações e transcrições
-   - Qualquer menção a "interceptação telefônica", "quebra de sigilo telefônico"
-
-**7. Código de Processo Penal — Hipóteses de Sigilo:**
-
-   **Art. 201, §6º, CPP — BLOQUEIO OBRIGATÓRIO:**
-   - Preservação da intimidade, vida privada, honra e imagem do ofendido
-   - Processos em que dados do ofendido foram resguardados
-
-   **Art. 792, CPP:**
-   - Audiências com risco de escândalo, inconveniente grave ou perturbação da ordem
-
-   **Art. 20, CPP:**
-   - Inquéritos policiais sigilosos por necessidade da investigação
-
-**8. Lei de Arbitragem (Lei 9.307/1996):**
-   - Art. 22-C, parágrafo único — Cumprimento de carta arbitral com confidencialidade
-
-**9. CF/88, Art. 5º, LX — CLÁUSULA GERAL:**
+**══════════════════════════════════════════════════════════════**
+**11. CF/88, Art. 5º, LX — CLÁUSULA GERAL CONSTITUCIONAL**
+**══════════════════════════════════════════════════════════════**
    - Defesa da intimidade
    - Interesse social exigir sigilo
    - Esta é uma cláusula constitucional que fundamenta todas as demais hipóteses
+
+**══════════════════════════════════════════════════════════════**
+**QUADRO-RESUMO POR FUNDAMENTO LEGAL:**
+**══════════════════════════════════════════════════════════════**
+   - Art. 189, I, CPC → Interesse público ou social
+   - Art. 189, II, CPC → Família (casamento, divórcio, união estável, filiação, alimentos, guarda)
+   - Art. 189, III, CPC → Dados protegidos pela intimidade
+   - Art. 189, IV, CPC → Arbitragem com confidencialidade
+   - Art. 234-B, CP → Crimes contra a dignidade sexual
+   - Arts. 143/144, ECA → Todos envolvendo crianças/adolescentes
+   - Art. 1º, Lei 9.296/96 → Interceptação telefônica/telemática
+   - Art. 4º, §6º, Lei 12.850/13 → Colaboração premiada
+   - Lei 11.340/2006 → Violência doméstica (medidas protetivas e crimes relacionados)
+   - Art. 770, CLT c/c art. 189, CPC → Processos trabalhistas com dados sensíveis
+   - Lei 7.210/84 → Execução penal com dados sensíveis
+   - Lei 13.431/2017 → Criança/adolescente vítima ou testemunha
+   - CF/88, Art. 5º, LX → Cláusula geral constitucional
 
 **═══════════════════════════════════════════════════════════════════**
 **ANÁLISE PROFUNDA OBRIGATÓRIA — VERIFIQUE O CONTEÚDO DO DOCUMENTO:**
@@ -353,38 +594,67 @@ Analise profundamente se o documento se enquadra em QUALQUER das seguintes hipó
 Você DEVE analisar TODO o documento procurando:
 
 **A) TIPO DE AÇÃO/PROCESSO (analise a natureza):**
-- Ação de divórcio, separação judicial → SEGREDO
-- Ação de alimentos, pensão alimentícia, revisional → SEGREDO
-- Ação de guarda, regulamentação de visitas → SEGREDO
-- Investigação de paternidade → SEGREDO
-- Ação de adoção → SEGREDO
-- Ação de destituição do poder familiar → SEGREDO
-- Interdição, curatela → SEGREDO
-- Violência doméstica, medida protetiva → SEGREDO
-- Crimes sexuais (estupro, assédio, importunação) → SEGREDO
-- Interceptação telefônica → SEGREDO
+- Ação de divórcio, separação judicial, separação de corpos → SEGREDO
+- Ação de nulidade/anulação de casamento → SEGREDO
+- Ação de alimentos, pensão alimentícia, revisional, exoneração, alimentos gravídicos → SEGREDO
+- Ação de guarda (unilateral, compartilhada, alternada), regulamentação de visitas → SEGREDO
+- Investigação de paternidade/maternidade, negatória de paternidade → SEGREDO
+- Reconhecimento de filiação socioafetiva, multiparentalidade → SEGREDO
+- Ação de adoção (nacional, internacional, intuitu personae, unilateral) → SEGREDO
+- Ação de destituição/suspensão/perda do poder familiar → SEGREDO
+- Reconhecimento/dissolução de união estável → SEGREDO
+- Alteração de regime de bens, pacto antenupcial → SEGREDO
+- Interdição, curatela, tomada de decisão apoiada → SEGREDO
+- Violência doméstica, medida protetiva, stalking → SEGREDO
+- Crimes sexuais (estupro, assédio, importunação, rufianismo, prostituição) → SEGREDO
+- Interceptação telefônica/telemática, captação ambiental → SEGREDO
+- Colaboração premiada, infiltração de agentes → SEGREDO
+- Execução de medida socioeducativa → SEGREDO
+- Acolhimento institucional/familiar de menor → SEGREDO
+- Exame criminológico, laudo psiquiátrico, medida de segurança → SEGREDO
+- Reclamação trabalhista com assédio sexual ou dados sensíveis → SEGREDO
+- Arbitragem com cláusula de confidencialidade → SEGREDO
+- Alienação parental (Lei 12.318/2010) → SEGREDO
+- Declaração de ausência, sucessão provisória/definitiva de ausente → SEGREDO
+- Tráfico de pessoas para exploração sexual → SEGREDO
 
 **B) PARTES ENVOLVIDAS (analise quem são as partes):**
 - Menor de idade como vítima → SEGREDO
 - Criança ou adolescente em situação de vulnerabilidade → SEGREDO
+- Criança/adolescente como parte em qualquer processo → SEGREDO (ECA)
 - Mulher vítima de violência doméstica → SEGREDO
 - Vítima de crime sexual → SEGREDO
 - Partes em processo de família (cônjuges, companheiros) → SEGREDO
+- Pessoa em programa de proteção a testemunhas → SEGREDO
+- Pessoa interditada ou curatelada → SEGREDO
+- Empregado com dados de saúde expostos (HIV, doença mental) → SEGREDO
+- Adolescente em cumprimento de medida socioeducativa → SEGREDO
 
 **C) ASSUNTO/MATÉRIA DO PROCESSO:**
-- Pensão alimentícia entre familiares → SEGREDO
-- Partilha de bens de casal → SEGREDO
+- Pensão alimentícia entre familiares (inclusive avoengos e gravídicos) → SEGREDO
+- Partilha de bens de casal (divórcio, união estável) → SEGREDO
 - Disputa sobre guarda de filhos → SEGREDO
-- Reconhecimento ou negação de paternidade → SEGREDO
+- Reconhecimento ou negação de paternidade/maternidade → SEGREDO
 - Dados bancários ou fiscais das partes → SEGREDO
-- Prontuários médicos → SEGREDO
+- Prontuários médicos, dados de saúde (HIV/AIDS, doenças mentais) → SEGREDO
 - Crimes contra a dignidade sexual → SEGREDO
+- Orientação sexual ou identidade de gênero → SEGREDO
+- Proteção de dados pessoais (LGPD) → SEGREDO
+- Violação de intimidade/vida privada → SEGREDO
+- Doenças ocupacionais com exposição de dados sensíveis → SEGREDO
+- Discriminação no trabalho → SEGREDO
+- Pornografia envolvendo criança/adolescente → SEGREDO
+- Insanidade mental, laudos psiquiátricos → SEGREDO
+- Segurança nacional, segredo de Estado → SEGREDO
 
 **D) VARAS/JUÍZOS ESPECIALIZADOS (indicativo forte):**
 - Vara de Família → provável SEGREDO
 - Vara da Infância e Juventude → verificar se há sigilo
-- Vara de Violência Doméstica → SEGREDO
+- Vara de Violência Doméstica contra a Mulher → SEGREDO
 - Vara Criminal (crimes sexuais) → SEGREDO
+- Vara de Execuções Penais (quando dados sensíveis) → verificar sigilo
+- Juizado Especial Criminal (violência doméstica) → SEGREDO
+- Vara do Trabalho (assédio sexual, dados sensíveis) → verificar sigilo
 
 **═══════════════════════════════════════════════════════════════════**
 **INDICADORES TEXTUAIS E EXPRESSÕES A PROCURAR:**
@@ -402,14 +672,26 @@ Você DEVE analisar TODO o documento procurando:
 - Nomes substituídos por iniciais (ex: "J.S." em vez de nome completo)
 - Menção a "menor", "adolescente", "criança", "infante"
 - Menção a "vítima" em contexto de crime sexual ou violência doméstica
-- Termos: "estupro", "assédio sexual", "violação", "dignidade sexual"
-- Termos: "violência doméstica", "Maria da Penha", "medida protetiva"
-- Termos: "alimentos", "pensão", "guarda", "visitas", "divórcio", "separação"
-- Termos: "paternidade", "filiação", "adoção", "destituição do poder familiar"
-- Termos: "interceptação telefônica", "quebra de sigilo"
-- Termos: "curatela", "interdição", "incapaz"
+- Termos de família: "alimentos", "pensão", "guarda", "visitas", "divórcio", "separação", "união estável", "separação de corpos"
+- Termos de filiação: "paternidade", "maternidade", "filiação", "adoção", "destituição do poder familiar", "multiparentalidade", "socioafetiva"
+- Termos de crimes sexuais: "estupro", "assédio sexual", "violação", "dignidade sexual", "importunação sexual", "rufianismo", "prostituição", "lascívia", "pornografia"
+- Termos de violência: "violência doméstica", "Maria da Penha", "medida protetiva", "feminicídio", "stalking", "perseguição", "violência psicológica"
+- Termos de interceptação: "interceptação telefônica", "quebra de sigilo", "captação ambiental", "interceptação telemática"
+- Termos de curatela: "curatela", "interdição", "incapaz", "tomada de decisão apoiada", "insanidade mental"
+- Termos do ECA: "ato infracional", "medida socioeducativa", "acolhimento institucional", "acolhimento familiar", "semiliberdade", "internação", "liberdade assistida"
+- Termos de organizações criminosas: "colaboração premiada", "acordo de leniência", "infiltração de agentes"
+- Termos trabalhistas sensíveis: "assédio sexual no trabalho", "discriminação", "doença ocupacional", "HIV"
+- Termos de execução penal: "exame criminológico", "laudo psiquiátrico", "medida de segurança"
+- Termos de dados sensíveis: "sigilo bancário", "sigilo fiscal", "prontuário médico", "orientação sexual", "identidade de gênero", "LGPD"
+- Termos de arbitragem: "procedimento arbitral", "sentença arbitral", "carta arbitral", "confidencialidade"
 - Qualquer menção a Arts. 213-234-A do CP
 - Qualquer menção a Lei 11.340/2006 ou Lei Maria da Penha
+- Qualquer menção a Lei 12.850/2013 (organizações criminosas)
+- Qualquer menção a Lei 9.296/1996 (interceptação telefônica)
+- Qualquer menção a Lei 8.069/1990 (ECA) em contexto de sigilo
+- Qualquer menção a Lei 13.431/2017 (criança vítima/testemunha)
+- Qualquer menção a Lei 7.210/1984 (execução penal) com dados sensíveis
+- Qualquer menção a Lei 12.318/2010 (alienação parental)
 
 **═══════════════════════════════════════════════════════════════════**
 **⚠️ EXCEÇÃO: PROCESSOS DE ATO INFRACIONAL (ECA):**
@@ -431,23 +713,53 @@ ATENÇÃO: Se o ato infracional envolver crime sexual, violência doméstica, ou
 - "Ação de Divórcio c/c Partilha de Bens" → SEGREDO (Art. 189, II, CPC)
 - "Ação de Guarda de Menor" → SEGREDO (Art. 189, II, CPC)
 - "Investigação de Paternidade" → SEGREDO (Art. 189, II, CPC)
+- "Reconhecimento de União Estável" → SEGREDO (Art. 189, II, CPC)
+- "Alimentos Gravídicos" → SEGREDO (Art. 189, II, CPC)
+- "Reconhecimento de Filiação Socioafetiva" → SEGREDO (Art. 189, II, CPC)
+- "Alienação Parental" → SEGREDO (Art. 189, II, CPC + Lei 12.318/2010)
+- "Alteração de Regime de Bens" → SEGREDO (Art. 189, II, CPC)
+- "Exoneração de Alimentos" → SEGREDO (Art. 189, II, CPC)
 - "Medida Protetiva de Urgência - Lei Maria da Penha" → SEGREDO (Art. 17-A, LMP)
 - "Crime de Estupro - Art. 213, CP" → SEGREDO (Art. 234-B, CP)
 - "Assédio Sexual" → SEGREDO (Art. 234-B, CP)
+- "Importunação Sexual" → SEGREDO (Art. 234-B, CP)
+- "Rufianismo" ou "Casa de Prostituição" → SEGREDO (Art. 234-B, CP)
+- "Tráfico de Pessoas para Exploração Sexual" → SEGREDO (Art. 234-B, CP)
+- "Pornografia Infantil" ou "arts. 240 a 241-E do ECA" → SEGREDO (ECA)
 - "Violência Doméstica" → SEGREDO (Art. 17-A, LMP)
+- "Violência Psicológica contra a Mulher" → SEGREDO (Art. 17-A, LMP)
+- "Perseguição/Stalking no âmbito doméstico" → SEGREDO (Art. 17-A, LMP)
 - "Interceptação Telefônica" → SEGREDO (Lei 9.296/96)
+- "Captação Ambiental" → SEGREDO (Lei 9.296/96)
+- "Colaboração Premiada" → SEGREDO (Lei 12.850/2013)
+- "Acordo de Leniência" → SEGREDO (Lei 12.850/2013)
+- "Adoção Nacional/Internacional" → SEGREDO (ECA)
+- "Acolhimento Institucional/Familiar" → SEGREDO (ECA)
+- "Execução de Medida Socioeducativa" → SEGREDO (ECA)
+- "Depoimento Especial de Criança" → SEGREDO (Lei 13.431/2017)
+- "Interdição" ou "Curatela" → SEGREDO (Art. 189, III, CPC)
+- "Tomada de Decisão Apoiada" → SEGREDO (Art. 189, III, CPC)
+- "Ação envolvendo HIV/AIDS" → SEGREDO (Art. 189, III, CPC)
+- "Quebra de Sigilo Bancário" → SEGREDO (Art. 189, III, CPC)
+- "Exame Criminológico" ou "Laudo Psiquiátrico" → SEGREDO (Lei 7.210/84)
+- "Medida de Segurança" → SEGREDO (Lei 7.210/84)
+- "Reclamação Trabalhista com Assédio Sexual" → SEGREDO (Art. 770, CLT)
+- "Doença Ocupacional HIV" → SEGREDO (Art. 770, CLT)
+- "Sentença Arbitral" com confidencialidade → SEGREDO (Art. 189, IV, CPC)
 - Documento com partes identificadas por iniciais → SEGREDO
 - Processo em Vara de Família → SEGREDO
 - Processo envolvendo menor como vítima de violência → SEGREDO
 
 ❌ NÃO BLOQUEAR (prosseguir com simplificação):
 - Ação de cobrança entre empresas
-- Ação trabalhista comum
+- Ação trabalhista comum (sem dados sensíveis)
 - Ação de indenização por acidente de trânsito
 - Ação de consumidor contra empresa
 - Execução fiscal
 - Mandado de segurança comum
 - Ato infracional SEM marcação de sigilo e SEM crimes sexuais/violência
+- Ação cível ordinária sem dados protegidos
+- Arbitragem SEM cláusula de confidencialidade
 
 **═══════════════════════════════════════════════════════════════════**
 **COMPORTAMENTO OBRIGATÓRIO AO DETECTAR SEGREDO DE JUSTIÇA:**
