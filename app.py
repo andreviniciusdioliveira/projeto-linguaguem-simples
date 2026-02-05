@@ -77,25 +77,25 @@ GEMINI_MODELS = [
         "description": "Modelo flash versão 2.5"
     },
     {
-        "name": "gemini-1.5-flash",
+        "name": "gemini-2.0-flash",
         "max_tokens": 8192,
         "max_input_tokens": 1000000,
         "priority": 3,
-        "description": "Modelo flash estável versão 1.5"
+        "description": "Modelo flash estável versão 2.0"
     },
     {
-        "name": "gemini-2.0-flash-exp",
+        "name": "gemini-2.0-flash-lite",
         "max_tokens": 8192,
         "max_input_tokens": 1000000,
         "priority": 4,
-        "description": "Modelo experimental 2.0"
+        "description": "Modelo flash lite versão 2.0"
     },
     {
-        "name": "gemini-1.5-pro",
+        "name": "gemini-2.5-pro",
         "max_tokens": 8192,
         "max_input_tokens": 2000000,
         "priority": 5,
-        "description": "Modelo Pro (mais robusto, fallback final)"
+        "description": "Modelo Pro 2.5 (mais robusto, fallback final)"
     }
 ]
 
@@ -1851,7 +1851,13 @@ Responda EXATAMENTE neste formato:
                 }
             )
 
-            resposta_completa = response.text.strip()
+            # Verificar se a resposta contém texto válido
+            texto_resposta = response.text
+            if not texto_resposta:
+                raise ValueError(f"Resposta vazia ou bloqueada do modelo {modelo_nome}")
+            resposta_completa = texto_resposta.strip()
+            if not resposta_completa:
+                raise ValueError(f"Resposta em branco do modelo {modelo_nome}")
             logging.info(f"✅ Resposta recebida do {modelo_nome} ({len(resposta_completa)} chars)")
 
             # Separar JSON e texto simplificado
@@ -2382,18 +2388,29 @@ PERGUNTA: {pergunta}
 Responda em NO MÁXIMO 2-3 frases curtas e simples, respeitando a perspectiva {perspectiva}. Se não souber, diga "Não encontrei essa informação".
 """
 
-        try:
-            model = genai.GenerativeModel(GEMINI_MODELS[1]["name"])
-            response = model.generate_content(prompt)
-            resposta_texto = response.text.strip()
+        # Tentar modelos em ordem de prioridade (fallback)
+        modelos_chat = sorted(GEMINI_MODELS, key=lambda x: x["priority"])
+        ultimo_erro_chat = None
+        for modelo_chat in modelos_chat:
+            try:
+                model = genai.GenerativeModel(modelo_chat["name"])
+                response = model.generate_content(prompt)
+                texto_resposta = response.text
+                if not texto_resposta:
+                    raise ValueError(f"Resposta vazia do modelo {modelo_chat['name']}")
+                resposta_texto = texto_resposta.strip()
 
-            return jsonify({
-                "resposta": resposta_texto,
-                "tipo": "resposta"
-            })
-        except Exception as e:
-            logging.error(f"Erro chat: {e}")
-            return jsonify({"resposta": "Erro ao processar pergunta", "tipo": "erro"}), 500
+                return jsonify({
+                    "resposta": resposta_texto,
+                    "tipo": "resposta"
+                })
+            except Exception as e:
+                logging.warning(f"⚠️ Chat: erro em {modelo_chat['name']}: {str(e)[:100]}")
+                ultimo_erro_chat = e
+                continue
+
+        logging.error(f"❌ Chat: todos os modelos falharam. Último erro: {ultimo_erro_chat}")
+        return jsonify({"resposta": "Erro ao processar pergunta. Tente novamente em alguns instantes.", "tipo": "erro"}), 500
 
     except Exception as e:
         logging.error(f"Erro: {e}")
