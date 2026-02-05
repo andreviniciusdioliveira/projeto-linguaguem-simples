@@ -3438,34 +3438,43 @@
                 }
             }
             
-            const formattedText = formatResultText(data.texto);
-            document.getElementById('simplifiedText').innerHTML = formattedText;
+            // 🔒 VERIFICAÇÃO DE SEGREDO DE JUSTIÇA
+            if (data.segredo_justica && data.segredo_justica.detectado === true) {
+                showSegredoJustica(data.segredo_justica);
+                document.getElementById('simplifiedText').innerHTML = '';
+                document.getElementById('documentTypeSection').style.display = 'none';
+                document.getElementById('structuredDataSection').style.display = 'none';
+                document.getElementById('downloadBtn').style.display = 'none';
+            } else {
+                const formattedText = formatResultText(data.texto);
+                document.getElementById('simplifiedText').innerHTML = formattedText;
 
-            if (data.analise) {
-                showResultAnalysis(data.analise);
-            }
+                if (data.analise) {
+                    showResultAnalysis(data.analise);
+                }
 
-            // NEW: Show document type and urgency
-            if (data.tipo_documento) {
-                showDocumentType(data.tipo_documento, data.urgencia, data.acao_necessaria);
-            }
+                // NEW: Show document type and urgency
+                if (data.tipo_documento) {
+                    showDocumentType(data.tipo_documento, data.urgencia, data.acao_necessaria);
+                }
 
-            // NEW: Show structured data (values, deadlines, parties)
-            if (data.dados_extraidos) {
-                showStructuredData(data.dados_extraidos);
-            }
+                // NEW: Show structured data (values, deadlines, parties)
+                if (data.dados_extraidos) {
+                    showStructuredData(data.dados_extraidos);
+                }
 
-            // NEW: Show available appeals
-            if (data.recursos_cabiveis) {
-                showAppeals(data.recursos_cabiveis);
-            }
+                // NEW: Show available appeals
+                if (data.recursos_cabiveis) {
+                    showAppeals(data.recursos_cabiveis);
+                }
 
-            // REMOVIDO: Perguntas Frequentes foram removidas
-            // CHAT DESABILITADO: document.getElementById('chatSection').style.display = 'block';
+                // REMOVIDO: Perguntas Frequentes foram removidas
+                // CHAT DESABILITADO: document.getElementById('chatSection').style.display = 'block';
 
-            if (data.caracteres_original) {
-                document.getElementById('downloadBtn').style.display = 'inline-flex';
-                document.getElementById('downloadBtn').href = '/download_pdf';
+                if (data.caracteres_original) {
+                    document.getElementById('downloadBtn').style.display = 'inline-flex';
+                    document.getElementById('downloadBtn').href = '/download_pdf';
+                }
             }
 
             document.getElementById('resultSection').style.display = 'block';
@@ -3569,6 +3578,39 @@
             return formatted;
         }
 
+        function showSegredoJustica(segredo) {
+            const section = document.getElementById('documentTypeSection');
+            const motivo = segredo.motivo ? escapeHtml(segredo.motivo) : 'Processo protegido por segredo de justiça';
+            const hipotese = segredo.hipotese_legal ? escapeHtml(segredo.hipotese_legal) : '';
+
+            const html = `
+                <div style="background: #fff3e0; border: 2px solid #e65100; padding: 2rem; border-radius: 12px; text-align: center;">
+                    <div style="font-size: 3rem; margin-bottom: 1rem;">🔒</div>
+                    <h2 style="color: #e65100; margin-bottom: 1rem; font-size: 1.5rem;">
+                        Segredo de Justiça
+                    </h2>
+                    <p style="color: #333; font-size: 1.1rem; margin-bottom: 1.5rem; line-height: 1.6;">
+                        Este documento envolve um processo que tramita em <strong>segredo de justiça</strong>.
+                        Por isso, não podemos exibir o conteúdo simplificado aqui.
+                    </p>
+                    <div style="background: white; border-radius: 8px; padding: 1.25rem; margin-bottom: 1.5rem; text-align: left;">
+                        <p style="margin: 0 0 0.5rem 0; color: #555;">
+                            <strong>Por que foi identificado:</strong> ${motivo}
+                        </p>
+                        ${hipotese ? `<p style="margin: 0; color: #555;"><strong>Base legal:</strong> ${hipotese}</p>` : ''}
+                    </div>
+                    <div style="background: #e8f5e9; border-radius: 8px; padding: 1.25rem;">
+                        <p style="margin: 0; color: #2e7d32; font-weight: bold; font-size: 1.05rem;">
+                            O que fazer: Procure a Comarca do fórum da sua cidade para obter informações sobre este processo.
+                        </p>
+                    </div>
+                </div>
+            `;
+
+            section.innerHTML = html;
+            section.style.display = 'block';
+        }
+
         function showDocumentType(tipo, urgencia, acao) {
             const section = document.getElementById('documentTypeSection');
 
@@ -3592,7 +3634,8 @@
                 'acordao': '📜 Acórdão',
                 'decisao_interlocutoria': '🔔 Decisão Interlocutória',
                 'despacho': '📋 Despacho',
-                'documento': '📄 Documento'
+                'documento': '📄 Documento',
+                'sigiloso': '🔒 Documento Sigiloso'
             };
 
             const html = `
