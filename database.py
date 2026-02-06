@@ -1,6 +1,7 @@
 """
 Sistema de estatísticas agregadas para o Entenda Aqui
 LGPD COMPLIANT - Armazena APENAS contadores e hashes, ZERO dados de documentos
+Inclui auditoria de IP para administração (sem conteúdo de documentos)
 """
 import sqlite3
 import os
@@ -67,6 +68,20 @@ def init_db():
                 tipo_documento TEXT,
                 data_criacao TEXT NOT NULL,
                 data_expiracao TEXT NOT NULL
+            )
+        ''')
+
+        # Tabela de auditoria de IP (para administração)
+        # Armazena IP real + tipo de documento processado (SEM conteúdo do documento)
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS audit_ip (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                ip_address TEXT NOT NULL,
+                tipo_documento TEXT NOT NULL,
+                nome_arquivo TEXT,
+                tamanho_bytes INTEGER,
+                modelo_usado TEXT,
+                data_processamento TEXT NOT NULL
             )
         ''')
 
@@ -367,6 +382,160 @@ def limpar_validacoes_expiradas():
         return deletados
 
 
+def registrar_auditoria_ip(ip_address, tipo_documento, nome_arquivo=None, tamanho_bytes=None, modelo_usado=None):
+    """
+    Registra IP real e metadados do processamento para auditoria administrativa.
+    NÃO armazena conteúdo do documento - apenas metadados operacionais.
+
+    Args:
+        ip_address: IP real do usuário
+        tipo_documento: Tipo detectado (sentença, mandado, acórdão, etc.)
+        nome_arquivo: Nome original do arquivo (sanitizado)
+        tamanho_bytes: Tamanho do arquivo em bytes
+        modelo_usado: Modelo Gemini utilizado
+    """
+    with db_lock:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+
+        cursor.execute('''
+            INSERT INTO audit_ip (ip_address, tipo_documento, nome_arquivo, tamanho_bytes, modelo_usado, data_processamento)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (
+            ip_address,
+            tipo_documento,
+            nome_arquivo,
+            tamanho_bytes,
+            modelo_usado,
+            datetime.now().isoformat()
+        ))
+
+        conn.commit()
+        conn.close()
+
+        logging.info(f"📋 Auditoria registrada: IP={ip_address}, tipo={tipo_documento}")
+
+
+def get_auditoria_ip(limite=100, pagina=1, filtro_ip=None, filtro_tipo=None, filtro_data=None):
+    """
+    Retorna registros de auditoria para o painel administrativo.
+
+    Args:
+        limite: Quantidade máxima de registros por página
+        pagina: Número da página (1-indexed)
+        filtro_ip: Filtrar por IP específico
+        filtro_tipo: Filtrar por tipo de documento
+        filtro_data: Filtrar por data (formato YYYY-MM-DD)
+
+    Returns:
+        Dict com registros, total e informações de paginação
+    """
+    with db_lock:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+
+        # Construir query com filtros
+        where_clauses = []
+        params = []
+
+        if filtro_ip:
+            where_clauses.append("ip_address = ?")
+            params.append(filtro_ip)
+
+        if filtro_tipo:
+            where_clauses.append("tipo_documento = ?")
+            params.append(filtro_tipo)
+
+        if filtro_data:
+            where_clauses.append("date(data_processamento) = ?")
+            params.append(filtro_data)
+
+        where_sql = ""
+        if where_clauses:
+            where_sql = "WHERE " + " AND ".join(where_clauses)
+
+        # Contar total
+        cursor.execute(f'SELECT COUNT(*) FROM audit_ip {where_sql}', params)
+        total = cursor.fetchone()[0]
+
+        # Buscar registros com paginação
+        offset = (pagina - 1) * limite
+        cursor.execute(f'''
+            SELECT id, ip_address, tipo_documento, nome_arquivo, tamanho_bytes, modelo_usado, data_processamento
+            FROM audit_ip
+            {where_sql}
+            ORDER BY data_processamento DESC
+            LIMIT ? OFFSET ?
+        ''', params + [limite, offset])
+
+        registros = []
+        for row in cursor.fetchall():
+            registros.append({
+                'id': row[0],
+                'ip_address': row[1],
+                'tipo_documento': row[2],
+                'nome_arquivo': row[3],
+                'tamanho_bytes': row[4],
+                'modelo_usado': row[5],
+                'data_processamento': row[6]
+            })
+
+        # IPs únicos para resumo
+        cursor.execute(f'SELECT DISTINCT ip_address FROM audit_ip {where_sql}', params)
+        ips_unicos = len(cursor.fetchall())
+
+        # Resumo por tipo
+        cursor.execute(f'''
+            SELECT tipo_documento, COUNT(*) as qtd
+            FROM audit_ip
+            {where_sql}
+            GROUP BY tipo_documento
+            ORDER BY qtd DESC
+        ''', params)
+        por_tipo = {row[0]: row[1] for row in cursor.fetchall()}
+
+        conn.close()
+
+        total_paginas = (total + limite - 1) // limite if total > 0 else 1
+
+        return {
+            'registros': registros,
+            'total': total,
+            'pagina': pagina,
+            'total_paginas': total_paginas,
+            'limite': limite,
+            'ips_unicos': ips_unicos,
+            'por_tipo': por_tipo
+        }
+
+
+def limpar_auditoria_antiga(dias=90):
+    """
+    Remove registros de auditoria com mais de X dias.
+    Mantém histórico por 90 dias por padrão.
+
+    Args:
+        dias: Quantidade de dias para manter (padrão: 90)
+    """
+    with db_lock:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+
+        cursor.execute('''
+            DELETE FROM audit_ip
+            WHERE date(data_processamento) < date('now', ? || ' days')
+        ''', (f'-{dias}',))
+
+        deletados = cursor.rowcount
+        conn.commit()
+        conn.close()
+
+        if deletados > 0:
+            logging.info(f"🗑️ Auditoria: Removidos {deletados} registros com mais de {dias} dias")
+
+        return deletados
+
+
 def limpar_estatisticas_antigas():
     """
     Remove estatísticas diárias com mais de 30 dias
@@ -410,10 +579,11 @@ def executar_limpeza_periodica():
             logging.info("🧹 Iniciando limpeza automática de estatísticas antigas...")
             deletados = limpar_estatisticas_antigas()
             deletados_validacao = limpar_validacoes_expiradas()
+            deletados_auditoria = limpar_auditoria_antiga()
 
-            total_deletados = deletados + deletados_validacao
+            total_deletados = deletados + deletados_validacao + deletados_auditoria
             if total_deletados > 0:
-                logging.info(f"✅ Limpeza concluída: {deletados} stats + {deletados_validacao} validações removidos")
+                logging.info(f"✅ Limpeza concluída: {deletados} stats + {deletados_validacao} validações + {deletados_auditoria} auditoria removidos")
             else:
                 logging.info("✅ Limpeza concluída: nenhum registro antigo encontrado")
 
@@ -446,8 +616,9 @@ try:
     # Executar limpeza inicial imediatamente (apenas registros antigos)
     deletados = limpar_estatisticas_antigas()
     deletados_val = limpar_validacoes_expiradas()
-    if deletados > 0 or deletados_val > 0:
-        logging.info(f"🧹 Limpeza inicial: {deletados} stats + {deletados_val} validações removidos")
+    deletados_aud = limpar_auditoria_antiga()
+    if deletados > 0 or deletados_val > 0 or deletados_aud > 0:
+        logging.info(f"🧹 Limpeza inicial: {deletados} stats + {deletados_val} validações + {deletados_aud} auditoria removidos")
 
     # Iniciar thread de limpeza automática
     iniciar_limpeza_automatica()
