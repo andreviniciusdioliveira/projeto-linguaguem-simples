@@ -85,7 +85,7 @@ class HeaderFooterCanvas(canvas.Canvas):
 
         # MARCA D'ÁGUA DIAGONAL - Aviso de finalidade informativa
         self.saveState()
-        self.setFillColor(colors.Color(0, 0, 0, alpha=0.06))
+        self.setFillColor(colors.Color(0, 0, 0, alpha=0.09))
         self.setFont('Helvetica-Bold', 14)
 
         marca_dagua_texto = "SEM VALOR OFICIAL - DOCUMENTO INFORMATIVO"
@@ -117,13 +117,13 @@ class HeaderFooterCanvas(canvas.Canvas):
 
                 # Padrão de miniaturas em grade cobrindo toda a página
                 # Tamanhos variados para criar complexidade visual anti-falsificação
-                tamanhos_mini = [1.8 * cm, 2.2 * cm, 1.5 * cm, 2.0 * cm, 1.6 * cm]
+                tamanhos_mini = [1.8 * cm, 2.2 * cm, 1.5 * cm, 2.0 * cm, 1.6 * cm, 1.9 * cm, 2.1 * cm]
                 rotacoes = [0, 15, -10, 5, -15, 20, -5, 10]
-                alphas = [0.08, 0.10, 0.07, 0.09, 0.12]
+                alphas = [0.12, 0.15, 0.10, 0.14, 0.18, 0.11, 0.16]
 
-                # Espaçamento da grade
-                espacamento_x = 4.5 * cm
-                espacamento_y = 4.0 * cm
+                # Espaçamento da grade (reduzido para mais logos por página)
+                espacamento_x = 3.5 * cm
+                espacamento_y = 3.0 * cm
 
                 # Offset alternado para padrão de "tijolos" (mais difícil de reproduzir)
                 idx = 0
@@ -163,7 +163,7 @@ class HeaderFooterCanvas(canvas.Canvas):
 
                 # Logo central maior como destaque (mantém referência visual principal)
                 self.saveState()
-                self.setFillAlpha(0.10)
+                self.setFillAlpha(0.15)
                 logo_central = 6 * cm
                 x_center = (page_width - logo_central) / 2
                 y_center = (page_height - logo_central) / 2
