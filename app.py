@@ -61,8 +61,8 @@ try:
 except Exception as e:
     logging.error(f"❌ Erro ao inicializar banco de dados: {e}")
 
-# Modelos Gemini com fallback expandido (7 modelos para máxima disponibilidade)
-# Inclui modelos 1.5 como fallback final - podem ter cotas separadas no plano gratuito
+# Modelos Gemini com fallback otimizado (4 modelos Flash para economizar tokens)
+# Modelos Pro removidos: compartilham quota com Flash no plano gratuito, causando desperdício
 GEMINI_MODELS = [
     {
         "name": "gemini-2.0-flash",
@@ -76,7 +76,7 @@ GEMINI_MODELS = [
         "max_tokens": 8192,
         "max_input_tokens": 1000000,
         "priority": 2,
-        "description": "Modelo flash lite versão 2.0"
+        "description": "Modelo flash lite versão 2.0 (mais leve)"
     },
     {
         "name": "gemini-1.5-flash",
@@ -90,28 +90,7 @@ GEMINI_MODELS = [
         "max_tokens": 8192,
         "max_input_tokens": 1000000,
         "priority": 4,
-        "description": "Modelo 2.5 flash lite"
-    },
-    {
-        "name": "gemini-2.5-flash",
-        "max_tokens": 8192,
-        "max_input_tokens": 1000000,
-        "priority": 5,
-        "description": "Modelo flash versão 2.5"
-    },
-    {
-        "name": "gemini-1.5-pro",
-        "max_tokens": 8192,
-        "max_input_tokens": 2000000,
-        "priority": 6,
-        "description": "Modelo Pro 1.5 (cota separada, fallback robusto)"
-    },
-    {
-        "name": "gemini-2.5-pro",
-        "max_tokens": 8192,
-        "max_input_tokens": 2000000,
-        "priority": 7,
-        "description": "Modelo Pro 2.5 (fallback final)"
+        "description": "Modelo 2.5 flash lite (fallback final)"
     }
 ]
 
@@ -262,382 +241,43 @@ PROMPT_SIMPLIFICACAO_MELHORADO = """
 SEÇÃO 1: INSTRUÇÕES PARA VOCÊ SEGUIR (NÃO INCLUIR NO OUTPUT)
 ═══════════════════════════════════════════════════════════════════
 
-🚨🚨🚨 VERIFICAÇÃO PRIORITÁRIA E OBRIGATÓRIA: SEGREDO DE JUSTIÇA 🚨🚨🚨
-
-ANTES de simplificar QUALQUER documento judicial, você DEVE realizar uma ANÁLISE PROFUNDA E COMPLETA para verificar se o processo tramita ou DEVERIA tramitar em segredo de justiça. Esta verificação é OBRIGATÓRIA e tem PRIORIDADE ABSOLUTA sobre todas as outras instruções.
-
-⚠️ ATENÇÃO: Você NÃO deve apenas procurar palavras-chave como "segredo de justiça". Você DEVE analisar a NATUREZA do processo, o TIPO de ação, as PARTES envolvidas e o ASSUNTO tratado para determinar se o processo se enquadra em alguma hipótese legal de sigilo.
-
-**═══════════════════════════════════════════════════════════════════**
-**HIPÓTESES LEGAIS COMPLETAS DE SEGREDO DE JUSTIÇA:**
-**═══════════════════════════════════════════════════════════════════**
-
-Analise profundamente se o documento se enquadra em QUALQUER das seguintes hipóteses:
-
-**1. Art. 189, CPC/2015 — HIPÓTESES PROCESSUAIS CIVIS:**
-
-   **I — Interesse público ou social (inciso I):**
-   - Cláusula aberta que permite sigilo quando a publicidade puder causar prejuízo ao interesse público ou social
-   - Exemplos: processos envolvendo segurança nacional, saúde pública, segredos de Estado
-
-   **II — Direito de Família (inciso II) — BLOQUEIO OBRIGATÓRIO:**
-   - Casamento, separação de corpos, divórcio, separação judicial
-   - União estável (reconhecimento, dissolução)
-   - Filiação (investigação de paternidade, reconhecimento de filho)
-   - Alimentos (pensão alimentícia, revisional de alimentos)
-   - Guarda de crianças e adolescentes (guarda, regulamentação de visitas)
-   - Adoção
-
-   **III — Dados protegidos pela intimidade (inciso III) — BLOQUEIO OBRIGATÓRIO:**
-   - Processos com quebra de sigilo bancário
-   - Processos com quebra de sigilo fiscal
-   - Processos com dados médicos/hospitalares
-   - Processos com dados patrimoniais sensíveis
-   - Curatela e interdição (preservação da intimidade do interditando)
-
-   **IV — Arbitragem (inciso IV):**
-   - Processos que versem sobre arbitragem
-   - Cumprimento de carta arbitral
-   - Desde que haja indicação de confidencialidade
-
-**2. Art. 234-B, Código Penal — CRIMES CONTRA DIGNIDADE SEXUAL — BLOQUEIO OBRIGATÓRIO:**
-   - Estupro (art. 213)
-   - Violação sexual mediante fraude (art. 215)
-   - Importunação sexual (art. 215-A)
-   - Assédio sexual (art. 216-A)
-   - Estupro de vulnerável (art. 217-A)
-   - Corrupção de menores (art. 218)
-   - Satisfação de lascívia mediante presença de criança/adolescente (art. 218-A)
-   - Favorecimento da prostituição de criança/adolescente/vulnerável (art. 218-B)
-   - Divulgação de cena de estupro/sexo/pornografia (art. 218-C)
-   - Registro não autorizado da intimidade sexual (art. 216-B)
-   - Qualquer crime do Título VI do Código Penal (arts. 213 a 234-A)
-   - O STJ consolidou que o sigilo abrange autor e vítima, devendo constar apenas iniciais
-
-**3. Art. 17-A, Lei Maria da Penha (Lei 11.340/2006, alterada pela Lei 14.854/2024) — BLOQUEIO OBRIGATÓRIO:**
-   - Violência doméstica contra a mulher
-   - Violência familiar contra a mulher
-   - Medidas protetivas de urgência (Lei Maria da Penha)
-   - Lesão corporal em contexto de violência doméstica
-   - Ameaça em contexto doméstico/familiar
-   - Feminicídio e tentativa de feminicídio
-   - Qualquer processo que mencione Lei 11.340/2006 ou "Maria da Penha"
-
-**4. ECA — Estatuto da Criança e do Adolescente (Lei 8.069/1990):**
-   - Art. 27 — Ações de reconhecimento de estado de filiação
-   - Arts. 143 e 144 — Atos infracionais (COM EXCEÇÃO - ver abaixo)
-   - Destituição do poder familiar
-   - Medidas protetivas envolvendo crianças/adolescentes
-   - Qualquer processo em que a publicidade possa identificar menor em situação de vulnerabilidade
-
-**5. Lei 13.431/2017 — Sistema de Garantia de Direitos da Criança Vítima/Testemunha — BLOQUEIO OBRIGATÓRIO:**
-   - Depoimentos especiais de crianças e adolescentes vítimas
-   - Escuta especializada
-   - Processos em que criança/adolescente é vítima ou testemunha de violência
-
-**6. Lei de Interceptação Telefônica (Lei 9.296/1996) — BLOQUEIO OBRIGATÓRIO:**
-   - Art. 1º e 8º — Interceptação de comunicações telefônicas
-   - Interceptação telemática e de dados
-   - Captação ambiental (art. 8-A)
-   - Diligências, gravações e transcrições
-   - Qualquer menção a "interceptação telefônica", "quebra de sigilo telefônico"
-
-**7. Código de Processo Penal — Hipóteses de Sigilo:**
-
-   **Art. 201, §6º, CPP — BLOQUEIO OBRIGATÓRIO:**
-   - Preservação da intimidade, vida privada, honra e imagem do ofendido
-   - Processos em que dados do ofendido foram resguardados
-
-   **Art. 792, CPP:**
-   - Audiências com risco de escândalo, inconveniente grave ou perturbação da ordem
-
-   **Art. 20, CPP:**
-   - Inquéritos policiais sigilosos por necessidade da investigação
-
-**8. Lei de Arbitragem (Lei 9.307/1996):**
-   - Art. 22-C, parágrafo único — Cumprimento de carta arbitral com confidencialidade
-
-**9. CF/88, Art. 5º, LX — CLÁUSULA GERAL:**
-   - Defesa da intimidade
-   - Interesse social exigir sigilo
-   - Esta é uma cláusula constitucional que fundamenta todas as demais hipóteses
-
-**═══════════════════════════════════════════════════════════════════**
-**ANÁLISE PROFUNDA OBRIGATÓRIA — VERIFIQUE O CONTEÚDO DO DOCUMENTO:**
-**═══════════════════════════════════════════════════════════════════**
-
-Você DEVE analisar TODO o documento procurando:
-
-**A) TIPO DE AÇÃO/PROCESSO (analise a natureza):**
-- Ação de divórcio, separação judicial → SEGREDO
-- Ação de alimentos, pensão alimentícia, revisional → SEGREDO
-- Ação de guarda, regulamentação de visitas → SEGREDO
-- Investigação de paternidade → SEGREDO
-- Ação de adoção → SEGREDO
-- Ação de destituição do poder familiar → SEGREDO
-- Interdição, curatela → SEGREDO
-- Violência doméstica, medida protetiva → SEGREDO
-- Crimes sexuais (estupro, assédio, importunação) → SEGREDO
-- Interceptação telefônica → SEGREDO
-
-**B) PARTES ENVOLVIDAS (analise quem são as partes):**
-- Menor de idade como vítima → SEGREDO
-- Criança ou adolescente em situação de vulnerabilidade → SEGREDO
-- Mulher vítima de violência doméstica → SEGREDO
-- Vítima de crime sexual → SEGREDO
-- Partes em processo de família (cônjuges, companheiros) → SEGREDO
-
-**C) ASSUNTO/MATÉRIA DO PROCESSO:**
-- Pensão alimentícia entre familiares → SEGREDO
-- Partilha de bens de casal → SEGREDO
-- Disputa sobre guarda de filhos → SEGREDO
-- Reconhecimento ou negação de paternidade → SEGREDO
-- Dados bancários ou fiscais das partes → SEGREDO
-- Prontuários médicos → SEGREDO
-- Crimes contra a dignidade sexual → SEGREDO
-
-**D) VARAS/JUÍZOS ESPECIALIZADOS (indicativo forte):**
-- Vara de Família → provável SEGREDO (⚠️ EXCEÇÃO: mandados de intimação/citação dessas varas NÃO são sigilosos — ver seção "EXCEÇÃO CRÍTICA: MANDADOS JUDICIAIS")
-- Vara da Infância e Juventude → verificar se há sigilo (⚠️ EXCEÇÃO: mandados procedimentais NÃO são sigilosos)
-- Vara de Violência Doméstica → SEGREDO (⚠️ EXCEÇÃO: mandados procedimentais sem conteúdo do mérito NÃO são sigilosos)
-- Vara Criminal (crimes sexuais) → SEGREDO
-
-**═══════════════════════════════════════════════════════════════════**
-**INDICADORES TEXTUAIS E EXPRESSÕES A PROCURAR:**
-**═══════════════════════════════════════════════════════════════════**
-
-**Indicadores EXPLÍCITOS de sigilo (presença = SEGREDO):**
-- "segredo de justiça", "segredo judicial"
-- "sigilo processual", "tramitação sigilosa"
-- "sob sigilo", "em sigilo", "processo sigiloso"
-- "SEGREDO", "SIGILOSO", "RESTRITO"
-- "nível de sigilo", "classificação sigilosa"
-- Tarja ou carimbo de sigilo
-
-**⚠️ EXCEÇÃO CRÍTICA — "PROCESSO ORIGINÁRIO SIGILOSO" EM DECISÕES RECURSAIS:**
-Quando o termo "SIGILOSO", "SEGREDO" ou "SIGILO" aparece APENAS na referência ao
-PROCESSO ORIGINÁRIO (ex: "AGRAVO DE INSTRUMENTO (PROCESSO ORIGINÁRIO SIGILOSO)",
-"RECURSO ESPECIAL (PROCESSO ORIGINÁRIO SIGILOSO)"), isso indica que o processo
-de PRIMEIRA INSTÂNCIA é sigiloso, mas a DECISÃO RECURSAL (acórdão, agravo, recurso)
-pode ser PÚBLICA. Neste caso, NÃO bloqueie automaticamente. Aplique a verificação
-adicional descrita na seção "DECISÕES RECURSAIS QUE REFERENCIAM PROCESSO ORIGINÁRIO SIGILOSO" abaixo.
-
-**Indicadores IMPLÍCITOS que exigem análise profunda:**
-- Nomes substituídos por iniciais (ex: "J.S." em vez de nome completo)
-- Menção a "menor", "adolescente", "criança", "infante"
-- Menção a "vítima" em contexto de crime sexual ou violência doméstica
-- Termos: "estupro", "assédio sexual", "violação", "dignidade sexual"
-- Termos: "violência doméstica", "Maria da Penha", "medida protetiva"
-- Termos: "alimentos", "pensão", "guarda", "visitas", "divórcio", "separação"
-- Termos: "paternidade", "filiação", "adoção", "destituição do poder familiar"
-- Termos: "interceptação telefônica", "quebra de sigilo"
-- Termos: "curatela", "interdição", "incapaz"
-- Qualquer menção a Arts. 213-234-A do CP
-- Qualquer menção a Lei 11.340/2006 ou Lei Maria da Penha
-
-**═══════════════════════════════════════════════════════════════════**
-**⚠️ EXCEÇÃO: PROCESSOS DE ATO INFRACIONAL (ECA):**
-**═══════════════════════════════════════════════════════════════════**
-
-Processos de ATO INFRACIONAL podem ser SIMPLIFICADOS, MAS APENAS SE:
-1. NÃO houver indicação EXPLÍCITA de "segredo de justiça" ou "sigilo" no documento
-2. A simplificação for direcionada ao próprio adolescente ou seus responsáveis
-3. O processo for APENAS de ato infracional (sem crimes sexuais, violência doméstica, etc.)
-
-ATENÇÃO: Se o ato infracional envolver crime sexual, violência doméstica, ou se houver vítima menor em situação de vulnerabilidade → SEGREDO DE JUSTIÇA
-
-**═══════════════════════════════════════════════════════════════════**
-**⚠️ EXCEÇÃO CRÍTICA: MANDADOS JUDICIAIS (INTIMAÇÃO, CITAÇÃO, NOTIFICAÇÃO):**
-**═══════════════════════════════════════════════════════════════════**
-
-MANDADOS JUDICIAIS são documentos PROCESSUAIS/PROCEDIMENTAIS de comunicação.
-Eles servem para INTIMAR, CITAR ou NOTIFICAR uma parte sobre atos do processo
-(audiências, prazos, determinações judiciais). Mandados NÃO contêm o conteúdo
-sigiloso do processo em si — eles contêm apenas INFORMAÇÕES OPERACIONAIS como:
-- Data, hora e local de audiência
-- Nome do destinatário e endereço para cumprimento
-- Determinação judicial genérica (comparecer, apresentar documento, etc.)
-- Dados de acesso a teleaudiência (links, IDs, senhas de videoconferência)
-- Instruções procedimentais para o oficial de justiça
-
-**REGRA PARA MANDADOS:** Mandados DEVEM SER SIMPLIFICADOS mesmo quando:
-1. Originam de Vara de Família, Vara da Infância, ou outra vara especializada
-2. O processo subjacente tramita em segredo de justiça
-3. O tipo de ação seria normalmente sigiloso (alimentos, guarda, divórcio, etc.)
-
-**MOTIVO:** O mandado é o meio pelo qual a pessoa TOMA CONHECIMENTO de que precisa
-agir (comparecer a audiência, cumprir prazo, etc.). Bloquear a simplificação de um
-mandado PREJUDICA o cidadão, pois ele não conseguirá entender o que precisa fazer.
-O mandado em si não expõe informações sigilosas do mérito do processo.
-
-**COMO IDENTIFICAR UM MANDADO:**
-- Título contém "MANDADO DE INTIMAÇÃO", "MANDADO DE CITAÇÃO", "MANDADO Nº"
-- Contém campo "Destinatário" com nome e endereço
-- Contém determinações como "PROCEDER À INTIMAÇÃO", "PROCEDER À CITAÇÃO"
-- Contém referência a "oficial de justiça"
-- Contém data de audiência ou prazo para cumprimento
-- Pode conter dados de teleaudiência (links de videoconferência)
-
-**ATENÇÃO:** Se o mandado contiver transcrições extensas do CONTEÚDO SIGILOSO
-do processo (ex: relato detalhado de violência doméstica, descrição de abuso sexual,
-laudos médicos, depoimentos de menores), aí sim deve ser bloqueado. Mas a mera
-indicação do TIPO de ação (ex: "Procedimento Comum Cível" em Vara de Família)
-ou a presença de nomes das partes no mandado NÃO justifica o bloqueio, pois
-essas informações já são de conhecimento do destinatário.
-
-**═══════════════════════════════════════════════════════════════════**
-**EXEMPLOS CONCRETOS — QUANDO BLOQUEAR:**
-**═══════════════════════════════════════════════════════════════════**
-
-✅ BLOQUEAR (segredo de justiça detectado = true):
-- "Ação de Alimentos movida por Maria contra João" → SEGREDO (Art. 189, II, CPC)
-- "Ação de Divórcio c/c Partilha de Bens" → SEGREDO (Art. 189, II, CPC)
-- "Ação de Guarda de Menor" → SEGREDO (Art. 189, II, CPC)
-- "Investigação de Paternidade" → SEGREDO (Art. 189, II, CPC)
-- "Medida Protetiva de Urgência - Lei Maria da Penha" → SEGREDO (Art. 17-A, LMP)
-- "Crime de Estupro - Art. 213, CP" → SEGREDO (Art. 234-B, CP)
-- "Assédio Sexual" → SEGREDO (Art. 234-B, CP)
-- "Violência Doméstica" → SEGREDO (Art. 17-A, LMP)
-- "Interceptação Telefônica" → SEGREDO (Lei 9.296/96)
-- Documento com partes identificadas por iniciais → SEGREDO
-- Processo em Vara de Família → SEGREDO (⚠️ exceto mandados procedimentais — ver exceção de mandados acima)
-- Processo envolvendo menor como vítima de violência → SEGREDO
-
-❌ NÃO BLOQUEAR (prosseguir com simplificação):
-- Ação de cobrança entre empresas
-- Ação trabalhista comum
-- Ação de indenização por acidente de trânsito
-- Ação de consumidor contra empresa
-- Execução fiscal
-- Mandado de segurança comum
-- Ato infracional SEM marcação de sigilo e SEM crimes sexuais/violência
-- Acórdão/Agravo com "(PROCESSO ORIGINÁRIO SIGILOSO)" sobre reajuste salarial de servidor, com partes nomeadas e ementa publicada
-- Decisão recursal de tribunal com partes identificadas por nome completo, mesmo que o cabeçalho mencione "PROCESSO ORIGINÁRIO SIGILOSO"
-- Liquidação de sentença sobre direitos funcionais/administrativos em segunda instância
-- **MANDADO DE INTIMAÇÃO** de Vara de Família convocando parte para audiência (contém apenas dados operacionais: data, hora, local, link de videoconferência)
-- **MANDADO DE CITAÇÃO** de qualquer vara, mesmo especializada, que contenha apenas a comunicação processual sem expor conteúdo sigiloso do mérito
-- **MANDADO** com instruções de teleaudiência, dados de acesso a videoconferência, orientações para oficial de justiça — são documentos procedimentais, não sigilosos
-
-**═══════════════════════════════════════════════════════════════════**
-**COMPORTAMENTO OBRIGATÓRIO AO DETECTAR SEGREDO DE JUSTIÇA:**
-**═══════════════════════════════════════════════════════════════════**
-
-Se o documento se enquadrar em QUALQUER hipótese acima, você DEVE:
-
-1. Preencher o campo `segredo_justica` no JSON com `detectado: true`
-2. Informar o `motivo` da detecção (qual característica identificou)
-3. Informar a `hipotese_legal` aplicável (qual artigo/lei)
-4. NÃO fornecer NENHUMA informação sobre o conteúdo do documento
-5. NÃO incluir nomes, valores, datas ou qualquer dado do processo
-6. Retornar APENAS a mensagem padrão no texto simplificado
-
-**═══════════════════════════════════════════════════════════════════**
-**🚨 PRINCÍPIO FUNDAMENTAL: O ROL NÃO É TAXATIVO — ANÁLISE CASO A CASO 🚨**
-**═══════════════════════════════════════════════════════════════════**
-
-ATENÇÃO MÁXIMA: As hipóteses listadas acima são EXEMPLIFICATIVAS, não exaustivas.
-O art. 189 do CPC/2015 e a jurisprudência consolidada reconhecem que o magistrado
-tem poder de decretar segredo de justiça CASO A CASO, mesmo em situações não
-previstas expressamente na lei.
-
-**VOCÊ DEVE REALIZAR UMA ANÁLISE SEMÂNTICA PROFUNDA DO DOCUMENTO:**
-
-Não basta procurar palavras-chave. Você deve COMPREENDER o conteúdo do documento
-e avaliar se a NATUREZA da causa, as CIRCUNSTÂNCIAS do caso e os DIREITOS envolvidos
-justificam o reconhecimento de segredo de justiça.
-
-**SITUAÇÕES QUE EXIGEM ANÁLISE CONTEXTUAL (além das hipóteses legais acima):**
-
-1. **Decisão judicial decretando sigilo:** Se o documento contiver qualquer
-   indicação de que o juiz/desembargador DECRETOU segredo de justiça
-   (ex: "decreto o segredo de justiça", "defiro o sigilo processual",
-   "determino a tramitação em segredo"), BLOQUEIE independentemente do motivo.
-
-2. **Proteção da dignidade e intimidade:** Se o conteúdo do documento revelar
-   situações de extrema vulnerabilidade pessoal, exposição da intimidade,
-   dados sensíveis de saúde mental, HIV/AIDS, dependência química, ou
-   qualquer situação que a publicidade possa causar estigma social.
-
-3. **Proteção de vítimas:** Se o documento tratar de crimes violentos em que
-   a identificação da vítima possa gerar risco à sua segurança ou revitimização,
-   mesmo que não seja crime sexual (ex: extorsão com ameaça íntima, stalking,
-   revenge porn, cyberbullying grave).
-
-4. **Interesse público qualificado:** Se o documento envolver informações
-   estratégicas de segurança pública, segredo industrial em litígios,
-   dados de investigação sigilosa, ou informações cuja divulgação possa
-   comprometer a eficácia de medidas judiciais.
-
-5. **Metadados e cabeçalhos:** Se o documento contiver em seus metadados,
-   cabeçalhos, tarjas, carimbos ou numeração qualquer indicação de
-   "SEGREDO", "SIGILOSO", "RESTRITO", "NÍVEL DE SIGILO", ou classificação
-   similar — isso indica que o juízo de origem já reconheceu o sigilo.
-   **EXCEÇÃO:** Se a marcação "SIGILOSO" ou "SEGREDO" aparece APENAS na
-   referência ao "PROCESSO ORIGINÁRIO" em decisões recursais de tribunais
-   (ex: "PROCESSO ORIGINÁRIO SIGILOSO"), aplique a análise da seção
-   "DECISÕES RECURSAIS QUE REFERENCIAM PROCESSO ORIGINÁRIO SIGILOSO" antes
-   de decidir pelo bloqueio.
-
-6. **Partes identificadas por iniciais ou códigos:** Se as partes no documento
-   são sistematicamente referidas por iniciais, abreviações ou códigos
-   (ex: "A.S.", "Menor J.", "Vítima 1"), isso é forte indicativo de sigilo
-   já decretado pelo juízo.
-
-7. **Número de processo com marcação de sigilo:** Se o número do processo
-   contiver indicações como "(segredo)", "(sigiloso)", "SEG", ou formato
-   que indique tramitação restrita no sistema judicial.
-
-**═══════════════════════════════════════════════════════════════════**
-**⚠️ DECISÕES RECURSAIS QUE REFERENCIAM PROCESSO ORIGINÁRIO SIGILOSO:**
-**═══════════════════════════════════════════════════════════════════**
-
-Tribunais frequentemente publicam decisões de recursos (acórdãos, agravos de instrumento,
-recursos especiais, apelações) que fazem referência a processos originários sigilosos.
-Nesses casos, o cabeçalho pode conter expressões como "PROCESSO ORIGINÁRIO SIGILOSO",
-mas o próprio documento recursal é PÚBLICO.
-
-**NÃO BLOQUEIE decisões recursais quando TODOS os seguintes critérios forem atendidos:**
-
-1. O documento é uma decisão de tribunal (acórdão, agravo de instrumento, recurso especial,
-   apelação, embargos de declaração em segunda instância, etc.)
-2. O termo "sigiloso", "segredo" ou "sigilo" aparece APENAS na classificação do
-   PROCESSO ORIGINÁRIO (ex: "(PROCESSO ORIGINÁRIO SIGILOSO)") e NÃO no corpo da decisão
-   como determinação de sigilo para o próprio recurso
-3. As partes são identificadas por NOME COMPLETO (não por iniciais)
-4. O documento possui EMENTA publicada com análise jurídica detalhada
-5. Advogados são identificados com nome e número da OAB
-6. O tribunal publicou o acórdão com votação (ex: "por unanimidade", "por maioria")
-7. O conteúdo NÃO trata de matéria intrinsecamente sigilosa (família, crimes sexuais,
-   violência doméstica, menores, interceptação telefônica, etc.)
-
-**ANÁLISE DO CONTEÚDO:** Mesmo em decisões recursais com "PROCESSO ORIGINÁRIO SIGILOSO",
-verifique se o CONTEÚDO do processo trata de matéria intrinsecamente sigilosa:
-- Se o recurso discute reajuste salarial, cobrança, questão administrativa → NÃO BLOQUEIE
-- Se o recurso discute divórcio, guarda, alimentos, crimes sexuais → BLOQUEIE
-- A classificação "PROCESSO ORIGINÁRIO SIGILOSO" pode ter sido aplicada por razões
-  administrativas do sistema judicial, sem que o conteúdo seja efetivamente sigiloso
-
-**EXEMPLO CONCRETO:**
-- Acórdão de Agravo de Instrumento com cabeçalho "(PROCESSO ORIGINÁRIO SIGILOSO)"
-  sobre liquidação de sentença de reajuste salarial de servidor público, com partes
-  nomeadas, advogados com OAB, ementa publicada → NÃO BLOQUEIE (o conteúdo é público,
-  a marcação de sigilo refere-se ao processo originário, não ao recurso)
-
-**REGRA DE OURO:** Na DÚVIDA sobre se o documento envolve segredo de justiça,
-SEMPRE BLOQUEIE. É preferível bloquear um documento público a expor um
-documento sigiloso. O erro de exposição é IRREVERSÍVEL; o erro de bloqueio
-é facilmente corrigível pelo usuário ao procurar o fórum.
-
-**EXCEÇÃO À REGRA DE OURO — MANDADOS:** Mandados judiciais (intimação, citação,
-notificação) são documentos PROCEDIMENTAIS que NÃO expõem o conteúdo sigiloso
-do processo. Mesmo quando originam de varas especializadas (Família, Infância,
-Violência Doméstica), mandados devem ser SIMPLIFICADOS, pois contêm apenas
-informações operacionais (datas, horários, locais, instruções de comparecimento).
-Bloquear mandados prejudica o cidadão que precisa entender o que deve fazer.
-
-LEMBRE-SE: O rol de hipóteses NÃO é taxativo. Cabe ao magistrado a análise
-caso a caso, e a você cabe IDENTIFICAR no documento se esse sigilo foi
-decretado ou se deveria ter sido decretado pela natureza da causa.
+VERIFICAÇÃO PRIORITÁRIA E OBRIGATÓRIA: SEGREDO DE JUSTIÇA
+
+ANTES de simplificar, analise a NATUREZA do processo, TIPO de ação, PARTES e ASSUNTO para determinar sigilo. Não basta procurar palavras-chave.
+
+**HIPÓTESES LEGAIS DE SEGREDO DE JUSTIÇA (BLOQUEIO OBRIGATÓRIO):**
+
+1. **Art. 189, CPC/2015:**
+   - I: Interesse público/social
+   - II: Direito de Família (divórcio, separação, união estável, filiação, alimentos, guarda, adoção)
+   - III: Dados protegidos pela intimidade (sigilo bancário/fiscal, dados médicos, curatela/interdição)
+   - IV: Arbitragem com confidencialidade
+
+2. **Art. 234-B, CP — Crimes contra dignidade sexual:** Estupro, violação sexual, importunação sexual, assédio sexual, estupro de vulnerável, e todos os crimes dos arts. 213-234-A do CP
+
+3. **Art. 17-A, Lei Maria da Penha (11.340/2006):** Violência doméstica/familiar contra mulher, medidas protetivas, feminicídio
+
+4. **ECA (Lei 8.069/1990):** Filiação (art.27), atos infracionais (arts.143-144), destituição do poder familiar, medidas protetivas de menores
+
+5. **Lei 13.431/2017:** Depoimentos especiais de crianças/adolescentes vítimas
+
+6. **Lei 9.296/1996:** Interceptação telefônica/telemática, captação ambiental
+
+7. **CPP:** Art. 201§6º (intimidade do ofendido), Art. 792 (audiências), Art. 20 (inquéritos sigilosos)
+
+8. **CF/88, Art. 5º, LX:** Defesa da intimidade e interesse social
+
+**INDICADORES QUE EXIGEM SEGREDO:** Termos explícitos ("segredo de justiça", "sigiloso", "restrito"), partes por iniciais, Vara de Família/Infância/Violência Doméstica, termos como estupro/assédio/alimentos/guarda/divórcio/paternidade/interceptação, decisão judicial decretando sigilo, dados de saúde mental/HIV/dependência química, marcação de sigilo em cabeçalhos/metadados.
+
+**EXCEÇÃO — MANDADOS JUDICIAIS:** Mandados (intimação, citação, notificação) são documentos PROCEDIMENTAIS e DEVEM SER SIMPLIFICADOS mesmo quando originam de varas especializadas ou processos sigilosos, pois contêm apenas dados operacionais (data, hora, local, instruções). EXCEÇÃO: se o mandado contiver transcrições extensas do CONTEÚDO SIGILOSO (relato de violência, laudos, depoimentos), aí sim bloquear.
+
+**EXCEÇÃO — ATO INFRACIONAL (ECA):** Pode simplificar se NÃO houver indicação explícita de sigilo, for direcionado ao adolescente/responsáveis, e NÃO envolver crimes sexuais/violência doméstica.
+
+**EXCEÇÃO — DECISÕES RECURSAIS com "PROCESSO ORIGINÁRIO SIGILOSO":** NÃO bloqueie se: (1) é decisão de tribunal, (2) "sigiloso" aparece APENAS na classificação do processo originário, (3) partes por NOME COMPLETO, (4) ementa publicada, (5) advogados com OAB, (6) conteúdo NÃO trata de matéria intrinsecamente sigilosa.
+
+**REGRA DE OURO:** Na DÚVIDA, SEMPRE BLOQUEIE (exceto mandados procedimentais). O erro de exposição é IRREVERSÍVEL.
+
+**AO DETECTAR SEGREDO:** Preencha `segredo_justica.detectado: true` com motivo e hipótese legal. NÃO forneça NENHUMA informação do documento (nomes, valores, datas). Retorne APENAS a mensagem padrão.
 
 ═══════════════════════════════════════════════════════════════════
 
@@ -1236,9 +876,21 @@ def analisar_documento_completo_gemini(texto, perspectiva="nao_informado"):
     """
     ANÁLISE COMPLETA DO DOCUMENTO EM 1 ÚNICA CHAMADA GEMINI
     Retorna dict com análise técnica + texto simplificado
-    
+
     🔥 VERSÃO CORRIGIDA - Perspectiva aplicada corretamente
     """
+
+    # Verificar cache antes de chamar Gemini
+    cache_key = hashlib.md5(f"{texto[:5000]}:{perspectiva}".encode()).hexdigest()
+    with cleanup_lock:
+        if cache_key in results_cache:
+            cache_entry = results_cache[cache_key]
+            if time.time() - cache_entry["timestamp"] < CACHE_EXPIRATION:
+                logging.info(f"✅ Cache hit! Retornando resultado em cache (key={cache_key[:8]}...)")
+                return cache_entry["result"]
+            else:
+                del results_cache[cache_key]
+                logging.info(f"🗑️ Cache expirado removido (key={cache_key[:8]}...)")
 
     # Truncar texto se necessário
     if len(texto) > 15000:
@@ -1296,133 +948,35 @@ def analisar_documento_completo_gemini(texto, perspectiva="nao_informado"):
 '''
     elif perspectiva == "autor":
         instrucao_perspectiva = '''
-╔══════════════════════════════════════════════════════════════════╗
-║  🚨 REGRA CRÍTICA DE PERSPECTIVA - VOCÊ É O AUTOR/REQUERENTE     ║
-╚══════════════════════════════════════════════════════════════════╝
+**PERSPECTIVA: AUTOR/REQUERENTE**
 
-**INSTRUÇÕES ABSOLUTAS:**
-
-1️⃣ Use **"VOCÊ"** para se referir ao **AUTOR/REQUERENTE** em TODO o texto
-2️⃣ Use o **NOME DO RÉU** diretamente (ex: "Estado de Goiás", "Empresa XYZ")
-3️⃣ Escreva como se estivesse FALANDO DIRETAMENTE com o autor
-4️⃣ NUNCA use o nome do autor - sempre "VOCÊ"
-
-**EXEMPLOS OBRIGATÓRIOS:**
-
-❌ ERRADO: "Andresley Carlos entrou com um processo..."
-✅ CORRETO: "VOCÊ entrou com um processo..."
-
-❌ ERRADO: "O juiz decidiu que o Estado de Goiás deve pagar a Andresley Carlos..."
-✅ CORRETO: "O juiz decidiu que o Estado de Goiás deve pagar a VOCÊ..."
-
-❌ ERRADO: "Para Andresley Carlos: R$ 30.000,00"
-✅ CORRETO: "Para VOCÊ: R$ 30.000,00"
-
-❌ ERRADO: "Andresley Carlos pediu indenização..."
-✅ CORRETO: "VOCÊ pediu indenização..."
-
-❌ ERRADO: "Ele disse que foi preso por engano..."
-✅ CORRETO: "VOCÊ disse que foi preso por engano..."
-
-❌ ERRADO: "O autor ganhou..."
-✅ CORRETO: "VOCÊ ganhou..."
-
-**REGRA DE OURO:**
-- SUBSTITUA TODO "autor", "requerente", "apelante", nome do autor → **VOCÊ**
-- MANTENHA o nome do réu/empresa/Estado (ex: "Estado de Goiás", "GOL", "Banco")
-- Escreva em segunda pessoa (você, seu, sua) - seja PESSOAL e DIRETO
-
-**ATENÇÃO REDOBRADA EM:**
-- Seção "O QUE ESTÁ ACONTECENDO" → Diga "Você entrou com um processo contra [NOME DO RÉU]..."
-- Seção "A DECISÃO DA AUTORIDADE" → Use o cargo correto (juíza/juiz/desembargadora/desembargador) e diga "A/O [cargo] decidiu que [NOME DO RÉU] deve pagar a VOCÊ..." ou "A/O [cargo] decidiu que VOCÊ..."
-- Seção "VALORES E O QUE VOCÊ PRECISA FAZER" → Diga "Você vai receber de [NOME DO RÉU]..." ou "Você deve pagar..."
-- Use SEMPRE o nome do réu ao invés de "a outra parte" para evitar confusão
+- Use "VOCÊ" para o AUTOR em TODO o texto. NUNCA use o nome do autor.
+- Use o NOME DO RÉU diretamente (ex: "Estado de Goiás", "Empresa XYZ")
+- Substitua "autor", "requerente", "apelante", nome do autor → VOCÊ
+- Exemplos: "VOCÊ entrou com processo...", "deve pagar a VOCÊ...", "VOCÊ ganhou..."
+- Em todas as seções: use "você" para autor, nome real para réu
 '''
         
     elif perspectiva == "reu":
         instrucao_perspectiva = '''
-╔══════════════════════════════════════════════════════════════════╗
-║  🚨 REGRA CRÍTICA DE PERSPECTIVA - VOCÊ É O RÉU/REQUERIDO        ║
-╚══════════════════════════════════════════════════════════════════╝
+**PERSPECTIVA: RÉU/REQUERIDO**
 
-**INSTRUÇÕES ABSOLUTAS:**
-
-1️⃣ Use **"VOCÊ"** para se referir ao **RÉU/REQUERIDO** em TODO o texto
-2️⃣ Use o **NOME DO AUTOR** diretamente (ex: "Andresley Carlos", "João Silva")
-3️⃣ Escreva como se estivesse FALANDO DIRETAMENTE com o réu
-4️⃣ NUNCA use "o réu", "o requerido", "o Estado" se for você - sempre "VOCÊ"
-
-**EXEMPLOS OBRIGATÓRIOS:**
-
-❌ ERRADO: "O Estado de Goiás foi condenado..."
-✅ CORRETO: "VOCÊ foi condenado..."
-
-❌ ERRADO: "O juiz decidiu que o Estado deve pagar..."
-✅ CORRETO: "O juiz decidiu que VOCÊ deve pagar..."
-
-❌ ERRADO: "Andresley Carlos entrou com processo contra o Estado de Goiás..."
-✅ CORRETO: "Andresley Carlos entrou com processo contra VOCÊ..."
-
-❌ ERRADO: "O autor pediu indenização ao réu..."
-✅ CORRETO: "Andresley Carlos pediu indenização a VOCÊ..."
-
-❌ ERRADO: "A outra parte entrou com processo..."
-✅ CORRETO: "Andresley Carlos entrou com processo..."
-
-❌ ERRADO: "O Estado de Goiás deve pagar R$ 30.000,00"
-✅ CORRETO: "VOCÊ deve pagar R$ 30.000,00"
-
-**REGRA DE OURO:**
-- SUBSTITUA TODO "réu", "requerido", "apelado", nome do Estado/empresa → **VOCÊ**
-- MANTENHA o nome do autor (ex: "Andresley Carlos", "João Silva")
-- Escreva em segunda pessoa (você, seu, sua) - seja PESSOAL e DIRETO
-
-**REGRAS CRÍTICAS ESPECÍFICAS PARA RÉU:**
-
-🚨 **TÍTULOS - ADAPTADOS PARA RÉU:**
-- Se réu foi TOTALMENTE condenado → "⚪ PEDIDO NEGADO - Você foi condenado"
-- Se réu foi PARCIALMENTE condenado → "🟡 CONDENAÇÃO PARCIAL"
-- Se réu foi TOTALMENTE absolvido → "✅ VITÓRIA TOTAL - Você foi absolvido de tudo"
-- ❌ NUNCA diga "Você conseguiu parte do que pediu" porque o RÉU NÃO PEDE nada, é o AUTOR que pede
-
-🚨 **VALORES - INVERTA A SEÇÃO:**
-Quando o réu foi condenado a pagar:
-- ❌ NÃO use: "✅ O QUE VOCÊ VAI GANHAR:"
-- ✅ USE: "❌ O QUE VOCÊ VAI PAGAR:"
-
-Quando o réu não foi condenado a pagar nada (ou foi absolvido):
-- ✅ USE: "✅ BOA NOTÍCIA - VOCÊ NÃO VAI PAGAR:"
-
-🚨 **FRASE RESUMO:**
-- ❌ ERRADO: "A outra parte deve pagar a você R$ 20.000,00"
-- ✅ CORRETO: "A/O [cargo] decidiu que você deve pagar R$ 20.000,00 a [NOME DO AUTOR]"
-
-**ATENÇÃO REDOBRADA EM:**
-- Seção "O QUE ESTÁ ACONTECENDO" → Use o nome do autor: "[NOME] entrou com um processo contra você..."
-- Seção "A DECISÃO DA AUTORIDADE" → Use o cargo correto (juíza/juiz/desembargadora/desembargador) e diga "A/O [cargo] decidiu que VOCÊ..."
-- Seção "VALORES E O QUE VOCÊ PRECISA FAZER" → Se condenado, use "O QUE VOCÊ VAI PAGAR:" (não "ganhar")
-- Use SEMPRE o nome do autor ao invés de "a outra parte" para evitar confusão
+- Use "VOCÊ" para o RÉU em TODO o texto. NUNCA use o nome do réu/Estado/empresa.
+- Use o NOME DO AUTOR diretamente (ex: "João Silva")
+- Substitua "réu", "requerido", "apelado", nome do Estado/empresa → VOCÊ
+- Exemplos: "VOCÊ foi condenado...", "VOCÊ deve pagar...", "[NOME] entrou com processo contra VOCÊ..."
+- TÍTULOS PARA RÉU: Condenado total → "⚪ PEDIDO NEGADO", Parcial → "🟡 CONDENAÇÃO PARCIAL", Absolvido → "✅ VITÓRIA TOTAL"
+- Se condenado: use "O QUE VOCÊ VAI PAGAR:" (nunca "ganhar"). Se absolvido: "BOA NOTÍCIA - VOCÊ NÃO VAI PAGAR:"
+- NUNCA diga "Você conseguiu parte do que pediu" (RÉU não pede, AUTOR pede)
 '''
         
     else:
         instrucao_perspectiva = '''
-╔══════════════════════════════════════════════════════════════════╗
-║  ℹ️ PERSPECTIVA NEUTRA - POSIÇÃO NÃO INFORMADA                   ║
-╚══════════════════════════════════════════════════════════════════╝
+**PERSPECTIVA: NEUTRA (não informada)**
 
-**INSTRUÇÕES:**
-
-1️⃣ Use os **nomes reais** das partes (não use "você")
-2️⃣ Mantenha linguagem neutra e imparcial
-3️⃣ Seja claro sobre quem é quem
-
-**EXEMPLOS:**
-
-✅ CORRETO: "João Silva foi condenado a pagar indenização"
-✅ CORRETO: "O Estado de Goiás deve pagar R$ 30.000,00 a Andresley Carlos"
-✅ CORRETO: "Maria Santos ganhou o processo contra a empresa"
-
-**NÃO use "você" em nenhuma circunstância quando a perspectiva for "nao_informado".**
+- Use nomes reais das partes (NUNCA use "você")
+- Mantenha linguagem neutra e imparcial
+- Seja claro sobre quem é quem no processo
 '''
 
     # 🔥 LOG PARA DEBUG
@@ -1485,33 +1039,7 @@ Analise o documento e retorne JSON com:
   "urgencia": "MÁXIMA|ALTA|MÉDIA|BAIXA",
   "acao_necessaria": "Frase MUITO SIMPLES sobre o que fazer agora",
 
-**INSTRUÇÕES PARA acao_necessaria:**
-- Use linguagem de CONVERSA DIRETA, como se estivesse orientando um amigo ou familiar
-- NUNCA use palavras difíceis: "cumprimento", "recursos", "decisão judicial", "indenização", "intimação", "trânsito em julgado"
-- Diga EXATAMENTE o que a pessoa deve fazer AGORA, de forma ULTRA PRÁTICA
-- Máximo 8 palavras
-- Pense: "Como eu explicaria isso para minha avó?"
-- Exemplos PROIBIDOS e CORRETOS:
-  * ❌ ERRADO: "Aguardar cumprimento da decisão judicial"
-  * ❌ ERRADO: "Aguarde o cumprimento da decisão"
-  * ❌ ERRADO: "Aguarde o pagamento da indenização"
-  * ❌ ERRADO: "Aguardar cumprimento da decisão ou informações sobre recursos"
-  * ❌ ERRADO: "Verificar se cabe recurso e prazo"
-  * ✅ CORRETO: "Fale com advogado(a) ou defensoria pública"
-  * ❌ ERRADO: "Apresentar-se para cumprimento da medida"
-  * ✅ CORRETO: "Vá ao endereço indicado no prazo"
-  * ❌ ERRADO: "Acompanhar andamento processual"
-  * ✅ CORRETO: "Acompanhe online no site do tribunal"
-  * ❌ ERRADO: "Aguardar intimação"
-  * ✅ CORRETO: "Fale com advogado(a) ou defensoria pública"
-  * ❌ ERRADO: "Cumprir obrigação de fazer"
-  * ✅ CORRETO: "Faça o que foi pedido na decisão"
-
-**🚨 REGRA CRÍTICA SOBRE "AGUARDE":**
-- ⚠️ CUIDADO ao usar "Aguarde..." - geralmente é melhor orientar a CONSULTAR ADVOGADO
-- ❌ NUNCA use "Aguarde - será executado automaticamente" para sentenças/acórdãos
-- ✅ Em sentenças/acórdãos, SEMPRE prefira: "Fale com advogado(a) ou defensoria pública"
-- ✅ A execução raramente é automática - geralmente requer ação do advogado
+**acao_necessaria:** Máximo 8 palavras, linguagem ULTRA SIMPLES. Evite termos técnicos. Para sentenças/acórdãos prefira "Fale com advogado(a) ou defensoria pública". Evite "Aguarde" (execução raramente é automática). Para mandados: "Vá ao endereço indicado no prazo".
 
   "tem_justica_gratuita": true|false,
   "trecho_justica_gratuita": "trecho literal ou vazio",
@@ -1528,17 +1056,7 @@ Analise o documento e retorne JSON com:
 
   "decisao_resumida": "1 frase SIMPLES: o que foi decidido",
 
-**INSTRUÇÕES PARA decisao_resumida:**
-- Use linguagem MUITO SIMPLES, como se estivesse falando com uma criança
-- NÃO use termos técnicos como "acolheu", "procedente", "improcedente", "parcialmente procedente"
-- Diga CLARAMENTE o resultado prático
-- Exemplos:
-  * ❌ ERRADO: "O juiz acolheu em parte os pedidos iniciais, condenando a requerida ao pagamento de danos materiais e morais"
-  * ✅ CORRETO: "O juiz decidiu que a empresa deve pagar indenização por danos materiais e morais"
-  * ❌ ERRADO: "Julgo parcialmente procedente o pedido"
-  * ✅ CORRETO: "O autor ganhou parte do que pediu"
-  * ❌ ERRADO: "Acolho a preliminar de ilegitimidade passiva"
-  * ✅ CORRETO: "O juiz decidiu que esta parte não deveria estar no processo"
+**decisao_resumida:** Linguagem MUITO SIMPLES. Sem termos técnicos (não use "acolheu", "procedente"). Diga o resultado prático direto.
 
   "valores_principais": {{
     "total_a_receber": "R$ XXX ou null",
@@ -1554,114 +1072,19 @@ Analise o documento e retorne JSON com:
     "custas": "quem paga ou null"
   }},
 
-**🚨 INSTRUÇÕES CRÍTICAS PARA HONORÁRIOS E CUSTAS (LEIA COM ATENÇÃO):**
-
-**REGRA ABSOLUTA:**
-- Se `tem_justica_gratuita` = true → SEMPRE use:
-  * "honorarios": "Isento (justiça gratuita)"
-  * "custas": "Isento (justiça gratuita)"
-
-- Se `tem_justica_gratuita` = false:
-  * Preencha normalmente com valores ou percentuais
-
-**❌ NUNCA faça isso quando tem justiça gratuita:**
-- "honorarios": "10% do valor da condenação (devido pelo autor)" ← ERRADO!
-- "honorarios": "R$ 3.000,00 a pagar" ← ERRADO!
-
-**✅ SEMPRE faça isso quando tem justiça gratuita:**
-- "honorarios": "Isento (justiça gratuita)" ← CORRETO!
-- "custas": "Isento (justiça gratuita)" ← CORRETO!
-
-**Por quê?**
-- Justiça gratuita = pessoa NÃO paga custas e honorários
-- Mesmo se houver "suspensão da exigibilidade" = pessoa está ISENTA
-- O frontend vai mostrar isso na seção de valores, então deve estar claro que NÃO há pagamento
+**HONORÁRIOS E CUSTAS:**
+- Se `tem_justica_gratuita` = true → use "Isento (justiça gratuita)" para honorários E custas (mesmo com "suspensão da exigibilidade")
+- Se `tem_justica_gratuita` = false → preencha com valores/percentuais normalmente
 
 ═══════════════════════════════════════════════════════════════════
 
-**🚨🚨🚨 INSTRUÇÕES CRÍTICAS PARA VALORES DISCRIMINADOS 🚨🚨🚨**
+**INSTRUÇÕES PARA VALORES DISCRIMINADOS:**
 
-⚠️⚠️⚠️ LEIA ESTA SEÇÃO 3 VEZES ANTES DE PREENCHER O JSON ⚠️⚠️⚠️
+Procure no documento por detalhamentos de valores (palavras: "sendo", "compreendido", "soma de", "referente a", "gastos com", ou múltiplos R$ com descrições).
 
-TAREFA OBRIGATÓRIA EM 3 ETAPAS:
-
-ETAPA 1: PROCURE ATIVAMENTE POR DETALHAMENTOS
-Leia TODO o documento procurando por estas palavras-chave:
-✓ "sendo:" ou "sendo,"
-✓ "consistindo" ou "compreendido"
-✓ "soma de" ou "dividido"
-✓ "referente a" ou "referente ao"
-✓ "gastos com" ou "despesas de"
-✓ Múltiplos valores R$ próximos com descrições entre eles
-
-ETAPA 2: SE ENCONTROU QUALQUER DETALHAMENTO
-→ Preencha OBRIGATORIAMENTE os arrays "_discriminado"
-→ EXEMPLO REAL:
-  Documento diz: "R$ 1.362,14 de passagens aéreas" + "R$ 65,50 de alimentação"
-  Você DEVE criar:
-  "danos_materiais_discriminado": [
-    {{"item": "Reembolso de passagens aéreas", "valor": "R$ 1.362,14"}},
-    {{"item": "Reembolso de alimentação durante a viagem", "valor": "R$ 65,50"}}
-  ]
-
-→ OUTRO EXEMPLO:
-  Documento diz: "R$ 65,50 compreendido pela soma de R$ 54,00 e R$ 11,50"
-  Você DEVE discriminar os dois valores, mesmo que seja uma "soma"
-
-ETAPA 3: SE NÃO ENCONTROU NENHUM DETALHAMENTO
-→ Deixe os arrays vazios: "danos_materiais_discriminado": []
-→ Apenas preencha: "danos_materiais": "R$ X" com o total
-
-🚨 LEMBRE-SE: Se você preencher arrays "_discriminado" com 2+ itens, o texto simplificado DEVE usar o formato discriminado com 📋 e lista!
-
-**🎯 EXEMPLO REAL DE PREENCHIMENTO - CASO GOL LINHAS AÉREAS:**
-
-Se o documento diz:
-"CONDENO a requerida ao pagamento de R$ 1.427,64 (danos materiais), sendo:
-- R$ 1.362,14 de reembolso de passagens aéreas
-- R$ 65,50 de alimentação
-
-E R$ 6.000,00 (danos morais), sendo:
-- R$ 3.000,00 para Thiago José de Arruda Oliveira
-- R$ 3.000,00 para Kamilla Sousa Prado"
-
-Você DEVE preencher o JSON assim:
-
-```json
-{{
-  "valores_principais": {{
-    "total_a_receber": "R$ 7.427,64",
-    "danos_morais": "R$ 6.000,00",
-    "danos_morais_discriminado": [
-      {{"beneficiario": "Thiago José de Arruda Oliveira", "valor": "R$ 3.000,00"}},
-      {{"beneficiario": "Kamilla Sousa Prado", "valor": "R$ 3.000,00"}}
-    ],
-    "danos_materiais": "R$ 1.427,64",
-    "danos_materiais_discriminado": [
-      {{"item": "Reembolso de passagens aéreas", "valor": "R$ 1.362,14"}},
-      {{"item": "Reembolso de alimentação durante a viagem", "valor": "R$ 65,50"}}
-    ],
-    "honorarios": "Não há cobrança (justiça gratuita)",
-    "custas": "Não há cobrança (justiça gratuita)"
-  }}
-}}
-```
-
-**🚨 ATENÇÃO:** Se você preencheu "danos_materiais_discriminado" com 2+ itens,
-o texto simplificado DEVE OBRIGATORIAMENTE usar essa discriminação!
-
-**NÃO FAÇA ISSO:**
-❌ Texto: "O juiz determinou o pagamento de R$ 1.427,64 de danos materiais"
-
-**FAÇA ISSO:**
-✅ Texto:
-```
-O juiz determinou o pagamento de R$ 1.427,64 de danos materiais:
-
-📋 **Danos Materiais: R$ 1.427,64**
-- Reembolso de passagens aéreas: R$ 1.362,14
-- Reembolso de alimentação durante a viagem: R$ 65,50
-```
+- Se encontrou detalhamento → preencha OBRIGATORIAMENTE os arrays "_discriminado" no JSON e use formato discriminado com 📋 no texto
+- Se NÃO encontrou → deixe arrays vazios e use formato simples
+- Se preencheu "_discriminado" com 2+ itens, o texto DEVE usar discriminação com lista
 
   "prazos": [
     {{"tipo": "recurso", "prazo": "15 dias", "destinatario": "para quem é o prazo", "finalidade": "para que serve"}},
@@ -1684,176 +1107,29 @@ O juiz determinou o pagamento de R$ 1.427,64 de danos materiais:
 }}
 ```
 
-### 🚨🚨🚨 **REGRAS CRÍTICAS PARA SEGREDO DE JUSTIÇA:** 🚨🚨🚨
-
-**SE `segredo_justica.detectado` = true:**
-
-O campo `segredo_justica` DEVE ser preenchido PRIMEIRO, antes de qualquer outro campo.
-
-**Quando detectar segredo de justiça:**
-1. Preencha `segredo_justica.detectado: true`
-2. Preencha `segredo_justica.motivo` com a razão da detecção (ex: "Documento contém indicação de 'segredo de justiça'", "Processo versa sobre crimes contra dignidade sexual")
-3. Preencha `segredo_justica.hipotese_legal` com o fundamento legal (ex: "Art. 189, II, CPC", "Art. 234-B, CP")
-4. Preencha os demais campos do JSON com valores vazios/null/false
-5. No texto simplificado (após o separador), retorne APENAS:
-
-```
-O processo envolve segredo de justiça, procure a Comarca do fórum da sua cidade.
-```
-
-**NÃO inclua:**
-- Nenhum nome de parte
-- Nenhum valor monetário
-- Nenhuma data ou prazo
-- Nenhum resumo do conteúdo
-- Nenhuma informação sobre o tipo de processo
-
-**Exemplo de resposta quando segredo de justiça é detectado:**
-
-```json
-{{
-  "segredo_justica": {{
-    "detectado": true,
-    "motivo": "Documento indica expressamente 'segredo de justiça' no cabeçalho",
-    "hipotese_legal": "Art. 189, CPC"
-  }},
-  "tipo_documento": null,
-  "confianca_tipo": null,
-  "razao_tipo": null,
-  "urgencia": null,
-  "acao_necessaria": null,
-  "tem_justica_gratuita": null,
-  "trecho_justica_gratuita": null,
-  "autoridade": null,
-  "partes": null,
-  "decisao_resumida": null,
-  "valores_principais": null,
-  "prazos": [],
-  "audiencia": null,
-  "recursos_cabiveis": null
-}}
-```
-
----SEPARADOR---
-
-O processo envolve segredo de justiça, procure a Comarca do fórum da sua cidade.
-
-**SE `segredo_justica.detectado` = false:**
-Prossiga normalmente com a análise e simplificação do documento.
+**SEGREDO DE JUSTIÇA NO JSON:**
+Se detectar segredo: preencha `segredo_justica.detectado: true` com motivo e hipotese_legal, demais campos null/[]/false.
+No texto simplificado retorne APENAS: "O processo envolve segredo de justiça, procure a Comarca do fórum da sua cidade."
+Se NÃO detectar: prossiga normalmente.
 
 ═══════════════════════════════════════════════════════════════════
 
-### 🚨 **REGRAS CRÍTICAS PARA IDENTIFICAÇÃO DE TIPO:**
+**IDENTIFICAÇÃO DE TIPO (ordem de verificação):**
+1. ACÓRDÃO: "ACÓRDÃO" no cabeçalho + Relator(a) Desembargador(a) + estrutura colegial (câmara/turma) + "VISTOS, RELATADOS E DISCUTIDOS". 3+ marcadores = ACÓRDÃO ALTA confiança.
+2. SENTENÇA: "SENTENÇA" no cabeçalho + "JULGO PROCEDENTE/IMPROCEDENTE" + assinado por 1 juiz + sem estrutura colegial.
+3. MANDADO: "MANDADO DE CITAÇÃO/INTIMAÇÃO" no título + "OFICIAL DE JUSTIÇA" + "CUMPRA-SE".
+4. OUTROS: Decisão interlocutória, Despacho, Intimação simples.
+Se em dúvida: confianca_tipo "BAIXA". Use apenas informações explícitas. Se não encontrar info: null/[]/false.
 
-**ORDEM DE VERIFICAÇÃO (do mais específico ao mais genérico):**
+**AUDIÊNCIAS:** Só use "tem_audiencia": true se mencionada. NUNCA invente datas/horários.
 
-1️⃣ **ACÓRDÃO** - Verifique PRIMEIRO os marcadores estruturais:
-   - ✅ Tem "ACÓRDÃO" explícito no cabeçalho (primeiros 800 chars)?
-   - ✅ Tem "RELATOR(A): Des./Desembargador(a)" no início?
-   - ✅ Tem "VISTOS, RELATADOS E DISCUTIDOS"?
-   - ✅ Tem "Acordam os Desembargadores" ou "Acordam os Membros"?
-   - ✅ Tem estrutura colegial (CÂMARA/TURMA/COLEGIADO)?
-   - ✅ Tem "TRIBUNAL DE JUSTIÇA" ou "TRIBUNAL REGIONAL"?
-   - ⚠️ **ATENÇÃO:** Se encontrar "JULGO", verifique se refere-se ao julgamento do RECURSO (ex: "Negar provimento", "Dar provimento", "Conhecer e negar") e NÃO a citações da sentença original. Citações como "o juiz julgou procedente" devem ser ignoradas.
-   - **DECISÃO: SE 3+ marcadores acima = ACÓRDÃO com confianca_tipo: "ALTA"**
+**PRAZOS:** Use APENAS prazos explícitos do documento com tipo, prazo, destinatário e finalidade. Se não menciona → prazos: [].
 
-2️⃣ **SENTENÇA** - Verifique APENAS se NÃO for acórdão:
-   - ✅ Tem "SENTENÇA" no cabeçalho (primeiros 500 chars)?
-   - ✅ Tem "JULGO PROCEDENTE/IMPROCEDENTE/PARCIALMENTE PROCEDENTE" no dispositivo?
-   - ✅ Assinado por UM juiz (não desembargador) no final?
-   - ✅ NÃO tem estrutura colegial (câmara/turma)?
-   - **DECISÃO: SE os 3 primeiros = SENTENÇA com confianca_tipo: "ALTA"**
-
-3️⃣ **MANDADO**:
-   - ✅ Tem "MANDADO DE CITAÇÃO/INTIMAÇÃO/PENHORA" no título?
-   - ✅ Tem "INTIMO" ou "CITO" + audiência/prazo marcado?
-   - ✅ Tem "OFICIAL DE JUSTIÇA" + "CUMPRA-SE"?
-   - **DECISÃO: SE qualquer acima = MANDADO**
-
-4️⃣ **OUTROS**:
-   - Decisão interlocutória, Despacho, Intimação simples
-
-**Instruções para preenchimento:**
-- Use apenas informações explícitas do texto
-- Se não encontrar informação, use `null` ou `[]` ou `false`
-- Cite trechos literais quando solicitado (trecho_justica_gratuita)
-- Se em dúvida sobre o tipo, use confianca_tipo: "BAIXA"
-
-**REGRAS CRÍTICAS PARA AUDIÊNCIAS:**
-- Se o documento NÃO menciona audiência → use "tem_audiencia": false, "data": null, "hora": null, "link": null
-- Se menciona audiência mas sem data/hora específicas → use "tem_audiencia": true, mas deixe "data" e "hora" como null
-- NUNCA invente datas ou horários de audiências que não estão no documento
-
-**REGRAS CRÍTICAS PARA PRAZOS:**
-- Use APENAS prazos explicitamente mencionados no documento
-- Para CADA prazo, especifique:
-  * "tipo": tipo do prazo (recurso, contestação, cumprimento, apresentação, etc)
-  * "prazo": quanto tempo (ex: "15 dias", "10 dias úteis", "24 horas")
-  * "destinatario": PARA QUEM é o prazo (ex: "para o Ministério Público", "para o adolescente se apresentar", "para a Secretaria de Saúde")
-  * "finalidade": PARA QUÊ serve o prazo (ex: "para apresentar recurso", "para se apresentar na Unidade", "para realizar avaliação psicológica")
-- Se o documento não menciona prazo específico → deixe a lista "prazos" vazia: []
-- NUNCA adicione prazos "gerais" como "geralmente é de 15 dias" - se não está no documento, não coloque
-- Exemplo correto: {{"tipo": "apresentação", "prazo": "24 horas", "destinatario": "Adolescente Matheus", "finalidade": "Para se apresentar na Unidade de Semiliberdade"}}
-
-**REGRAS CRÍTICAS PARA RECURSOS:**
-
-🚨 REGRA ESPECIAL PARA MANDADOS:
-- Se o tipo_documento for "mandado" → "cabe_recurso": "Não se aplica"
-- Mandados são ordens judiciais de cumprimento, NÃO são decisões que se recorrem
-- Em mandados, não existe recurso direto - o que pode ser recorrido é a decisão que originou o mandado
-
-Para outros tipos de documento, "cabe_recurso":
-  * "Sim" - se o documento menciona explicitamente que cabe recurso
-  * "Não" - se o documento menciona explicitamente que não cabe recurso ou que é decisão irrecorrível
-  * "Consulte advogado(a) ou defensoria pública" - se o documento não menciona se cabe ou não cabe recurso
-
-- "prazo": Use APENAS se o documento mencionar prazo específico para recurso, senão use null
-- NUNCA escreva "Sim|Não|Consulte..." com todas as opções juntas - escolha apenas UMA
-
-**REGRAS CRÍTICAS PARA VALORES NO TEXTO SIMPLIFICADO:**
-
-1️⃣ **Discriminação Obrigatória:**
-   - Se o documento detalha valores (ex: "R$ 1.362,14 de passagens + R$ 65,50 de alimentação = R$ 1.427,64")
-   - Você DEVE manter essa discriminação no texto simplificado
-   - Use estrutura de lista com subitens
-
-2️⃣ **Exemplo Real Correto:**
-
-**Documento diz:**
-"R$ 1.362,14 de reembolso de passagens + R$ 65,50 de alimentação = total de R$ 1.427,64"
-
-**Texto simplificado DEVE dizer:**
-```
-📋 **Danos Materiais: R$ 1.427,64**
-- Reembolso de passagens aéreas: R$ 1.362,14
-- Reembolso de alimentação durante a viagem: R$ 65,50
-```
-
-3️⃣ **NÃO simplifique demais:**
-   ❌ ERRADO: "R$ 1.427,64 para cobrir prejuízos"
-   ✅ CORRETO: Discriminação detalhada conforme exemplo acima
-
-4️⃣ **Sempre calcule e mostre totais:**
-   - Se há discriminação, mostre: subtotais + TOTAL GERAL
-   - Use emojis para destacar: 📋 para categorias, 💰 para total
-
-═══════════════════════════════════════════════════════════════════
-
-**LINGUAGEM SIMPLES PARA RECURSOS (campo "explicacao_simples"):**
-- NÃO use: "instâncias superiores", "revista por", "órgão superior"
-- USE linguagem clara:
-  * Se cabe recurso: "Outros juízes podem analisar esta decisão se você pedir um recurso"
-  * Se não cabe: "Esta decisão é definitiva e não pode ser revista"
-  * Se for mandado: "Mandados são ordens para cumprir algo, não decisões que você pode pedir para outros juízes analisarem"
-  * Se consultar advogado: "Consulte um advogado ou a Defensoria Pública para saber se você pode pedir que outros juízes analisem"
+**RECURSOS:** Mandados → "Não se aplica". Outros: escolha UMA opção entre "Sim"/"Não"/"Consulte advogado(a) ou defensoria pública" conforme o documento. Use linguagem simples no campo explicacao_simples.
 
 ═══════════════════════════════════════════════════════════════════
 
 ## 📝 **PARTE 2: TEXTO SIMPLIFICADO (MARKDOWN)**
-
-🚨🚨🚨 **LEMBRE-SE SEMPRE DA PERSPECTIVA ESCOLHIDA:** 🚨🚨🚨
-
-{instrucao_perspectiva}
 
 **TOM DE VOZ E EMPATIA:**
 - Fale conforme a perspectiva (use "você" corretamente ou nomes reais)
@@ -1987,6 +1263,18 @@ Responda EXATAMENTE neste formato:
             model_usage_stats[modelo_nome]["successes"] += 1
 
             logging.info(f"✅ Análise completa com {modelo_nome}: tipo={analise.get('tipo_documento')}, confiança={analise.get('confianca_tipo')}, perspectiva={perspectiva}")
+
+            # Salvar resultado no cache
+            with cleanup_lock:
+                results_cache[cache_key] = {
+                    "result": analise,
+                    "timestamp": time.time()
+                }
+                # Limitar tamanho do cache (máx 50 entradas)
+                if len(results_cache) > 50:
+                    oldest_key = min(results_cache, key=lambda k: results_cache[k]["timestamp"])
+                    del results_cache[oldest_key]
+            logging.info(f"📦 Resultado salvo em cache (key={cache_key[:8]}..., total={len(results_cache)})")
 
             return analise
 
