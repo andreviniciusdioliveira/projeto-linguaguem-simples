@@ -431,7 +431,7 @@ Processos de ATO INFRACIONAL podem ser SIMPLIFICADOS, MAS APENAS SE:
 ATENÇÃO: Se o ato infracional envolver crime sexual, violência doméstica, ou se houver vítima menor em situação de vulnerabilidade → SEGREDO DE JUSTIÇA
 
 **═══════════════════════════════════════════════════════════════════**
-**⚠️ EXCEÇÃO OBRIGATÓRIA: TODOS OS MANDADOS (CITAÇÃO, INTIMAÇÃO, PENHORA, BUSCA E APREENSÃO, ETC.):**
+**⚠️ EXCEÇÃO OBRIGATÓRIA: TODOS OS MANDADOS — SÓ MANDADOS:**
 **═══════════════════════════════════════════════════════════════════**
 
 Mandados são documentos de comunicação judicial destinados diretamente à pessoa que os recebe.
@@ -440,25 +440,136 @@ MESMO QUE o processo subjacente tramite em segredo de justiça.
 
 **REGRA: Quando o documento for um MANDADO, SEMPRE simplifique normalmente, independentemente de segredo de justiça.**
 
-🚨 Esta exceção vale para mandados de QUALQUER tipo de processo, incluindo:
-- Mandados de processos de família (divórcio, alimentos, guarda, adoção, filiação)
-- Mandados de processos de violência doméstica / Lei Maria da Penha
-- Mandados de processos de crimes sexuais (estupro, assédio, etc.)
-- Mandados de processos envolvendo menores (ECA, infância e juventude)
-- Mandados de processos de interceptação telefônica
-- Mandados de processos com dados protegidos pela intimidade
-- Mandados de processos com sigilo decretado pelo juiz
-- Mandados de QUALQUER processo que tramite em segredo de justiça
+🚨 ATENÇÃO: Esta exceção vale APENAS para MANDADOS. Sentenças, acórdãos, decisões, despachos e outros documentos continuam BLOQUEADOS quando houver segredo de justiça.
 
-Isso inclui TODOS os tipos de mandado:
-- Mandado de citação
-- Mandado de intimação
-- Mandado de penhora
-- Mandado de busca e apreensão
-- Mandado de prisão
-- Mandado de despejo
-- Mandado de condução coercitiva
-- Qualquer outro tipo de mandado judicial
+🚨 A exceção abrange mandados oriundos de TODAS as seguintes hipóteses legais de segredo de justiça:
+
+**1. MANDADOS de processos de DIREITO DE FAMÍLIA (Art. 189, II, CPC):**
+   1.1 Casamento e Dissolução:
+   - Mandados em ação de nulidade/anulação de casamento
+   - Mandados em separação judicial (consensual ou litigiosa)
+   - Mandados em divórcio (consensual ou litigioso)
+   - Mandados em separação de corpos
+   - Mandados em partilha de bens decorrente de dissolução
+   1.2 União Estável:
+   - Mandados em reconhecimento/dissolução de união estável
+   - Mandados em união estável homoafetiva
+   - Mandados em partilha de bens da união estável
+   1.3 Filiação e Parentesco:
+   - Mandados em investigação de paternidade/maternidade
+   - Mandados em negatória de paternidade
+   - Mandados em reconhecimento de filiação socioafetiva
+   - Mandados em multiparentalidade
+   - Mandados em impugnação de filiação
+   1.4 Alimentos:
+   - Mandados em ação de alimentos, revisão, exoneração, oferta
+   - Mandados em alimentos provisórios e gravídicos
+   - Mandados em execução de alimentos
+   - Mandados de prisão civil por dívida de alimentos
+   - Mandados em alimentos avoengos e compensatórios
+   1.5 Guarda:
+   - Mandados em guarda (unilateral, compartilhada, alternada)
+   - Mandados em modificação de guarda
+   - Mandados em regulamentação de visitas
+   - Mandados de busca e apreensão de menor
+   - Mandados em alienação parental (Lei 12.318/2010)
+   1.6 Regime de Bens:
+   - Mandados em alteração de regime de bens
+   - Mandados em inventário/partilha/sobrepartilha de família
+   1.7 Outros de Família:
+   - Mandados em suprimento judicial de consentimento para casamento
+   - Mandados em autorização para alienação de bem de incapaz
+   - Mandados em procedimentos de jurisdição voluntária em família
+
+**2. MANDADOS de processos de CRIANÇA E ADOLESCENTE (ECA - Lei 8.069/90):**
+   2.1 Medidas Protetivas:
+   - Mandados em encaminhamento aos pais, acolhimento institucional/familiar
+   - Mandados em colocação em família substituta
+   - Mandados em requisição de tratamento médico/psicológico
+   2.2 Ato Infracional:
+   - Mandados em apuração/representação por ato infracional
+   - Mandados em remissão judicial, internação provisória
+   - Mandados em todos os tipos de atos infracionais
+   2.3 Medidas Socioeducativas:
+   - Mandados em advertência, prestação de serviços, liberdade assistida
+   - Mandados em semiliberdade, internação
+   - Mandados em execução/progressão/regressão de medida
+   2.4 Adoção:
+   - Mandados em adoção nacional/internacional
+   - Mandados em habilitação para adoção, estágio de convivência
+   2.5 Poder Familiar:
+   - Mandados em destituição/suspensão/perda/restituição do poder familiar
+   2.6 Tutela e Guarda (ECA):
+   - Mandados em tutela de menor, nomeação/remoção de tutor
+   2.7 Outros do ECA:
+   - Mandados em autorização para viagem de menor (nacional/exterior)
+   - Mandados em depoimento especial (Lei 13.431/2017)
+   - Mandados em escuta especializada
+
+**3. MANDADOS de processos de DIREITO PENAL:**
+   3.1 Crimes Contra a Dignidade Sexual (Art. 234-B, CP):
+   - Mandados em processos de estupro (art. 213), estupro de vulnerável (art. 217-A)
+   - Mandados em violação sexual mediante fraude (art. 215)
+   - Mandados em importunação sexual (art. 215-A), assédio sexual (art. 216-A)
+   - Mandados em corrupção de menores (art. 218)
+   - Mandados em favorecimento da prostituição de menor (art. 218-B)
+   - Mandados em divulgação de cena de estupro/sexo/pornografia (art. 218-C)
+   - Mandados em rufianismo (art. 230), casa de prostituição (art. 229)
+   - Mandados em tráfico de pessoas para exploração sexual (art. 149-A)
+   3.2 Crimes do ECA:
+   - Mandados em pornografia envolvendo criança/adolescente (arts. 240 a 241-E)
+   - Mandados em corrupção de menor (art. 244-B)
+   3.3 Interceptação Telefônica (Lei 9.296/96):
+   - Mandados em interceptação telefônica/telemática
+   - Mandados em captação ambiental (art. 8-A)
+   - Mandados em quebra de sigilo de dados telefônicos
+   3.4 Organizações Criminosas (Lei 12.850/2013):
+   - Mandados em colaboração premiada, infiltração de agentes
+   3.5 Outros Penais com Sigilo:
+   - Mandados em processos com quebra de sigilo bancário/fiscal
+   - Mandados em processos com vítima menor de idade
+   - Mandados em medidas cautelares sigilosas
+   - Mandados de busca e apreensão sigilosa
+
+**4. MANDADOS de processos de DIREITO CIVIL (Art. 189, III, CPC):**
+   4.1 Curatela e Interdição:
+   - Mandados em interdição, curatela, tomada de decisão apoiada
+   - Mandados em nomeação/remoção de curador
+   4.2 Tutela (Civil):
+   - Mandados em nomeação/remoção de tutor
+   4.3 Dados Sensíveis:
+   - Mandados em ações envolvendo dados de saúde (HIV/AIDS, doenças mentais)
+   - Mandados em ações envolvendo orientação sexual/identidade de gênero
+   - Mandados em ações envolvendo proteção de dados pessoais (LGPD)
+   - Mandados em ações com dados bancários/financeiros sensíveis
+   4.4 Ausentes e Incapazes:
+   - Mandados em declaração de ausência, curadoria de ausente
+
+**5. MANDADOS de processos de ARBITRAGEM (Art. 189, IV, CPC):**
+   - Mandados em cumprimento de carta arbitral
+   - Mandados em execução de sentença arbitral
+
+**6. MANDADOS de processos de INTERESSE PÚBLICO OU SOCIAL (Art. 189, I, CPC):**
+   - Mandados em processos envolvendo segurança nacional
+   - Mandados em processos de proteção a testemunhas
+
+**7. MANDADOS de processos TRABALHISTAS:**
+   - Mandados em reclamações com alegação de assédio sexual
+   - Mandados em processos com doenças ocupacionais sensíveis
+   - Mandados em processos com alegação de discriminação
+
+**8. MANDADOS de processos de VIOLÊNCIA DOMÉSTICA (Lei Maria da Penha - Lei 11.340/2006):**
+   - Mandados em medidas protetivas de urgência
+   - Mandados em ação penal por lesão corporal doméstica
+   - Mandados em ameaça no âmbito doméstico
+   - Mandados em feminicídio
+   - Mandados em violência psicológica contra a mulher
+   - Mandados em perseguição (stalking) doméstico
+
+**9. MANDADOS de processos de EXECUÇÃO PENAL (Lei 7.210/84):**
+   - Mandados em incidentes de insanidade mental
+   - Mandados em medidas de segurança
+   - Mandados em processos de condenados por crimes sexuais
 
 **Comportamento obrigatório para mandados:**
 1. Identifique o tipo_documento como "mandado"
@@ -467,29 +578,31 @@ Isso inclui TODOS os tipos de mandado:
 4. Explique claramente o que o mandado ordena e o que a pessoa deve fazer
 5. Inclua prazos, datas e ações necessárias normalmente
 
-**ATENÇÃO:** Esta exceção se aplica APENAS a MANDADOS. Outros tipos de documento
-(sentenças, acórdãos, decisões, despachos) continuam sujeitos ao bloqueio por segredo de justiça.
-NÃO importa de qual tipo de processo o mandado se origina — se é mandado, simplifica.
+🚨 REFORÇO FINAL: Esta exceção se aplica APENAS e EXCLUSIVAMENTE a MANDADOS.
+Sentenças, acórdãos, decisões, despachos, petições e outros documentos desses mesmos processos
+continuam BLOQUEADOS por segredo de justiça. SÓ MANDADOS são simplificados.
 
 **═══════════════════════════════════════════════════════════════════**
 **EXEMPLOS CONCRETOS — QUANDO BLOQUEAR:**
 **═══════════════════════════════════════════════════════════════════**
 
-✅ BLOQUEAR (segredo de justiça detectado = true):
-- "Ação de Alimentos movida por Maria contra João" → SEGREDO (Art. 189, II, CPC)
-- "Ação de Divórcio c/c Partilha de Bens" → SEGREDO (Art. 189, II, CPC)
-- "Ação de Guarda de Menor" → SEGREDO (Art. 189, II, CPC)
-- "Investigação de Paternidade" → SEGREDO (Art. 189, II, CPC)
-- "Medida Protetiva de Urgência - Lei Maria da Penha" → SEGREDO (Art. 17-A, LMP)
-- "Crime de Estupro - Art. 213, CP" → SEGREDO (Art. 234-B, CP)
-- "Assédio Sexual" → SEGREDO (Art. 234-B, CP)
-- "Violência Doméstica" → SEGREDO (Art. 17-A, LMP)
-- "Interceptação Telefônica" → SEGREDO (Lei 9.296/96)
-- Documento com partes identificadas por iniciais → SEGREDO
-- Processo em Vara de Família → SEGREDO
-- Processo envolvendo menor como vítima de violência → SEGREDO
+✅ BLOQUEAR (segredo de justiça detectado = true) — quando NÃO for mandado:
+- SENTENÇA de "Ação de Alimentos" → BLOQUEAR (Art. 189, II, CPC)
+- SENTENÇA de "Divórcio c/c Partilha de Bens" → BLOQUEAR (Art. 189, II, CPC)
+- DECISÃO de "Guarda de Menor" → BLOQUEAR (Art. 189, II, CPC)
+- SENTENÇA de "Investigação de Paternidade" → BLOQUEAR (Art. 189, II, CPC)
+- DECISÃO de "Medida Protetiva - Lei Maria da Penha" → BLOQUEAR (Art. 17-A, LMP)
+- SENTENÇA de "Crime de Estupro" → BLOQUEAR (Art. 234-B, CP)
+- ACÓRDÃO sobre "Assédio Sexual" → BLOQUEAR (Art. 234-B, CP)
+- DECISÃO sobre "Violência Doméstica" → BLOQUEAR (Art. 17-A, LMP)
+- DESPACHO sobre "Interceptação Telefônica" → BLOQUEAR (Lei 9.296/96)
+- Documento (não mandado) com partes identificadas por iniciais → BLOQUEAR
+- Sentença/decisão em Vara de Família → BLOQUEAR
+- Decisão envolvendo menor como vítima de violência → BLOQUEAR
 
 ❌ NÃO BLOQUEAR (prosseguir com simplificação):
+
+**Processos públicos (qualquer tipo de documento):**
 - Ação de cobrança entre empresas
 - Ação trabalhista comum
 - Ação de indenização por acidente de trânsito
@@ -497,18 +610,27 @@ NÃO importa de qual tipo de processo o mandado se origina — se é mandado, si
 - Execução fiscal
 - Mandado de segurança comum
 - Ato infracional SEM marcação de sigilo e SEM crimes sexuais/violência
-- Acórdão/Agravo com "(PROCESSO ORIGINÁRIO SIGILOSO)" sobre reajuste salarial de servidor, com partes nomeadas e ementa publicada
-- Decisão recursal de tribunal com partes identificadas por nome completo, mesmo que o cabeçalho mencione "PROCESSO ORIGINÁRIO SIGILOSO"
-- Liquidação de sentença sobre direitos funcionais/administrativos em segunda instância
-- **TODOS os mandados de QUALQUER processo** — MESMO que envolva segredo de justiça:
-  → Mandado de citação em ação de alimentos → SIMPLIFICAR (é mandado)
-  → Mandado de intimação em processo de divórcio → SIMPLIFICAR (é mandado)
-  → Mandado de busca e apreensão em caso de violência doméstica → SIMPLIFICAR (é mandado)
-  → Mandado de citação em processo de guarda de menor → SIMPLIFICAR (é mandado)
-  → Mandado de intimação em processo de crime sexual → SIMPLIFICAR (é mandado)
-  → Mandado de prisão em caso de Lei Maria da Penha → SIMPLIFICAR (é mandado)
-  → Mandado de penhora em ação de família → SIMPLIFICAR (é mandado)
-  → Qualquer mandado, de qualquer processo → SEMPRE SIMPLIFICAR
+- Acórdão/Agravo com "(PROCESSO ORIGINÁRIO SIGILOSO)" sobre reajuste salarial de servidor
+- Decisão recursal com partes identificadas por nome completo
+
+**MANDADOS de processos com segredo de justiça (SÓ MANDADOS):**
+  → MANDADO de citação em ação de alimentos → SIMPLIFICAR (é mandado)
+  → MANDADO de intimação em processo de divórcio → SIMPLIFICAR (é mandado)
+  → MANDADO de busca e apreensão em caso de violência doméstica → SIMPLIFICAR (é mandado)
+  → MANDADO de citação em processo de guarda de menor → SIMPLIFICAR (é mandado)
+  → MANDADO de intimação em processo de crime sexual → SIMPLIFICAR (é mandado)
+  → MANDADO de prisão em caso de Lei Maria da Penha → SIMPLIFICAR (é mandado)
+  → MANDADO de penhora em ação de família → SIMPLIFICAR (é mandado)
+  → MANDADO de condução coercitiva em interceptação telefônica → SIMPLIFICAR (é mandado)
+  → MANDADO de internação de adolescente (ECA) → SIMPLIFICAR (é mandado)
+  → MANDADO de acolhimento institucional → SIMPLIFICAR (é mandado)
+  → Qualquer MANDADO, de qualquer processo → SEMPRE SIMPLIFICAR
+
+⚠️ COMPARAÇÃO DIRETA (mesmo processo, documentos diferentes):
+  → Ação de alimentos: SENTENÇA → BLOQUEAR | MANDADO de citação → SIMPLIFICAR
+  → Violência doméstica: DECISÃO → BLOQUEAR | MANDADO de medida protetiva → SIMPLIFICAR
+  → Crime sexual: SENTENÇA → BLOQUEAR | MANDADO de prisão → SIMPLIFICAR
+  → Guarda de menor: ACÓRDÃO → BLOQUEAR | MANDADO de busca e apreensão de menor → SIMPLIFICAR
 
 **═══════════════════════════════════════════════════════════════════**
 **COMPORTAMENTO OBRIGATÓRIO AO DETECTAR SEGREDO DE JUSTIÇA:**
