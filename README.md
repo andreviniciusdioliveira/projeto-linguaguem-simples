@@ -1,244 +1,804 @@
-# 📄 Simplificador de Documentos Jurídicos
+<p align="center">
+  <img src="static/logo.png" alt="Entenda Aqui - Logo" width="200">
+</p>
 
-Uma aplicação web inteligente que transforma documentos jurídicos complexos em linguagem simples e acessível, utilizando IA para facilitar a compreensão de sentenças, decisões e outros textos.
+<h1 align="center">Entenda Aqui</h1>
 
-## ✨ Funcionalidades
+<p align="center">
+  <strong>Transformando documentos jurídicos complexos em linguagem simples e acessível para todos os cidadãos brasileiros.</strong>
+</p>
 
-### 🔍 **Processamento Inteligente**
-- **Upload de PDFs**: Processa documentos jurídicos em PDF com OCR automático
-- **Texto Manual**: Análise direta de textos colados na plataforma
-- **Extração Otimizada**: Suporte a documentos digitalizados e texto nativo
+<p align="center">
+  <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/Python-3.11-blue.svg" alt="Python 3.11"></a>
+  <a href="https://flask.palletsprojects.com/"><img src="https://img.shields.io/badge/Flask-3.0.3-green.svg" alt="Flask 3.0.3"></a>
+  <a href="https://ai.google.dev/"><img src="https://img.shields.io/badge/Google%20Gemini-AI-orange.svg" alt="Google Gemini"></a>
+  <a href="#-lgpd--privacidade"><img src="https://img.shields.io/badge/LGPD-Compliance-brightgreen.svg" alt="LGPD Compliant"></a>
+  <a href="https://render.com"><img src="https://img.shields.io/badge/Deploy-Render-purple.svg" alt="Render Deploy"></a>
+</p>
 
-### 🤖 **IA Multi-Modelo**
-- **Gemini AI**: Utiliza múltiplos modelos Google Gemini com fallback automático
-- **Análise de Complexidade**: Escolha inteligente do modelo baseada no conteúdo
+<p align="center">
+  <a href="#-sobre-o-projeto">Sobre</a> •
+  <a href="#-funcionalidades">Funcionalidades</a> •
+  <a href="#-como-funciona">Como Funciona</a> •
+  <a href="#-instalação">Instalação</a> •
+  <a href="#-deploy">Deploy</a> •
+  <a href="#-api-endpoints">API</a> •
+  <a href="#-lgpd--privacidade">LGPD</a>
+</p>
 
-### 📊 **Análise Estruturada**
-- **Identificação Automática**: Reconhece tipo de documento e partes envolvidas
-- **Detecção de Resultado**: Identifica vitórias, derrotas ou decisões parciais
-- **Valores e Prazos**: Extrai automaticamente valores monetários e prazos importantes
-- **Glossário Dinâmico**: Cria dicionário dos termos jurídicos encontrados
+---
 
-### 📋 **Formato Padronizado**
-- **Resumo Executivo**: Resultado claro com ícones visuais (✅ ❌ ⚠️)
-- **Seções Organizadas**: Estrutura fixa para fácil localização da informação
-- **PDF Otimizado**: Geração de documento simplificado para download
-- **Design Responsivo**: Interface adaptável para desktop e mobile
+## Sobre o Projeto
 
-## 🚀 Tecnologias Utilizadas
+O **Entenda Aqui** é uma aplicação web desenvolvida pela **INOVASSOL - Centro de Inovação AI** que utiliza inteligência artificial do Google Gemini para simplificar documentos jurídicos complexos — sentenças, mandados, acórdãos, despachos e outros — transformando-os em linguagem clara, objetiva e acessível ao cidadão comum.
 
-### **Backend**
-- **Python 3.8+** - Linguagem principal
-- **Flask** - Framework web minimalista e eficiente
-- **PyMuPDF** - Extração de texto de PDFs
-- **Tesseract OCR** - Reconhecimento óptico de caracteres
-- **ReportLab** - Geração de PDFs formatados
+### O Problema
 
-### **IA e APIs**
-- **Google Gemini API** - Processamento de linguagem natural
-- **Multi-modelo**: Gemini 1.5 Flash 8B, Flash, e 2.0 Flash Experimental
+Milhões de brasileiros recebem documentos jurídicos todos os dias e não conseguem compreender seu conteúdo. A linguagem técnica do Direito cria uma barreira que impede o cidadão de entender seus próprios direitos e obrigações.
 
-### **Frontend**
-- **HTML5/CSS3** - Interface moderna e responsiva
-- **JavaScript ES6+** - Interatividade e AJAX
-- **Bootstrap** - Framework CSS para design consistente
+### A Solução
 
-## 📦 Instalação
+O Entenda Aqui recebe o documento jurídico (PDF, imagem ou texto), processa com IA e entrega:
 
-### **Pré-requisitos**
+- Um **resumo claro** do que o documento diz
+- A **identificação do resultado** (vitória, derrota, parcial, pendente)
+- Os **valores e prazos** extraídos automaticamente
+- Um **glossário** dos termos jurídicos usados
+- Uma **explicação personalizada** com base no papel do usuário (autor ou réu)
+- **Indicadores de urgência** para documentos com prazos críticos
+- Um **PDF simplificado** para download com marca d'água anti-fraude
+
+---
+
+## Funcionalidades
+
+### Processamento de Documentos
+
+| Recurso | Descrição |
+|---------|-----------|
+| **Upload de PDF** | Extração de texto via PyMuPDF com fallback para OCR |
+| **Upload de Imagens** | Suporte a PNG, JPG, GIF, BMP, TIFF, WEBP com OCR Tesseract |
+| **Texto Manual** | Cole o texto jurídico diretamente na interface |
+| **Documentos Digitalizados** | OCR automático com pré-processamento de imagem (contraste, escala de cinza) |
+
+### Inteligência Artificial
+
+| Recurso | Descrição |
+|---------|-----------|
+| **Multi-Modelo** | Sistema de fallback com 4 modelos Gemini em cascata |
+| **Perspectiva Personalizada** | Explicação adaptada para autor, réu ou caso ECA |
+| **Detecção de Segredo de Justiça** | Bloqueio automático de documentos sigilosos |
+| **Chat Interativo** | Faça perguntas sobre o documento processado |
+| **Perguntas Sugeridas** | Sugestões contextuais baseadas no tipo de documento |
+
+### Interface
+
+| Recurso | Descrição |
+|---------|-----------|
+| **Drag & Drop** | Arraste e solte arquivos para upload |
+| **Modo Escuro/Claro** | Alternância de tema com preferência salva |
+| **Responsivo** | Interface mobile-first adaptável a qualquer tela |
+| **Avatar com Voz** | Assistente virtual com síntese de voz em português |
+| **Feedback Sonoro** | Áudio de confirmação ao iniciar e concluir a simplificação |
+| **Download PDF** | Gera PDF simplificado com marca d'água anti-fraude e QR code |
+| **Compartilhamento** | Compartilhe via WhatsApp, Twitter, Facebook ou copie o link |
+
+### Segurança e Privacidade
+
+| Recurso | Descrição |
+|---------|-----------|
+| **LGPD Compliant** | Zero armazenamento de dados pessoais ou conteúdo de documentos |
+| **Limpeza Automática** | Arquivos temporários removidos em 30 minutos |
+| **Rate Limiting** | 10 requisições por minuto por IP |
+| **Validação de Integridade** | QR code e hash SHA-256 para verificar autenticidade do PDF gerado |
+| **Anti-Fraude** | Marca d'água diagonal + logotipos variados no PDF |
+
+---
+
+## Como Funciona
+
+### Fluxo de Processamento
+
+```
+  Usuário envia documento
+           │
+           ▼
+  ┌─────────────────┐
+  │ Validação        │  Extensão, tamanho (max 10MB), rate limit
+  └────────┬────────┘
+           ▼
+  ┌─────────────────┐
+  │ Extração de Texto│  PyMuPDF (PDF) ou Tesseract OCR (Imagem)
+  └────────┬────────┘
+           ▼
+  ┌─────────────────┐
+  │ Cache Check      │  MD5 hash dos primeiros 5000 chars + perspectiva
+  └────────┬────────┘
+           ▼
+  ┌─────────────────┐
+  │ Google Gemini AI │  Análise com fallback automático entre modelos
+  └────────┬────────┘
+           ▼
+  ┌─────────────────┐
+  │ Pós-Processamento│  Validação de output, extração de valores,
+  │                  │  detecção de perspectiva, glossário
+  └────────┬────────┘
+           ▼
+  ┌─────────────────┐
+  │ Geração de PDF   │  ReportLab + marca d'água + QR code
+  └────────┬────────┘
+           ▼
+  Resultado simplificado exibido ao usuário
+```
+
+### Sistema de Fallback de IA
+
+O sistema tenta os modelos Gemini em ordem de prioridade. Se um modelo falhar (cota esgotada, erro de API, etc.), o próximo é utilizado automaticamente:
+
+| Prioridade | Modelo | Descrição |
+|:----------:|--------|-----------|
+| 1 | `gemini-2.0-flash` | Modelo flash estável v2.0 (melhor custo-benefício) |
+| 2 | `gemini-2.0-flash-lite` | Modelo flash lite v2.0 (mais leve) |
+| 3 | `gemini-1.5-flash` | Modelo flash v1.5 (cota separada, boa disponibilidade) |
+| 4 | `gemini-2.5-flash-lite` | Modelo 2.5 flash lite (fallback final) |
+
+Todos os modelos usam **temperatura 0.2** (baixa aleatoriedade) e máximo de **3000 tokens** de output.
+
+### Perspectivas do Usuário
+
+A simplificação é personalizada de acordo com a perspectiva selecionada:
+
+| Perspectiva | Comportamento |
+|-------------|---------------|
+| **Autor** (quem moveu a ação) | Usa "VOCÊ" para o autor, nome real do réu |
+| **Réu** (quem responde a ação) | Usa "VOCÊ" para o réu, nome real do autor |
+| **ECA** (Estatuto da Criança) | Usa nome completo do adolescente, linguagem neutra |
+| **Não Informado** | Linguagem neutra com nomes reais de todas as partes |
+
+### Indicadores de Resultado
+
+| Indicador | Significado |
+|-----------|-------------|
+| ✅ **VITÓRIA TOTAL** | Todos os pedidos foram atendidos |
+| ❌ **DERROTA** | Os pedidos foram negados |
+| ⚠️ **VITÓRIA PARCIAL** | Parte dos pedidos foi atendida |
+| ⏳ **AGUARDANDO** | Ainda não há decisão final |
+| 📋 **ANDAMENTO** | Despacho processual (sem decisão de mérito) |
+
+---
+
+## Arquitetura
+
+### Stack Tecnológico
+
+```
+┌─────────────────────────────────────────────────────┐
+│                    FRONTEND                          │
+│  Vanilla JavaScript (ES6+) · HTML5/CSS3             │
+│  SPA · Responsivo · Modo Escuro · Web Speech API    │
+├─────────────────────────────────────────────────────┤
+│                    BACKEND                           │
+│  Python 3.11 · Flask 3.0.3 · Gunicorn 21.2.0       │
+├─────────────────────────────────────────────────────┤
+│               PROCESSAMENTO                          │
+│  PyMuPDF · Tesseract OCR · Pillow · OpenCV          │
+│  ReportLab · QRCode                                  │
+├─────────────────────────────────────────────────────┤
+│                      IA                              │
+│  Google Gemini API (Multi-modelo com fallback)       │
+├─────────────────────────────────────────────────────┤
+│               ARMAZENAMENTO                          │
+│  SQLite (somente contadores agregados - LGPD)        │
+├─────────────────────────────────────────────────────┤
+│               INFRAESTRUTURA                         │
+│  Render.com · Docker · 2 Workers · 512MB RAM         │
+└─────────────────────────────────────────────────────┘
+```
+
+### Estrutura do Projeto
+
+```
+projeto-linguaguem-simples/
+│
+├── app.py                          # Aplicação Flask principal (~88KB)
+│                                   #   - Rotas e endpoints
+│                                   #   - Integração com Gemini AI
+│                                   #   - Processamento de PDF/imagem
+│                                   #   - Rate limiting e cache
+│                                   #   - Limpeza automática LGPD
+│
+├── database.py                     # Sistema de estatísticas (~21KB)
+│                                   #   - Schema SQLite (6 tabelas)
+│                                   #   - Contadores agregados
+│                                   #   - Limpeza automática (30/90 dias)
+│                                   #   - Validação de documentos (hash)
+│                                   #   - Auditoria administrativa
+│
+├── gerador_pdf.py                  # Geração de PDF simplificado (~29KB)
+│                                   #   - Layout com header/footer
+│                                   #   - Marca d'água anti-fraude
+│                                   #   - QR code de validação
+│                                   #   - Fontes personalizadas
+│
+├── templates/
+│   ├── index.html                  # Interface principal SPA (~180KB)
+│   └── validar.html                # Página de validação de documentos
+│
+├── static/
+│   ├── style.css                   # Estilos CSS adicionais
+│   ├── avatar.js                   # Interações do avatar com voz
+│   ├── logo.png                    # Logo do projeto
+│   ├── avatar.png                  # Imagem do avatar assistente
+│   ├── inovassol.png               # Logo da INOVASSOL
+│   ├── logotjto.png                # Logo TJTO (marca d'água)
+│   ├── vou-começar.mp3             # Áudio: "Vou começar"
+│   └── prontinho-simplifiquei.mp3  # Áudio: "Prontinho, simplifiquei"
+│
+├── gunicorn_config.py              # Configuração do servidor de produção
+├── render.yaml                     # Configuração de deploy no Render
+├── Dockerfile.txt                  # Configuração Docker
+├── install_tesseract.sh            # Script de instalação do Tesseract OCR
+├── requirements.txt                # Dependências Python
+├── stats.db                        # Banco SQLite (contadores LGPD)
+├── .gitignore                      # Regras de exclusão Git
+└── .dockerignore                   # Regras de exclusão Docker
+```
+
+---
+
+## Instalação
+
+### Pré-requisitos
+
+- **Python 3.11+**
+- **Tesseract OCR** com dados de idioma português
+- **Chave de API do Google Gemini**
+
+### 1. Instalar o Tesseract OCR
+
 ```bash
-# Ubuntu/Debian
+# Ubuntu / Debian
 sudo apt-get update
-sudo apt-get install tesseract-ocr tesseract-ocr-por python3-pip
+sudo apt-get install -y tesseract-ocr tesseract-ocr-por tesseract-ocr-eng
 
 # macOS (Homebrew)
 brew install tesseract tesseract-lang
 
 # Windows
-# Baixe e instale o Tesseract OCR do GitHub oficial
+# Baixe o instalador oficial em: https://github.com/tesseract-ocr/tesseract/releases
+# Após instalar, adicione o caminho ao PATH do sistema
 ```
 
-### **Configuração do Projeto**
+### 2. Clonar o Repositório
+
 ```bash
-# 1. Clone o repositório
-git clone https://github.com/seu-usuario/simplificador-juridico.git
-cd simplificador-juridico
-
-# 2. Crie um ambiente virtual
-python -m venv venv
-source venv/bin/activate  # Linux/Mac
-# ou
-venv\Scripts\activate     # Windows
-
-# 3. Instale as dependências
-pip install -r requirements.txt
-
-# 4. Configure as variáveis de ambiente
-cp .env.example .env
-# Edite o arquivo .env com suas configurações
+git clone https://github.com/andreviniciusdioliveira/projeto-linguaguem-simples.git
+cd projeto-linguaguem-simples
 ```
 
-### **Variáveis de Ambiente**
-Crie um arquivo `.env` na raiz do projeto:
-```env
-# API do Google Gemini (Obrigatório)
-GEMINI_API_KEY=sua_chave_api_aqui
+### 3. Criar Ambiente Virtual
 
-# Configurações opcionais
+```bash
+python -m venv venv
+
+# Linux / macOS
+source venv/bin/activate
+
+# Windows
+venv\Scripts\activate
+```
+
+### 4. Instalar Dependências
+
+```bash
+pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+### 5. Configurar Variáveis de Ambiente
+
+Crie um arquivo `.env` na raiz do projeto:
+
+```env
+# Obrigatório
+GEMINI_API_KEY=sua_chave_api_gemini_aqui
+
+# Opcionais
 SECRET_KEY=sua_chave_secreta_flask
 PORT=8080
 FLASK_ENV=production
+ADMIN_TOKEN=seu_token_admin_para_auditoria
 ```
 
-### **Como Obter a API Key do Gemini**
+### 6. Obter a Chave da API Gemini
+
 1. Acesse [Google AI Studio](https://makersuite.google.com/app/apikey)
 2. Faça login com sua conta Google
-3. Clique em "Create API Key"
-4. Copie a chave gerada para o arquivo `.env`
+3. Clique em **"Create API Key"**
+4. Copie a chave e cole no arquivo `.env`
 
-## 🏃‍♂️ Execução
+### 7. Executar
 
-### **Desenvolvimento Local**
+```bash
+# Modo desenvolvimento
+python app.py
+# Acesse: http://localhost:8080
+
+# Modo produção (recomendado)
+gunicorn app:app --config gunicorn_config.py
+```
+
+---
+
+## Deploy
+
+### Render (Recomendado)
+
+O projeto já inclui o arquivo `render.yaml` configurado para deploy automático:
+
+1. Faça fork deste repositório
+2. Crie uma conta no [Render](https://render.com)
+3. Conecte sua conta GitHub
+4. Clique em **"New" > "Blueprint"** e selecione o repositório
+5. Configure a variável de ambiente `GEMINI_API_KEY` no dashboard
+6. O deploy será automático a cada push na branch `main`
+
+**Configuração do Render:**
+
+| Parâmetro | Valor |
+|-----------|-------|
+| Ambiente | Python 3.11.0 |
+| Região | Oregon |
+| Plano | Free |
+| Build | `pip install -r requirements.txt` + Tesseract |
+| Start | `gunicorn app:app --config gunicorn_config.py` |
+| Health Check | `GET /health` |
+
+### Docker
+
+```bash
+# Build da imagem
+docker build -f Dockerfile.txt -t entenda-aqui .
+
+# Executar container
+docker run -d \
+  -p 8080:8080 \
+  -e GEMINI_API_KEY=sua_chave_aqui \
+  -e SECRET_KEY=sua_chave_secreta \
+  --name entenda-aqui \
+  entenda-aqui
+```
+
+A imagem Docker (`python:3.11-slim`) inclui:
+- Tesseract OCR com dados em português e inglês
+- Poppler utils para processamento de PDF
+- Health check automático a cada 30 segundos
+- 2 workers Gunicorn com timeout de 120s
+
+### Outras Plataformas
+
+<details>
+<summary><strong>Heroku</strong></summary>
+
+```bash
+heroku create entenda-aqui
+heroku config:set GEMINI_API_KEY=sua_chave
+heroku buildpacks:add https://github.com/heroku/heroku-buildpack-apt
+git push heroku main
+```
+
+Crie um arquivo `Aptfile` na raiz:
+```
+tesseract-ocr
+tesseract-ocr-por
+```
+</details>
+
+<details>
+<summary><strong>Railway</strong></summary>
+
+```bash
+railway login
+railway new
+railway add
+railway variables set GEMINI_API_KEY=sua_chave
+railway up
+```
+</details>
+
+---
+
+## API Endpoints
+
+### Endpoints Principais
+
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| `GET` | `/` | Interface principal da aplicação |
+| `POST` | `/processar` | Processa documento enviado (PDF/imagem) |
+| `POST` | `/chat` | Envia pergunta sobre o documento processado |
+| `GET` | `/download_pdf` | Baixa o PDF simplificado gerado |
+| `GET` | `/validar/<doc_id>` | Página de validação de integridade |
+| `POST` | `/validar/<doc_id>/verificar` | Verifica hash de integridade do documento |
+| `POST` | `/feedback` | Registra feedback (positivo/negativo) |
+| `GET` | `/api/stats` | Estatísticas agregadas (LGPD) |
+| `GET` | `/admin/auditoria` | Painel de auditoria (requer ADMIN_TOKEN) |
+| `GET` | `/health` | Health check da aplicação |
+
+### POST `/processar`
+
+Processa um documento jurídico e retorna a simplificação.
+
+**Request:**
+```
+Content-Type: multipart/form-data
+
+file: <arquivo PDF ou imagem> (max 10MB)
+perspectiva: "autor" | "reu" | "nao_informado" (opcional)
+```
+
+**Formatos aceitos:** PDF, PNG, JPG, JPEG, GIF, BMP, TIFF, WEBP
+
+**Response (200):**
+```json
+{
+  "sucesso": true,
+  "resultado": "Texto simplificado em Markdown...",
+  "tipo_documento": "sentenca",
+  "urgencia": "media",
+  "modelo_usado": "gemini-2.0-flash",
+  "perguntas_sugeridas": ["Quais são os prazos?", "..."],
+  "pdf_url": "/download_pdf?file=simplificado_abc123.pdf",
+  "doc_id": "TJTO-20260206-A1B2C3D4",
+  "validacao_url": "/validar/TJTO-20260206-A1B2C3D4"
+}
+```
+
+### POST `/chat`
+
+Envia uma pergunta sobre o documento previamente processado.
+
+**Request:**
+```json
+{
+  "mensagem": "Quais são os prazos mencionados?",
+  "contexto": "Texto do documento original...",
+  "resultado": "Resultado da simplificação anterior..."
+}
+```
+
+**Response (200):**
+```json
+{
+  "resposta": "O documento menciona os seguintes prazos..."
+}
+```
+
+### GET `/health`
+
+Verifica o status da aplicação.
+
+**Response (200):**
+```json
+{
+  "status": "ok",
+  "gemini_configurado": true,
+  "tesseract_disponivel": true,
+  "modelos_disponiveis": ["gemini-2.0-flash", "gemini-2.0-flash-lite", "..."],
+  "total_documentos": 1250,
+  "documentos_hoje": 42
+}
+```
+
+### GET `/api/stats`
+
+Retorna estatísticas agregadas em conformidade com a LGPD.
+
+**Response (200):**
+```json
+{
+  "total_documentos": 1250,
+  "documentos_hoje": 42,
+  "por_tipo": {
+    "sentenca": 520,
+    "mandado": 310,
+    "acordao": 200,
+    "despacho": 220
+  },
+  "tipo_mais_comum": "sentenca",
+  "milestone_atual": {"valor": 1000, "nome": "Prata", "emoji": "🥈"},
+  "proximo_milestone": {"valor": 10000, "nome": "Ouro", "emoji": "🥇"},
+  "progresso_percentual": 12,
+  "feedback": {
+    "positivo": 890,
+    "negativo": 45,
+    "taxa_satisfacao": 95
+  }
+}
+```
+
+---
+
+## LGPD & Privacidade
+
+O Entenda Aqui foi projetado desde a concepção para estar em total conformidade com a **Lei Geral de Proteção de Dados (Lei nº 13.709/2018)**.
+
+### Princípios Aplicados
+
+| Princípio LGPD | Implementação |
+|-----------------|---------------|
+| **Finalidade** | Dados usados exclusivamente para estatísticas agregadas |
+| **Necessidade** | Coleta mínima — apenas contadores, sem dados pessoais |
+| **Transparência** | Aviso legal visível na interface |
+| **Segurança** | IPs anonimizados por SHA-256, arquivos com limpeza automática |
+| **Prevenção** | Threads de limpeza automática impedem acúmulo de dados |
+
+### O que **NÃO** é armazenado
+
+- Conteúdo dos documentos enviados
+- Dados pessoais dos usuários
+- Texto original ou simplificado
+- Histórico de conversas do chat
+- Cookies de rastreamento
+
+### O que **É** armazenado (somente agregados)
+
+| Dado | Retenção | Propósito |
+|------|----------|-----------|
+| Contadores totais | Permanente | Milestone de uso |
+| Contagem por tipo de documento | Permanente | Estatística de tipos |
+| Contagem diária | 30 dias | Tendência de uso |
+| Feedback (positivo/negativo) | Permanente | Taxa de satisfação |
+| Hashes de validação | 30 dias | Verificação de integridade |
+| Auditoria admin (IP + metadados) | 90 dias | Segurança operacional |
+
+### Limpeza Automática
+
+| Recurso | Frequência | Ação |
+|---------|------------|------|
+| Arquivos temporários | A cada 60 segundos | Remove arquivos > 30 minutos |
+| Cache de resultados | A cada 1 hora | Remove entradas > 1 hora |
+| Estatísticas diárias | A cada 24 horas | Remove registros > 30 dias |
+| Validações expiradas | A cada 24 horas | Remove registros > 30 dias |
+| Logs de auditoria | A cada 24 horas | Remove registros > 90 dias |
+
+---
+
+## Banco de Dados
+
+O sistema utiliza **SQLite** com 6 tabelas, todas projetadas para armazenar apenas dados agregados:
+
+| Tabela | Propósito | Dados Sensíveis |
+|--------|-----------|:-:|
+| `stats_geral` | Contador total + timestamps | Nenhum |
+| `stats_por_tipo` | Contagem por tipo de documento | Nenhum |
+| `stats_diarias` | Contagem diária (30 dias) | Nenhum |
+| `stats_feedback` | Contadores de feedback | Nenhum |
+| `validacao_documentos` | Hashes SHA-256 (sem conteúdo) | Nenhum |
+| `audit_ip` | Auditoria admin (IP + metadados) | IP real |
+
+Todas as operações de banco usam **lock de thread** para segurança em ambiente multi-worker.
+
+---
+
+## Segurança
+
+### Medidas Implementadas
+
+- **Validação de Upload**: Whitelist de extensões + limite de 10MB
+- **Sanitização de Nomes**: `werkzeug.secure_filename()` em todos os uploads
+- **Proteção Path Traversal**: Validação de caminho real vs diretório temporário
+- **Rate Limiting**: 10 req/min por IP com limpeza automática
+- **Sessões Seguras**: Secret key com expiração de 1 hora
+- **Admin Protegido**: Endpoint de auditoria requer `ADMIN_TOKEN`
+- **Anti-Injeção de Prompt**: Validação e limpeza do output da IA
+- **Anti-Fraude em PDF**: Marca d'água diagonal + logotipos com rotação variável
+
+### Variáveis Sensíveis
+
+| Variável | Obrigatória | Descrição |
+|----------|:-----------:|-----------|
+| `GEMINI_API_KEY` | Sim | Chave da API Google Gemini |
+| `SECRET_KEY` | Não | Chave de sessão Flask (auto-gerada se ausente) |
+| `ADMIN_TOKEN` | Não | Token de acesso ao painel de auditoria |
+
+Nunca commite chaves de API. Use variáveis de ambiente ou arquivos `.env` (incluído no `.gitignore`).
+
+---
+
+## Configuração de Produção
+
+### Gunicorn
+
+O arquivo `gunicorn_config.py` está otimizado para o **Render Free Tier (512MB RAM)**:
+
+| Parâmetro | Valor | Justificativa |
+|-----------|-------|---------------|
+| Workers | 2 | Limite de memória do free tier |
+| Timeout | 120s | Documentos grandes + OCR + IA |
+| Max Requests | 100 | Reciclagem de worker para liberar memória |
+| Preload App | True | Compartilha memória entre workers |
+| Worker Tmp Dir | `/dev/shm` | RAM ao invés de disco para temp files |
+| Keep-alive | 5s | Reutilização de conexões |
+
+### Limites da Aplicação
+
+| Recurso | Limite |
+|---------|--------|
+| Tamanho máximo de arquivo | 10 MB |
+| Requisições por minuto/IP | 10 |
+| Tempo máximo por requisição | 120 segundos |
+| Cache de resultados | 50 entradas, 1 hora |
+| Arquivos temporários | Removidos após 30 min |
+| Workers simultâneos | 2 |
+
+---
+
+## Dependências
+
+### Python
+
+| Pacote | Versão | Propósito |
+|--------|--------|-----------|
+| Flask | 3.0.3 | Framework web |
+| Werkzeug | 3.0.3 | Utilitários WSGI |
+| gunicorn | 21.2.0 | Servidor de produção |
+| google-generativeai | 0.3.2 | API do Google Gemini |
+| pymupdf | 1.24.2 | Extração de texto de PDF |
+| pytesseract | 0.3.10 | Interface para Tesseract OCR |
+| Pillow | 10.4.0 | Processamento de imagens |
+| opencv-python-headless | 4.8.1.78 | Pré-processamento avançado (opcional) |
+| numpy | 1.24.3 | Operações numéricas |
+| reportlab | 4.2.2 | Geração de PDF |
+| qrcode[pil] | 7.4.2 | Geração de QR code |
+| requests | 2.31.0 | Cliente HTTP |
+| python-dotenv | 1.0.1 | Variáveis de ambiente |
+| regex | 2023.12.25 | Expressões regulares avançadas |
+| certifi | 2024.2.2 | Certificados SSL |
+| urllib3 | 2.2.1 | Cliente HTTP |
+
+### Sistema
+
+| Dependência | Obrigatória | Propósito |
+|-------------|:-----------:|-----------|
+| Tesseract OCR | Não* | OCR para documentos digitalizados |
+| Tesseract `por` | Não* | Dados de idioma português |
+| Tesseract `eng` | Não | Dados de idioma inglês |
+| Poppler Utils | Não | Utilitários PDF (Docker) |
+
+\* A aplicação funciona sem Tesseract, mas documentos digitalizados/imagens não serão processados.
+
+---
+
+## Desenvolvimento
+
+### Executando Localmente
+
 ```bash
 # Ativar ambiente virtual
 source venv/bin/activate
 
-# Executar aplicação
+# Definir variável de ambiente
+export GEMINI_API_KEY="sua_chave_aqui"
+
+# Executar em modo de desenvolvimento
 python app.py
 
-# Aplicação estará disponível em http://localhost:8080
+# A aplicação estará disponível em http://localhost:8080
 ```
 
-### **Produção com Gunicorn**
+### Verificando Funcionamento
+
 ```bash
-# Instalar Gunicorn (já incluído no requirements.txt)
-pip install gunicorn
+# Health check
+curl http://localhost:8080/health
 
-# Executar em produção
-gunicorn -w 4 -b 0.0.0.0:8080 app:app
+# Estatísticas
+curl http://localhost:8080/api/stats
+
+# Processar documento (exemplo)
+curl -X POST http://localhost:8080/processar \
+  -F "file=@documento.pdf" \
+  -F "perspectiva=autor"
 ```
 
-### **Docker (Opcional)**
-```dockerfile
-FROM python:3.9-slim
+### Testes Manuais Recomendados
 
-# Instalar dependências do sistema
-RUN apt-get update && apt-get install -y \
-    tesseract-ocr \
-    tesseract-ocr-por \
-    && rm -rf /var/lib/apt/lists/*
+O projeto não possui testes automatizados. Ao fazer alterações, verifique:
 
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install -r requirements.txt
+1. Upload de PDF com texto nativo
+2. Upload de documento digitalizado (OCR)
+3. Upload de imagem (PNG/JPG)
+4. Entrada de texto manual
+5. Rate limiting (enviar 11 requisições em 1 minuto)
+6. Chat com perguntas sobre o documento
+7. Download do PDF simplificado
+8. Alternância de tema escuro/claro
+9. Interface em dispositivo móvel
+10. Limpeza automática de arquivos temporários
 
-COPY . .
-EXPOSE 8080
+---
 
-CMD ["gunicorn", "-w", "4", "-b", "0.0.0.0:8080", "app:app"]
-```
+## Monitoramento
 
-## 📁 Estrutura do Projeto
+### Health Check
 
-```
-simplificador-juridico/
-│
-├── app.py                 # Aplicação principal Flask
-├── requirements.txt       # Dependências Python
-├── .env.example          # Exemplo de variáveis de ambiente
-├── README.md             # Este arquivo
-│
-├── templates/            # Templates HTML
-│   └── index.html       # Interface principal
-│
-├── static/              # Arquivos estáticos
-│   ├── css/            # Estilos CSS
-│   ├── js/             # Scripts JavaScript
-│   └── img/            # Imagens e ícones
-│
-└── temp/               # Arquivos temporários (criado automaticamente)
-```
-
-## 🎯 Como Usar
-
-### **1. Upload de PDF**
-- Acesse a aplicação web
-- Clique em "Selecionar PDF" ou arraste o arquivo
-- Aguarde o processamento (pode levar alguns segundos)
-- Visualize o resultado simplificado
-- Baixe o PDF formatado (opcional)
-
-### **2. Texto Manual**
-- Cole o texto jurídico na área de texto
-- Clique em "Simplificar Texto"
-- Visualize o resultado estruturado
-
-### **3. Interpretando os Resultados**
-- **✅ VITÓRIA TOTAL**: Você ganhou completamente
-- **❌ DERROTA**: Você perdeu a causa
-- **⚠️ VITÓRIA PARCIAL**: Ganhou parte dos pedidos
-- **⏳ AGUARDANDO**: Ainda não há decisão final
-- **📋 ANDAMENTO**: Apenas despacho processual
-
-## 🔧 Configurações Avançadas
-
-### **Rate Limiting**
-- **Limite**: 10 requisições por minuto por IP
-- **Cleanup**: Automático a cada minuto
-- **Personalização**: Modifique `RATE_LIMIT` no código
-
-### **Cache do Sistema**
-- **Expiração**: 1 hora por padrão
-- **Hash MD5**: Identificação única de documentos
-- **Cleanup**: Automático a cada hora
-
-### **Modelos Gemini**
-- **Seleção Automática**: Baseada na complexidade do texto
-- **Fallback**: Tenta modelos alternativos em caso de falha
-- **Estatísticas**: Endpoint `/estatisticas` para monitoramento
-
-## 🚀 Deploy
-
-### **Render (Recomendado)**
-1. Fork este repositório
-2. Conecte sua conta Render ao GitHub
-3. Crie um novo Web Service
-4. Configure as variáveis de ambiente
-5. Deploy automático a cada push
-
-### **Heroku**
-```bash
-# Instalar Heroku CLI
-heroku create seu-app-name
-heroku config:set GEMINI_API_KEY=sua_chave
-git push heroku main
-```
-
-### **Railway**
-```bash
-# Conectar conta Railway
-railway login
-railway new
-railway add
-railway up
-```
-
-## 📊 Monitoramento
-
-### **Health Check**
 ```
 GET /health
 ```
-Retorna status da aplicação, configuração da API e estatísticas.
 
-### **Estatísticas de Uso**
+Retorna o status completo da aplicação incluindo:
+- Estado do servidor
+- Configuração da API Gemini
+- Disponibilidade do Tesseract OCR
+- Modelos disponíveis
+- Contagem de documentos processados
+
+### Estatísticas de Uso
+
 ```
-GET /estatisticas
+GET /api/stats
 ```
-### "A justiça deve ser acessível a todos, começando pela compreensão de seus documentos."
 
+Retorna dados agregados em conformidade com a LGPD:
+- Total de documentos processados
+- Contagem do dia
+- Distribuição por tipo de documento
+- Milestones (Bronze 🥉 → Prata 🥈 → Ouro 🥇 → Diamante 💎)
+- Taxa de satisfação dos usuários
 
+### Painel de Auditoria
 
-⭐ **Se este projeto foi útil, deixe uma estrela no repositório!**
+```
+GET /admin/auditoria?token=SEU_ADMIN_TOKEN
+```
 
+Disponível apenas com `ADMIN_TOKEN` configurado. Mostra:
+- Registros de processamento com IP e metadados
+- Filtros por IP, tipo de documento e data
+- Paginação e contagem de IPs únicos
+- Distribuição por tipo de documento
 
+---
+
+## Contribuindo
+
+Contribuições são bem-vindas. Para contribuir:
+
+1. Faça fork do repositório
+2. Crie uma branch para sua feature (`git checkout -b feature/nova-funcionalidade`)
+3. Faça commit das alterações (`git commit -m 'Adicionar nova funcionalidade'`)
+4. Push para a branch (`git push origin feature/nova-funcionalidade`)
+5. Abra um Pull Request
+
+### Diretrizes
+
+- Mantenha a **conformidade LGPD** — nunca armazene dados pessoais
+- Use **português** para toda interface voltada ao usuário
+- Siga os **padrões existentes** de código (logging com emojis, tratamento de erros com fallback)
+- Teste em **dispositivos móveis** — a interface deve ser responsiva
+- Respeite os **limites de memória** — o deploy roda em 512MB
+
+---
+
+## Licença
+
+Este projeto foi desenvolvido pela **INOVASSOL - Centro de Inovação AI** para promover a acessibilidade jurídica no Brasil.
+
+---
+
+## Contato
+
+**INOVASSOL - Centro de Inovação AI**
+
+Projeto desenvolvido para democratizar o acesso à justiça, tornando documentos jurídicos compreensíveis para todos os cidadãos brasileiros.
+
+---
+
+<p align="center">
+  <sub>"A justiça deve ser acessível a todos, começando pela compreensão de seus documentos."</sub>
+</p>
+
+<p align="center">
+  Se este projeto foi útil, deixe uma ⭐ no repositório!
+</p>
