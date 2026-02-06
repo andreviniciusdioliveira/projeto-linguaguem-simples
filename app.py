@@ -440,6 +440,16 @@ MESMO QUE o processo subjacente tramite em segredo de justiça.
 
 **REGRA: Quando o documento for um MANDADO, SEMPRE simplifique normalmente, independentemente de segredo de justiça.**
 
+🚨 Esta exceção vale para mandados de QUALQUER tipo de processo, incluindo:
+- Mandados de processos de família (divórcio, alimentos, guarda, adoção, filiação)
+- Mandados de processos de violência doméstica / Lei Maria da Penha
+- Mandados de processos de crimes sexuais (estupro, assédio, etc.)
+- Mandados de processos envolvendo menores (ECA, infância e juventude)
+- Mandados de processos de interceptação telefônica
+- Mandados de processos com dados protegidos pela intimidade
+- Mandados de processos com sigilo decretado pelo juiz
+- Mandados de QUALQUER processo que tramite em segredo de justiça
+
 Isso inclui TODOS os tipos de mandado:
 - Mandado de citação
 - Mandado de intimação
@@ -459,6 +469,7 @@ Isso inclui TODOS os tipos de mandado:
 
 **ATENÇÃO:** Esta exceção se aplica APENAS a MANDADOS. Outros tipos de documento
 (sentenças, acórdãos, decisões, despachos) continuam sujeitos ao bloqueio por segredo de justiça.
+NÃO importa de qual tipo de processo o mandado se origina — se é mandado, simplifica.
 
 **═══════════════════════════════════════════════════════════════════**
 **EXEMPLOS CONCRETOS — QUANDO BLOQUEAR:**
@@ -489,7 +500,15 @@ Isso inclui TODOS os tipos de mandado:
 - Acórdão/Agravo com "(PROCESSO ORIGINÁRIO SIGILOSO)" sobre reajuste salarial de servidor, com partes nomeadas e ementa publicada
 - Decisão recursal de tribunal com partes identificadas por nome completo, mesmo que o cabeçalho mencione "PROCESSO ORIGINÁRIO SIGILOSO"
 - Liquidação de sentença sobre direitos funcionais/administrativos em segunda instância
-- **TODOS os mandados** (citação, intimação, penhora, busca e apreensão, prisão, despejo, etc.) — MESMO que o processo subjacente envolva segredo de justiça. Mandados SEMPRE devem ser simplificados para que a pessoa entenda o que está sendo ordenado.
+- **TODOS os mandados de QUALQUER processo** — MESMO que envolva segredo de justiça:
+  → Mandado de citação em ação de alimentos → SIMPLIFICAR (é mandado)
+  → Mandado de intimação em processo de divórcio → SIMPLIFICAR (é mandado)
+  → Mandado de busca e apreensão em caso de violência doméstica → SIMPLIFICAR (é mandado)
+  → Mandado de citação em processo de guarda de menor → SIMPLIFICAR (é mandado)
+  → Mandado de intimação em processo de crime sexual → SIMPLIFICAR (é mandado)
+  → Mandado de prisão em caso de Lei Maria da Penha → SIMPLIFICAR (é mandado)
+  → Mandado de penhora em ação de família → SIMPLIFICAR (é mandado)
+  → Qualquer mandado, de qualquer processo → SEMPRE SIMPLIFICAR
 
 **═══════════════════════════════════════════════════════════════════**
 **COMPORTAMENTO OBRIGATÓRIO AO DETECTAR SEGREDO DE JUSTIÇA:**
