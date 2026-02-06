@@ -442,6 +442,25 @@ def gerar_pdf_simplificado(texto, metadados=None, output_path='documento_simplif
             story.append(resultado_table)
             story.append(Spacer(1, 0.5*cm))
 
+        # AVISO DE FINALIDADE INFORMATIVA - DESTAQUE PRINCIPAL
+        aviso_informativo = Table(
+            [[Paragraph(
+                '<b>Aviso: Este documento tem finalidade exclusivamente informativa, sem valor oficial.</b>',
+                styles['Observacao']
+            )]],
+            colWidths=[16*cm],
+            style=TableStyle([
+                ('BACKGROUND', (0,0), (-1,-1), colors.Color(1, 0.97, 0.88, alpha=0.5)),
+                ('BOX', (0,0), (-1,-1), 2, colors.HexColor('#f9a825')),
+                ('TOPPADDING', (0,0), (-1,-1), 10),
+                ('BOTTOMPADDING', (0,0), (-1,-1), 10),
+                ('LEFTPADDING', (0,0), (-1,-1), 12),
+                ('RIGHTPADDING', (0,0), (-1,-1), 12),
+            ])
+        )
+        story.append(aviso_informativo)
+        story.append(Spacer(1, 0.4*cm))
+
         # AVISO INICIAL DESTACADO
         aviso_table = Table(
             [[Paragraph(
@@ -467,8 +486,27 @@ def gerar_pdf_simplificado(texto, metadados=None, output_path='documento_simplif
         elementos_texto = processar_markdown_para_pdf(texto, styles)
         story.extend(elementos_texto)
         
-        # AVISO FINAL
+        # AVISO DE FINALIDADE INFORMATIVA - REPETIDO AO FINAL
         story.append(Spacer(1, 1*cm))
+        aviso_informativo_final = Table(
+            [[Paragraph(
+                '<b>Aviso: Este documento tem finalidade exclusivamente informativa, sem valor oficial.</b>',
+                styles['Observacao']
+            )]],
+            colWidths=[16*cm],
+            style=TableStyle([
+                ('BACKGROUND', (0,0), (-1,-1), colors.Color(1, 0.97, 0.88, alpha=0.5)),
+                ('BOX', (0,0), (-1,-1), 2, colors.HexColor('#f9a825')),
+                ('TOPPADDING', (0,0), (-1,-1), 10),
+                ('BOTTOMPADDING', (0,0), (-1,-1), 10),
+                ('LEFTPADDING', (0,0), (-1,-1), 12),
+                ('RIGHTPADDING', (0,0), (-1,-1), 12),
+            ])
+        )
+        story.append(aviso_informativo_final)
+        story.append(Spacer(1, 0.4*cm))
+
+        # AVISO FINAL
         aviso_final = Table(
             [[Paragraph(
                 '<b>LEMBRE-SE:</b><br/>'
