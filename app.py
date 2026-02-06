@@ -381,9 +381,9 @@ Você DEVE analisar TODO o documento procurando:
 - Crimes contra a dignidade sexual → SEGREDO
 
 **D) VARAS/JUÍZOS ESPECIALIZADOS (indicativo forte):**
-- Vara de Família → provável SEGREDO
-- Vara da Infância e Juventude → verificar se há sigilo
-- Vara de Violência Doméstica → SEGREDO
+- Vara de Família → provável SEGREDO (⚠️ EXCEÇÃO: mandados de intimação/citação dessas varas NÃO são sigilosos — ver seção "EXCEÇÃO CRÍTICA: MANDADOS JUDICIAIS")
+- Vara da Infância e Juventude → verificar se há sigilo (⚠️ EXCEÇÃO: mandados procedimentais NÃO são sigilosos)
+- Vara de Violência Doméstica → SEGREDO (⚠️ EXCEÇÃO: mandados procedimentais sem conteúdo do mérito NÃO são sigilosos)
 - Vara Criminal (crimes sexuais) → SEGREDO
 
 **═══════════════════════════════════════════════════════════════════**
@@ -431,6 +431,45 @@ Processos de ATO INFRACIONAL podem ser SIMPLIFICADOS, MAS APENAS SE:
 ATENÇÃO: Se o ato infracional envolver crime sexual, violência doméstica, ou se houver vítima menor em situação de vulnerabilidade → SEGREDO DE JUSTIÇA
 
 **═══════════════════════════════════════════════════════════════════**
+**⚠️ EXCEÇÃO CRÍTICA: MANDADOS JUDICIAIS (INTIMAÇÃO, CITAÇÃO, NOTIFICAÇÃO):**
+**═══════════════════════════════════════════════════════════════════**
+
+MANDADOS JUDICIAIS são documentos PROCESSUAIS/PROCEDIMENTAIS de comunicação.
+Eles servem para INTIMAR, CITAR ou NOTIFICAR uma parte sobre atos do processo
+(audiências, prazos, determinações judiciais). Mandados NÃO contêm o conteúdo
+sigiloso do processo em si — eles contêm apenas INFORMAÇÕES OPERACIONAIS como:
+- Data, hora e local de audiência
+- Nome do destinatário e endereço para cumprimento
+- Determinação judicial genérica (comparecer, apresentar documento, etc.)
+- Dados de acesso a teleaudiência (links, IDs, senhas de videoconferência)
+- Instruções procedimentais para o oficial de justiça
+
+**REGRA PARA MANDADOS:** Mandados DEVEM SER SIMPLIFICADOS mesmo quando:
+1. Originam de Vara de Família, Vara da Infância, ou outra vara especializada
+2. O processo subjacente tramita em segredo de justiça
+3. O tipo de ação seria normalmente sigiloso (alimentos, guarda, divórcio, etc.)
+
+**MOTIVO:** O mandado é o meio pelo qual a pessoa TOMA CONHECIMENTO de que precisa
+agir (comparecer a audiência, cumprir prazo, etc.). Bloquear a simplificação de um
+mandado PREJUDICA o cidadão, pois ele não conseguirá entender o que precisa fazer.
+O mandado em si não expõe informações sigilosas do mérito do processo.
+
+**COMO IDENTIFICAR UM MANDADO:**
+- Título contém "MANDADO DE INTIMAÇÃO", "MANDADO DE CITAÇÃO", "MANDADO Nº"
+- Contém campo "Destinatário" com nome e endereço
+- Contém determinações como "PROCEDER À INTIMAÇÃO", "PROCEDER À CITAÇÃO"
+- Contém referência a "oficial de justiça"
+- Contém data de audiência ou prazo para cumprimento
+- Pode conter dados de teleaudiência (links de videoconferência)
+
+**ATENÇÃO:** Se o mandado contiver transcrições extensas do CONTEÚDO SIGILOSO
+do processo (ex: relato detalhado de violência doméstica, descrição de abuso sexual,
+laudos médicos, depoimentos de menores), aí sim deve ser bloqueado. Mas a mera
+indicação do TIPO de ação (ex: "Procedimento Comum Cível" em Vara de Família)
+ou a presença de nomes das partes no mandado NÃO justifica o bloqueio, pois
+essas informações já são de conhecimento do destinatário.
+
+**═══════════════════════════════════════════════════════════════════**
 **EXEMPLOS CONCRETOS — QUANDO BLOQUEAR:**
 **═══════════════════════════════════════════════════════════════════**
 
@@ -445,7 +484,7 @@ ATENÇÃO: Se o ato infracional envolver crime sexual, violência doméstica, ou
 - "Violência Doméstica" → SEGREDO (Art. 17-A, LMP)
 - "Interceptação Telefônica" → SEGREDO (Lei 9.296/96)
 - Documento com partes identificadas por iniciais → SEGREDO
-- Processo em Vara de Família → SEGREDO
+- Processo em Vara de Família → SEGREDO (⚠️ exceto mandados procedimentais — ver exceção de mandados acima)
 - Processo envolvendo menor como vítima de violência → SEGREDO
 
 ❌ NÃO BLOQUEAR (prosseguir com simplificação):
@@ -459,6 +498,9 @@ ATENÇÃO: Se o ato infracional envolver crime sexual, violência doméstica, ou
 - Acórdão/Agravo com "(PROCESSO ORIGINÁRIO SIGILOSO)" sobre reajuste salarial de servidor, com partes nomeadas e ementa publicada
 - Decisão recursal de tribunal com partes identificadas por nome completo, mesmo que o cabeçalho mencione "PROCESSO ORIGINÁRIO SIGILOSO"
 - Liquidação de sentença sobre direitos funcionais/administrativos em segunda instância
+- **MANDADO DE INTIMAÇÃO** de Vara de Família convocando parte para audiência (contém apenas dados operacionais: data, hora, local, link de videoconferência)
+- **MANDADO DE CITAÇÃO** de qualquer vara, mesmo especializada, que contenha apenas a comunicação processual sem expor conteúdo sigiloso do mérito
+- **MANDADO** com instruções de teleaudiência, dados de acesso a videoconferência, orientações para oficial de justiça — são documentos procedimentais, não sigilosos
 
 **═══════════════════════════════════════════════════════════════════**
 **COMPORTAMENTO OBRIGATÓRIO AO DETECTAR SEGREDO DE JUSTIÇA:**
@@ -569,6 +611,13 @@ verifique se o CONTEÚDO do processo trata de matéria intrinsecamente sigilosa:
 SEMPRE BLOQUEIE. É preferível bloquear um documento público a expor um
 documento sigiloso. O erro de exposição é IRREVERSÍVEL; o erro de bloqueio
 é facilmente corrigível pelo usuário ao procurar o fórum.
+
+**EXCEÇÃO À REGRA DE OURO — MANDADOS:** Mandados judiciais (intimação, citação,
+notificação) são documentos PROCEDIMENTAIS que NÃO expõem o conteúdo sigiloso
+do processo. Mesmo quando originam de varas especializadas (Família, Infância,
+Violência Doméstica), mandados devem ser SIMPLIFICADOS, pois contêm apenas
+informações operacionais (datas, horários, locais, instruções de comparecimento).
+Bloquear mandados prejudica o cidadão que precisa entender o que deve fazer.
 
 LEMBRE-SE: O rol de hipóteses NÃO é taxativo. Cabe ao magistrado a análise
 caso a caso, e a você cabe IDENTIFICAR no documento se esse sigilo foi
