@@ -1,10 +1,12 @@
 """
 Sistema de estatísticas agregadas para o Entenda Aqui
-LGPD COMPLIANT - Armazena APENAS contadores, ZERO dados de documentos
+LGPD COMPLIANT - Armazena APENAS contadores e hashes, ZERO dados de documentos
 """
 import sqlite3
 import os
 import logging
+import hashlib
+import secrets
 from datetime import datetime
 from threading import Lock, Thread, Event
 import time
@@ -52,6 +54,19 @@ def init_db():
             CREATE TABLE IF NOT EXISTS stats_feedback (
                 tipo TEXT PRIMARY KEY,
                 quantidade INTEGER DEFAULT 0
+            )
+        ''')
+
+        # Tabela de validação de documentos (LGPD compliant)
+        # Armazena APENAS: ID, hash do conteúdo (não o conteúdo), hash do IP (não o IP)
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS validacao_documentos (
+                doc_id TEXT PRIMARY KEY,
+                hash_conteudo TEXT NOT NULL,
+                ip_hash TEXT NOT NULL,
+                tipo_documento TEXT,
+                data_criacao TEXT NOT NULL,
+                data_expiracao TEXT NOT NULL
             )
         ''')
 
@@ -222,6 +237,136 @@ def get_estatisticas():
 
         return stats
 
+def gerar_doc_id():
+    """
+    Gera ID único para documento simplificado
+    Formato: TJTO-YYYYMMDD-XXXXXXXX (8 hex aleatórios)
+    """
+    data = datetime.now().strftime('%Y%m%d')
+    random_hex = secrets.token_hex(4).upper()
+    return f"TJTO-{data}-{random_hex}"
+
+
+def gerar_hash_conteudo(texto):
+    """
+    Gera hash SHA-256 do conteúdo simplificado
+    LGPD: Armazena o hash, NUNCA o conteúdo original
+    O hash é irreversível - impossível reconstruir o documento
+    """
+    return hashlib.sha256(texto.encode('utf-8')).hexdigest()
+
+
+def gerar_hash_ip(ip_address):
+    """
+    Gera hash SHA-256 do endereço IP com salt
+    LGPD: O IP real NUNCA é armazenado, apenas seu hash
+    O salt impede ataques de força bruta contra IPs conhecidos
+    """
+    salt = "entenda-aqui-tjto-2024"
+    return hashlib.sha256(f"{salt}:{ip_address}".encode('utf-8')).hexdigest()
+
+
+def registrar_validacao(doc_id, hash_conteudo, ip_hash, tipo_documento):
+    """
+    Registra documento para validação futura
+    LGPD COMPLIANT: Armazena APENAS hashes e metadados mínimos
+
+    Args:
+        doc_id: Identificador único do documento (TJTO-YYYYMMDD-XXXXXXXX)
+        hash_conteudo: SHA-256 do texto simplificado
+        ip_hash: SHA-256 do IP (anonimizado)
+        tipo_documento: Tipo do documento (sentença, mandado, etc.)
+    """
+    with db_lock:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+
+        agora = datetime.now()
+        # Documentos expiram em 30 dias (LGPD)
+        expiracao = datetime(agora.year, agora.month, agora.day)
+        expiracao = agora.replace(day=1)
+        # Calcular 30 dias a partir de agora
+        from datetime import timedelta
+        expiracao = agora + timedelta(days=30)
+
+        cursor.execute('''
+            INSERT INTO validacao_documentos
+            (doc_id, hash_conteudo, ip_hash, tipo_documento, data_criacao, data_expiracao)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (
+            doc_id,
+            hash_conteudo,
+            ip_hash,
+            tipo_documento,
+            agora.isoformat(),
+            expiracao.isoformat()
+        ))
+
+        conn.commit()
+        conn.close()
+
+        logging.info(f"🔐 Validação registrada: {doc_id} (tipo: {tipo_documento})")
+        return doc_id
+
+
+def buscar_validacao(doc_id):
+    """
+    Busca dados de validação de um documento
+    Retorna None se não encontrado ou expirado
+
+    Args:
+        doc_id: Identificador único do documento
+    """
+    with db_lock:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+
+        cursor.execute('''
+            SELECT doc_id, hash_conteudo, ip_hash, tipo_documento, data_criacao, data_expiracao
+            FROM validacao_documentos
+            WHERE doc_id = ?
+        ''', (doc_id,))
+
+        row = cursor.fetchone()
+        conn.close()
+
+        if not row:
+            return None
+
+        return {
+            'doc_id': row[0],
+            'hash_conteudo': row[1],
+            'ip_hash': row[2],
+            'tipo_documento': row[3],
+            'data_criacao': row[4],
+            'data_expiracao': row[5]
+        }
+
+
+def limpar_validacoes_expiradas():
+    """
+    Remove registros de validação expirados (mais de 30 dias)
+    LGPD: Não mantém dados desnecessariamente
+    """
+    with db_lock:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+
+        cursor.execute('''
+            DELETE FROM validacao_documentos
+            WHERE datetime(data_expiracao) < datetime('now')
+        ''')
+
+        deletados = cursor.rowcount
+        conn.commit()
+        conn.close()
+
+        if deletados > 0:
+            logging.info(f"🗑️ LGPD: Removidos {deletados} registros de validação expirados")
+
+        return deletados
+
+
 def limpar_estatisticas_antigas():
     """
     Remove estatísticas diárias com mais de 30 dias
@@ -264,9 +409,11 @@ def executar_limpeza_periodica():
             # Executar limpeza
             logging.info("🧹 Iniciando limpeza automática de estatísticas antigas...")
             deletados = limpar_estatisticas_antigas()
+            deletados_validacao = limpar_validacoes_expiradas()
 
-            if deletados > 0:
-                logging.info(f"✅ Limpeza concluída: {deletados} registros removidos")
+            total_deletados = deletados + deletados_validacao
+            if total_deletados > 0:
+                logging.info(f"✅ Limpeza concluída: {deletados} stats + {deletados_validacao} validações removidos")
             else:
                 logging.info("✅ Limpeza concluída: nenhum registro antigo encontrado")
 
@@ -298,8 +445,9 @@ try:
 
     # Executar limpeza inicial imediatamente (apenas registros antigos)
     deletados = limpar_estatisticas_antigas()
-    if deletados > 0:
-        logging.info(f"🧹 Limpeza inicial: {deletados} registros antigos removidos")
+    deletados_val = limpar_validacoes_expiradas()
+    if deletados > 0 or deletados_val > 0:
+        logging.info(f"🧹 Limpeza inicial: {deletados} stats + {deletados_val} validações removidos")
 
     # Iniciar thread de limpeza automática
     iniciar_limpeza_automatica()
