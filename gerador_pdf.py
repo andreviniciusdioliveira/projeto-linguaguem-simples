@@ -12,10 +12,20 @@ from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT, TA_JUSTIFY
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen import canvas
+from reportlab.lib.utils import ImageReader
 import os
+import io
 import math
 import logging
 from datetime import datetime
+
+# QR Code
+try:
+    import qrcode
+    QRCODE_AVAILABLE = True
+except ImportError:
+    QRCODE_AVAILABLE = False
+    logging.warning("⚠️ qrcode não disponível - QR codes não serão gerados")
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
@@ -98,6 +108,26 @@ class HeaderFooterCanvas(canvas.Canvas):
                 self.restoreState()
 
         self.restoreState()
+
+        # MARCA D'ÁGUA TJTO - Logo centralizada com transparência
+        logo_tjto_path = 'static/logotjto.png'
+        if os.path.exists(logo_tjto_path):
+            try:
+                self.saveState()
+                self.setFillAlpha(0.06)
+                logo_size = 10 * cm
+                x_pos = (page_width - logo_size) / 2
+                y_pos = (page_height - logo_size) / 2
+                self.drawImage(
+                    logo_tjto_path,
+                    x_pos, y_pos,
+                    width=logo_size, height=logo_size,
+                    preserveAspectRatio=True,
+                    mask='auto'
+                )
+                self.restoreState()
+            except Exception as e:
+                logging.warning(f"⚠️ Não foi possível adicionar marca d'água TJTO: {e}")
 
         # CABEÇALHO
         self.saveState()
@@ -185,7 +215,57 @@ class HeaderFooterCanvas(canvas.Canvas):
 
         inovassol_text = "Desenvolvido pelo INOVASSOL - Centro de Inovacao do Poder Judiciario do Estado do Tocantins"
         self.drawCentredString(page_width/2, 0.2*cm, inovassol_text)
-        
+
+        # QR CODE DE VALIDAÇÃO E CÓDIGO (apenas na última página)
+        doc_id = self.metadados.get('doc_id')
+        validation_url = self.metadados.get('validation_url')
+
+        if doc_id and page_num == page_count:
+            # QR Code no canto inferior direito
+            if QRCODE_AVAILABLE and validation_url:
+                try:
+                    qr = qrcode.QRCode(
+                        version=1,
+                        error_correction=qrcode.constants.ERROR_CORRECT_M,
+                        box_size=4,
+                        border=1,
+                    )
+                    qr.add_data(validation_url)
+                    qr.make(fit=True)
+                    qr_img = qr.make_image(fill_color="black", back_color="white")
+
+                    # Converter para bytes para o ReportLab
+                    qr_buffer = io.BytesIO()
+                    qr_img.save(qr_buffer, format='PNG')
+                    qr_buffer.seek(0)
+
+                    qr_size = 2.0 * cm
+                    qr_x = page_width - 3.5 * cm
+                    qr_y = 2.4 * cm
+
+                    self.drawImage(
+                        ImageReader(qr_buffer),
+                        qr_x, qr_y,
+                        width=qr_size, height=qr_size,
+                        preserveAspectRatio=True
+                    )
+
+                    # Texto "Validar" abaixo do QR
+                    self.setFont('Helvetica', 5)
+                    self.setFillColor(colors.grey)
+                    self.drawCentredString(qr_x + qr_size/2, 2.25*cm, "Validar documento")
+                except Exception as e:
+                    logging.warning(f"⚠️ Erro ao gerar QR code: {e}")
+
+            # Código de validação textual (ao lado esquerdo do QR)
+            self.setFont('Helvetica', 6)
+            self.setFillColor(colors.grey)
+
+            hash_curto = self.metadados.get('hash_curto', '')
+            self.drawString(1.5*cm, 2.7*cm, f"Codigo de validacao: {doc_id}")
+            if hash_curto:
+                self.drawString(1.5*cm, 2.45*cm, f"Hash: {hash_curto}")
+
         self.restoreState()
 
 def criar_estilos():
@@ -552,6 +632,40 @@ def gerar_pdf_simplificado(texto, metadados=None, output_path='documento_simplif
             ])
         )
         story.append(aviso_final)
+
+        # SEÇÃO DE VALIDAÇÃO DO DOCUMENTO
+        doc_id = metadados.get('doc_id')
+        validation_url = metadados.get('validation_url')
+
+        if doc_id:
+            story.append(Spacer(1, 0.5*cm))
+
+            hash_curto = metadados.get('hash_curto', '')
+            texto_validacao = (
+                f'<b>VALIDACAO DO DOCUMENTO</b><br/>'
+                f'Codigo: <b>{doc_id}</b><br/>'
+            )
+            if hash_curto:
+                texto_validacao += f'Hash de integridade: <b>{hash_curto}</b><br/>'
+            if validation_url:
+                texto_validacao += (
+                    f'Para verificar a autenticidade deste documento, '
+                    f'acesse o QR Code na ultima pagina ou visite o endereco de validacao.'
+                )
+
+            validacao_table = Table(
+                [[Paragraph(texto_validacao, styles['Observacao'])]],
+                colWidths=[16*cm],
+                style=TableStyle([
+                    ('BACKGROUND', (0,0), (-1,-1), colors.Color(0.95, 0.95, 0.95, alpha=0.5)),
+                    ('BOX', (0,0), (-1,-1), 1, colors.grey),
+                    ('TOPPADDING', (0,0), (-1,-1), 8),
+                    ('BOTTOMPADDING', (0,0), (-1,-1), 8),
+                    ('LEFTPADDING', (0,0), (-1,-1), 10),
+                    ('RIGHTPADDING', (0,0), (-1,-1), 10),
+                ])
+            )
+            story.append(validacao_table)
         
         # Construir PDF com canvas customizado
         doc.build(

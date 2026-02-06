@@ -26,6 +26,7 @@ import subprocess
 import numpy as np
 import google.generativeai as genai
 import database
+from database import gerar_doc_id, gerar_hash_conteudo, gerar_hash_ip, registrar_validacao, buscar_validacao
 # Importar gerador de PDF melhorado
 from gerador_pdf import gerar_pdf_simplificado as gerar_pdf_melhorado
 
@@ -2367,6 +2368,27 @@ def processar():
             f.write(texto_original)
         registrar_arquivo_temporario(texto_original_path, session_id=session.get('session_id'))
 
+        # 🔐 GERAR ID E HASH DE VALIDAÇÃO (LGPD compliant)
+        doc_id = gerar_doc_id()
+        hash_conteudo = gerar_hash_conteudo(texto_simplificado)
+        hash_curto = f"{hash_conteudo[:8]}...{hash_conteudo[-8:]}"
+
+        # Hash do IP (LGPD: nunca armazena o IP real)
+        ip_address = request.headers.get('X-Forwarded-For', request.remote_addr)
+        if ip_address and ',' in ip_address:
+            ip_address = ip_address.split(',')[0].strip()
+        ip_hash = gerar_hash_ip(ip_address or '0.0.0.0')
+
+        # URL de validação
+        base_url = request.host_url.rstrip('/')
+        validation_url = f"{base_url}/validar/{doc_id}"
+
+        # Registrar validação no banco (LGPD compliant)
+        try:
+            registrar_validacao(doc_id, hash_conteudo, ip_hash, tipo_doc)
+        except Exception as e:
+            logging.error(f"❌ Erro ao registrar validação: {e}")
+
         # Gerar PDF
         metadados_pdf = {
             "modelo": modelo_usado,
@@ -2376,7 +2398,10 @@ def processar():
             "dados": dados_estruturados,
             "recursos": recursos_info,
             "confianca": analise_completa.get("confianca_tipo", "MÉDIA"),
-            "perspectiva": perspectiva_aplicada  # 🔥 NOVO
+            "perspectiva": perspectiva_aplicada,
+            "doc_id": doc_id,
+            "hash_curto": hash_curto,
+            "validation_url": validation_url
         }
 
         pdf_filename = f"simplificado_{file_hash[:8]}.pdf"
@@ -2411,13 +2436,15 @@ def processar():
             "caracteres_original": len(texto_original),
             "caracteres_simplificado": len(texto_simplificado),
             "modelo_usado": modelo_usado,
-            "perspectiva_aplicada": perspectiva_aplicada,  # 🔥 NOVO - confirmar perspectiva
+            "perspectiva_aplicada": perspectiva_aplicada,
             "segredo_justica": {
                 "detectado": False,
                 "motivo": None,
                 "hipotese_legal": None
             },
-            "pdf_download_url": f"/download_pdf?path={os.path.basename(pdf_path)}&filename={pdf_filename}"
+            "pdf_download_url": f"/download_pdf?path={os.path.basename(pdf_path)}&filename={pdf_filename}",
+            "doc_id": doc_id,
+            "validation_url": validation_url
         })
 
     except Exception as e:
@@ -2538,6 +2565,65 @@ def download_pdf():
     except Exception as e:
         logging.error(f"❌ Erro download: {e}")
         return jsonify({"erro": "Erro ao baixar arquivo"}), 500
+
+@app.route("/validar/<doc_id>")
+def validar_documento(doc_id):
+    """Página de validação do documento simplificado"""
+    validacao = buscar_validacao(doc_id)
+
+    if not validacao:
+        return render_template("validar.html", encontrado=False, doc_id=doc_id)
+
+    return render_template("validar.html",
+        encontrado=True,
+        doc_id=validacao['doc_id'],
+        tipo_documento=validacao['tipo_documento'],
+        data_criacao=validacao['data_criacao'],
+        data_expiracao=validacao['data_expiracao'],
+        hash_conteudo=validacao['hash_conteudo']
+    )
+
+
+@app.route("/validar/<doc_id>/verificar", methods=["POST"])
+def verificar_integridade(doc_id):
+    """Verifica integridade do documento comparando hash do texto"""
+    try:
+        data = request.get_json()
+        texto = data.get("texto", "")
+
+        if not texto:
+            return jsonify({"erro": "Texto não fornecido"}), 400
+
+        validacao = buscar_validacao(doc_id)
+        if not validacao:
+            return jsonify({
+                "valido": False,
+                "mensagem": "Documento não encontrado ou expirado"
+            }), 404
+
+        # Gerar hash do texto fornecido
+        hash_fornecido = gerar_hash_conteudo(texto)
+
+        # Comparar com hash armazenado
+        if hash_fornecido == validacao['hash_conteudo']:
+            return jsonify({
+                "valido": True,
+                "mensagem": "Documento autêntico! O conteúdo não foi alterado.",
+                "doc_id": doc_id,
+                "tipo_documento": validacao['tipo_documento'],
+                "data_criacao": validacao['data_criacao']
+            })
+        else:
+            return jsonify({
+                "valido": False,
+                "mensagem": "Documento ALTERADO! O conteúdo não corresponde ao original.",
+                "doc_id": doc_id
+            })
+
+    except Exception as e:
+        logging.error(f"❌ Erro na verificação: {e}")
+        return jsonify({"erro": "Erro ao verificar documento"}), 500
+
 
 @app.route("/feedback", methods=["POST"])
 def feedback():
