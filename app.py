@@ -60,42 +60,57 @@ try:
 except Exception as e:
     logging.error(f"❌ Erro ao inicializar banco de dados: {e}")
 
-# Modelos Gemini com fallback expandido (5 modelos para máxima disponibilidade)
+# Modelos Gemini com fallback expandido (7 modelos para máxima disponibilidade)
+# Inclui modelos 1.5 como fallback final - podem ter cotas separadas no plano gratuito
 GEMINI_MODELS = [
-    {
-        "name": "gemini-2.5-flash-lite",
-        "max_tokens": 8192,
-        "max_input_tokens": 1000000,
-        "priority": 1,
-        "description": "Modelo mais leve e rápido (menor chance de quota excedida)"
-    },
-    {
-        "name": "gemini-2.5-flash",
-        "max_tokens": 8192,
-        "max_input_tokens": 1000000,
-        "priority": 2,
-        "description": "Modelo flash versão 2.5"
-    },
     {
         "name": "gemini-2.0-flash",
         "max_tokens": 8192,
         "max_input_tokens": 1000000,
-        "priority": 3,
-        "description": "Modelo flash estável versão 2.0"
+        "priority": 1,
+        "description": "Modelo flash estável versão 2.0 (melhor custo-benefício)"
     },
     {
         "name": "gemini-2.0-flash-lite",
         "max_tokens": 8192,
         "max_input_tokens": 1000000,
-        "priority": 4,
+        "priority": 2,
         "description": "Modelo flash lite versão 2.0"
+    },
+    {
+        "name": "gemini-1.5-flash",
+        "max_tokens": 8192,
+        "max_input_tokens": 1000000,
+        "priority": 3,
+        "description": "Modelo flash versão 1.5 (cota separada, boa disponibilidade)"
+    },
+    {
+        "name": "gemini-2.5-flash-lite",
+        "max_tokens": 8192,
+        "max_input_tokens": 1000000,
+        "priority": 4,
+        "description": "Modelo 2.5 flash lite"
+    },
+    {
+        "name": "gemini-2.5-flash",
+        "max_tokens": 8192,
+        "max_input_tokens": 1000000,
+        "priority": 5,
+        "description": "Modelo flash versão 2.5"
+    },
+    {
+        "name": "gemini-1.5-pro",
+        "max_tokens": 8192,
+        "max_input_tokens": 2000000,
+        "priority": 6,
+        "description": "Modelo Pro 1.5 (cota separada, fallback robusto)"
     },
     {
         "name": "gemini-2.5-pro",
         "max_tokens": 8192,
         "max_input_tokens": 2000000,
-        "priority": 5,
-        "description": "Modelo Pro 2.5 (mais robusto, fallback final)"
+        "priority": 7,
+        "description": "Modelo Pro 2.5 (fallback final)"
     }
 ]
 
@@ -1977,7 +1992,7 @@ Responda EXATAMENTE neste formato:
         except Exception as e:
             ultimo_erro = e
             erro_msg = str(e)
-            erros_por_modelo[modelo_nome] = erro_msg[:200]  # Salvar primeiros 200 chars do erro
+            erros_por_modelo[modelo_nome] = erro_msg[:200]
 
             # Atualizar estatísticas de falha
             if modelo_nome in model_usage_stats:
@@ -1985,14 +2000,22 @@ Responda EXATAMENTE neste formato:
                 model_usage_stats[modelo_nome]["failures"] += 1
 
             # Identificar tipo de erro
-            if "quota" in erro_msg.lower() or "429" in erro_msg or "resource" in erro_msg.lower():
+            is_quota_error = "quota" in erro_msg.lower() or "429" in erro_msg or "resource" in erro_msg.lower()
+
+            if is_quota_error:
                 logging.error(f"❌ [{idx}/{total_modelos}] Quota excedida em {modelo_nome}")
-                if idx < total_modelos:
-                    logging.warning(f"⚠️ Tentando próximo modelo ({idx+1}/{total_modelos})...")
+
+                # Extrair tempo de retry sugerido pela API (ex: "retry in 2.7s")
+                retry_match = re.search(r'retry\s+in\s+([\d.]+)s', erro_msg, re.IGNORECASE)
+                if retry_match and idx < total_modelos:
+                    wait_time = min(float(retry_match.group(1)), 5.0)  # Máximo 5 segundos
+                    logging.info(f"⏳ Aguardando {wait_time:.1f}s antes do próximo modelo...")
+                    time.sleep(wait_time)
             else:
                 logging.error(f"❌ [{idx}/{total_modelos}] Erro em {modelo_nome}: {erro_msg[:100]}")
-                if idx < total_modelos:
-                    logging.warning(f"⚠️ Tentando próximo modelo ({idx+1}/{total_modelos})...")
+
+            if idx < total_modelos:
+                logging.warning(f"⚠️ Tentando próximo modelo ({idx+1}/{total_modelos})...")
 
             continue
 
@@ -2003,11 +2026,14 @@ Responda EXATAMENTE neste formato:
         logging.error(f"  - {modelo}: {erro}")
     logging.error(f"📊 Estatísticas dos modelos: {model_usage_stats}")
 
-    # Mensagem de erro amigável
-    if all("quota" in err.lower() or "429" in err for err in erros_por_modelo.values()):
+    # Mensagem de erro amigável baseada no tipo de erro
+    todos_quota = all("quota" in err.lower() or "429" in err for err in erros_por_modelo.values())
+    if todos_quota:
         raise Exception(
-            "Todos os modelos Gemini atingiram o limite de quota. "
-            "Aguarde alguns minutos e tente novamente, ou verifique sua chave API."
+            "O limite de uso da API Gemini foi atingido para todos os modelos disponíveis. "
+            "Isso geralmente acontece no plano gratuito. "
+            "Aguarde alguns minutos e tente novamente. "
+            "Se o problema persistir, verifique sua cota em https://ai.google.dev/gemini-api/docs/rate-limits"
         )
     else:
         raise Exception(f"Erro ao processar documento com IA. Último erro: {ultimo_erro}")
@@ -2240,7 +2266,14 @@ def processar():
             analise_completa = analisar_documento_completo_gemini(texto_original, perspectiva)
         except Exception as e:
             logging.error(f"❌ ERRO CRÍTICO na análise Gemini: {e}", exc_info=True)
-            return jsonify({"erro": f"Erro ao analisar documento: {str(e)}"}), 500
+            erro_msg = str(e)
+            # Mensagem amigável para erros de quota
+            if "quota" in erro_msg.lower() or "429" in erro_msg or "limite" in erro_msg.lower():
+                return jsonify({
+                    "erro": "O serviço de IA está temporariamente indisponível devido ao limite de uso. "
+                            "Por favor, aguarde alguns minutos e tente novamente."
+                }), 503
+            return jsonify({"erro": f"Erro ao analisar documento: {erro_msg}"}), 500
 
         # 🔒 VERIFICAÇÃO DE SEGREDO DE JUSTIÇA
         segredo_justica = analise_completa.get("segredo_justica", {})
@@ -2459,6 +2492,12 @@ Responda em NO MÁXIMO 2-3 frases curtas e simples, respeitando a perspectiva {p
                 continue
 
         logging.error(f"❌ Chat: todos os modelos falharam. Último erro: {ultimo_erro_chat}")
+        erro_chat_msg = str(ultimo_erro_chat) if ultimo_erro_chat else ""
+        if "quota" in erro_chat_msg.lower() or "429" in erro_chat_msg:
+            return jsonify({
+                "resposta": "O serviço de IA está temporariamente indisponível devido ao limite de uso. Aguarde alguns minutos e tente novamente.",
+                "tipo": "erro"
+            }), 503
         return jsonify({"resposta": "Erro ao processar pergunta. Tente novamente em alguns instantes.", "tipo": "erro"}), 500
 
     except Exception as e:
