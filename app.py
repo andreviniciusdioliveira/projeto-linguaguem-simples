@@ -431,6 +431,36 @@ Processos de ATO INFRACIONAL podem ser SIMPLIFICADOS, MAS APENAS SE:
 ATENÇÃO: Se o ato infracional envolver crime sexual, violência doméstica, ou se houver vítima menor em situação de vulnerabilidade → SEGREDO DE JUSTIÇA
 
 **═══════════════════════════════════════════════════════════════════**
+**⚠️ EXCEÇÃO OBRIGATÓRIA: TODOS OS MANDADOS (CITAÇÃO, INTIMAÇÃO, PENHORA, BUSCA E APREENSÃO, ETC.):**
+**═══════════════════════════════════════════════════════════════════**
+
+Mandados são documentos de comunicação judicial destinados diretamente à pessoa que os recebe.
+A pessoa que recebe um mandado TEM O DIREITO de compreender o que está sendo ordenado ou comunicado,
+MESMO QUE o processo subjacente tramite em segredo de justiça.
+
+**REGRA: Quando o documento for um MANDADO, SEMPRE simplifique normalmente, independentemente de segredo de justiça.**
+
+Isso inclui TODOS os tipos de mandado:
+- Mandado de citação
+- Mandado de intimação
+- Mandado de penhora
+- Mandado de busca e apreensão
+- Mandado de prisão
+- Mandado de despejo
+- Mandado de condução coercitiva
+- Qualquer outro tipo de mandado judicial
+
+**Comportamento obrigatório para mandados:**
+1. Identifique o tipo_documento como "mandado"
+2. Marque `segredo_justica.detectado` como `false` (a exceção de mandados se aplica)
+3. Prossiga com a simplificação COMPLETA do mandado
+4. Explique claramente o que o mandado ordena e o que a pessoa deve fazer
+5. Inclua prazos, datas e ações necessárias normalmente
+
+**ATENÇÃO:** Esta exceção se aplica APENAS a MANDADOS. Outros tipos de documento
+(sentenças, acórdãos, decisões, despachos) continuam sujeitos ao bloqueio por segredo de justiça.
+
+**═══════════════════════════════════════════════════════════════════**
 **EXEMPLOS CONCRETOS — QUANDO BLOQUEAR:**
 **═══════════════════════════════════════════════════════════════════**
 
@@ -459,12 +489,13 @@ ATENÇÃO: Se o ato infracional envolver crime sexual, violência doméstica, ou
 - Acórdão/Agravo com "(PROCESSO ORIGINÁRIO SIGILOSO)" sobre reajuste salarial de servidor, com partes nomeadas e ementa publicada
 - Decisão recursal de tribunal com partes identificadas por nome completo, mesmo que o cabeçalho mencione "PROCESSO ORIGINÁRIO SIGILOSO"
 - Liquidação de sentença sobre direitos funcionais/administrativos em segunda instância
+- **TODOS os mandados** (citação, intimação, penhora, busca e apreensão, prisão, despejo, etc.) — MESMO que o processo subjacente envolva segredo de justiça. Mandados SEMPRE devem ser simplificados para que a pessoa entenda o que está sendo ordenado.
 
 **═══════════════════════════════════════════════════════════════════**
 **COMPORTAMENTO OBRIGATÓRIO AO DETECTAR SEGREDO DE JUSTIÇA:**
 **═══════════════════════════════════════════════════════════════════**
 
-Se o documento se enquadrar em QUALQUER hipótese acima, você DEVE:
+Se o documento se enquadrar em QUALQUER hipótese acima E **NÃO for um MANDADO**, você DEVE:
 
 1. Preencher o campo `segredo_justica` no JSON com `detectado: true`
 2. Informar o `motivo` da detecção (qual característica identificou)
@@ -472,6 +503,8 @@ Se o documento se enquadrar em QUALQUER hipótese acima, você DEVE:
 4. NÃO fornecer NENHUMA informação sobre o conteúdo do documento
 5. NÃO incluir nomes, valores, datas ou qualquer dado do processo
 6. Retornar APENAS a mensagem padrão no texto simplificado
+
+**⚠️ EXCEÇÃO — MANDADOS:** Se o documento for um MANDADO (tipo_documento = "mandado"), IGNORE o bloqueio de segredo de justiça. Marque `segredo_justica.detectado` como `false` e prossiga com a simplificação completa. Mandados SEMPRE devem ser simplificados.
 
 **═══════════════════════════════════════════════════════════════════**
 **🚨 PRINCÍPIO FUNDAMENTAL: O ROL NÃO É TAXATIVO — ANÁLISE CASO A CASO 🚨**
@@ -2195,6 +2228,17 @@ def processar():
 
         # 🔒 VERIFICAÇÃO DE SEGREDO DE JUSTIÇA
         segredo_justica = analise_completa.get("segredo_justica", {})
+        tipo_doc_verificacao = analise_completa.get("tipo_documento", "desconhecido")
+
+        # ⚠️ EXCEÇÃO: Mandados são SEMPRE simplificados, mesmo em processos com segredo de justiça
+        # A pessoa que recebe um mandado tem o direito de entender o que está sendo ordenado
+        if segredo_justica.get("detectado") == True and tipo_doc_verificacao == "mandado":
+            logging.info(f"📋 EXCEÇÃO DE MANDADO: Segredo de justiça detectado, mas documento é MANDADO - prosseguindo com simplificação")
+            logging.info(f"📋 Motivo do segredo (ignorado para mandado): {segredo_justica.get('motivo', 'Não especificado')}")
+            # Para mandados, forçar segredo_justica como não detectado para prosseguir normalmente
+            segredo_justica["detectado"] = False
+            analise_completa["segredo_justica"] = segredo_justica
+
         if segredo_justica.get("detectado") == True:
             logging.warning(f"🔒 SEGREDO DE JUSTIÇA DETECTADO - Motivo: {segredo_justica.get('motivo', 'Não especificado')}")
             logging.warning(f"🔒 Hipótese legal: {segredo_justica.get('hipotese_legal', 'Não especificada')}")
