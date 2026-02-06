@@ -26,7 +26,7 @@ import subprocess
 import numpy as np
 import google.generativeai as genai
 import database
-from database import gerar_doc_id, gerar_hash_conteudo, gerar_hash_ip, registrar_validacao, buscar_validacao
+from database import gerar_doc_id, gerar_hash_conteudo, gerar_hash_ip, registrar_validacao, buscar_validacao, registrar_auditoria_ip, get_auditoria_ip
 # Importar gerador de PDF melhorado
 from gerador_pdf import gerar_pdf_simplificado as gerar_pdf_melhorado
 
@@ -93,6 +93,9 @@ GEMINI_MODELS = [
         "description": "Modelo 2.5 flash lite (fallback final)"
     }
 ]
+
+# Token de autenticação para painel administrativo
+ADMIN_TOKEN = os.getenv("ADMIN_TOKEN", "")
 
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
 ALLOWED_EXTENSIONS = {'pdf', 'png', 'jpg', 'jpeg', 'gif', 'bmp', 'tiff', 'webp'}
@@ -1708,6 +1711,18 @@ def processar():
         except Exception as e:
             logging.error(f"Erro stats: {e}")
 
+        # 📋 Auditoria de IP (registra IP real + metadados, SEM conteúdo do documento)
+        try:
+            registrar_auditoria_ip(
+                ip_address=ip_address or '0.0.0.0',
+                tipo_documento=tipo_doc,
+                nome_arquivo=secure_filename(file.filename),
+                tamanho_bytes=size,
+                modelo_usado=modelo_usado
+            )
+        except Exception as e:
+            logging.error(f"❌ Erro ao registrar auditoria: {e}")
+
         logging.info(f"✅ Processamento completo: {tipo_doc} (confiança: {analise_completa.get('confianca_tipo')}, perspectiva: {perspectiva_aplicada})")
 
         return jsonify({
@@ -1950,6 +1965,72 @@ def get_stats():
     except Exception as e:
         logging.error(f"Erro stats: {e}")
         return jsonify({"erro": "Erro ao carregar estatísticas"}), 500
+
+@app.route("/admin/auditoria")
+def admin_auditoria():
+    """
+    Painel de auditoria para administrador - mostra qual IP processou qual documento.
+    Requer token de autenticação via query param ou header Authorization.
+    NÃO exibe conteúdo de documentos - apenas metadados operacionais.
+    """
+    # Verificar se ADMIN_TOKEN está configurado
+    if not ADMIN_TOKEN:
+        return jsonify({"erro": "Painel administrativo não configurado. Defina a variável ADMIN_TOKEN."}), 503
+
+    # Autenticação via query param ou header
+    token = request.args.get('token') or request.headers.get('Authorization', '').replace('Bearer ', '')
+    if token != ADMIN_TOKEN:
+        return jsonify({"erro": "Acesso negado. Token inválido."}), 403
+
+    # Parâmetros de consulta
+    try:
+        limite = int(request.args.get('limite', 50))
+        pagina = int(request.args.get('pagina', 1))
+    except (ValueError, TypeError):
+        limite = 50
+        pagina = 1
+
+    # Limitar para evitar abuso
+    limite = min(limite, 200)
+    pagina = max(pagina, 1)
+
+    filtro_ip = request.args.get('ip')
+    filtro_tipo = request.args.get('tipo')
+    filtro_data = request.args.get('data')
+
+    try:
+        resultado = get_auditoria_ip(
+            limite=limite,
+            pagina=pagina,
+            filtro_ip=filtro_ip,
+            filtro_tipo=filtro_tipo,
+            filtro_data=filtro_data
+        )
+
+        return jsonify({
+            "sucesso": True,
+            "auditoria": resultado['registros'],
+            "resumo": {
+                "total_registros": resultado['total'],
+                "ips_unicos": resultado['ips_unicos'],
+                "por_tipo": resultado['por_tipo']
+            },
+            "paginacao": {
+                "pagina_atual": resultado['pagina'],
+                "total_paginas": resultado['total_paginas'],
+                "registros_por_pagina": resultado['limite']
+            },
+            "filtros_aplicados": {
+                "ip": filtro_ip,
+                "tipo": filtro_tipo,
+                "data": filtro_data
+            }
+        })
+
+    except Exception as e:
+        logging.error(f"❌ Erro ao buscar auditoria: {e}")
+        return jsonify({"erro": "Erro ao carregar dados de auditoria"}), 500
+
 
 @app.route("/health")
 def health():
