@@ -109,22 +109,73 @@ class HeaderFooterCanvas(canvas.Canvas):
 
         self.restoreState()
 
-        # MARCA D'ÁGUA TJTO - Logo centralizada com transparência
+        # MARCA D'ÁGUA TJTO - Múltiplas miniaturas da logo para dificultar falsificação
         logo_tjto_path = 'static/logotjto.png'
         if os.path.exists(logo_tjto_path):
             try:
                 self.saveState()
-                self.setFillAlpha(0.06)
-                logo_size = 10 * cm
-                x_pos = (page_width - logo_size) / 2
-                y_pos = (page_height - logo_size) / 2
+
+                # Padrão de miniaturas em grade cobrindo toda a página
+                # Tamanhos variados para criar complexidade visual anti-falsificação
+                tamanhos_mini = [1.8 * cm, 2.2 * cm, 1.5 * cm, 2.0 * cm, 1.6 * cm]
+                rotacoes = [0, 15, -10, 5, -15, 20, -5, 10]
+                alphas = [0.08, 0.10, 0.07, 0.09, 0.12]
+
+                # Espaçamento da grade
+                espacamento_x = 4.5 * cm
+                espacamento_y = 4.0 * cm
+
+                # Offset alternado para padrão de "tijolos" (mais difícil de reproduzir)
+                idx = 0
+                for row in range(int(page_height / espacamento_y) + 1):
+                    # Linhas ímpares têm offset horizontal
+                    offset_x = (espacamento_x / 2) if row % 2 else 0
+
+                    for col in range(int(page_width / espacamento_x) + 1):
+                        pos_x = col * espacamento_x + offset_x
+                        pos_y = row * espacamento_y
+
+                        # Variação de tamanho, rotação e transparência por posição
+                        tamanho = tamanhos_mini[idx % len(tamanhos_mini)]
+                        rotacao = rotacoes[idx % len(rotacoes)]
+                        alpha = alphas[idx % len(alphas)]
+
+                        self.saveState()
+                        self.setFillAlpha(alpha)
+                        self.setStrokeAlpha(alpha)
+
+                        # Aplicar rotação em torno do centro da miniatura
+                        centro_x = pos_x + tamanho / 2
+                        centro_y = pos_y + tamanho / 2
+                        self.translate(centro_x, centro_y)
+                        self.rotate(rotacao)
+                        self.translate(-tamanho / 2, -tamanho / 2)
+
+                        self.drawImage(
+                            logo_tjto_path,
+                            0, 0,
+                            width=tamanho, height=tamanho,
+                            preserveAspectRatio=True,
+                            mask='auto'
+                        )
+                        self.restoreState()
+                        idx += 1
+
+                # Logo central maior como destaque (mantém referência visual principal)
+                self.saveState()
+                self.setFillAlpha(0.10)
+                logo_central = 6 * cm
+                x_center = (page_width - logo_central) / 2
+                y_center = (page_height - logo_central) / 2
                 self.drawImage(
                     logo_tjto_path,
-                    x_pos, y_pos,
-                    width=logo_size, height=logo_size,
+                    x_center, y_center,
+                    width=logo_central, height=logo_central,
                     preserveAspectRatio=True,
                     mask='auto'
                 )
+                self.restoreState()
+
                 self.restoreState()
             except Exception as e:
                 logging.warning(f"⚠️ Não foi possível adicionar marca d'água TJTO: {e}")
