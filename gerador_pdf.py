@@ -13,6 +13,7 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen import canvas
 import os
+import math
 import logging
 from datetime import datetime
 
@@ -69,8 +70,34 @@ class HeaderFooterCanvas(canvas.Canvas):
         canvas.Canvas.save(self)
         
     def draw_header_footer(self, page_num, page_count):
-        """Desenha cabeçalho e rodapé em cada página"""
+        """Desenha cabeçalho, rodapé e marca d'água em cada página"""
         page_width, page_height = A4
+
+        # MARCA D'ÁGUA DIAGONAL - Aviso de finalidade informativa
+        self.saveState()
+        self.setFillColor(colors.Color(0, 0, 0, alpha=0.06))
+        self.setFont('Helvetica-Bold', 14)
+
+        marca_dagua_texto = "SEM VALOR OFICIAL - DOCUMENTO INFORMATIVO"
+
+        # Calcular posições para repetir a marca d'água em toda a página
+        angulo = 45
+        # Espaçamento entre linhas da marca d'água
+        espacamento_y = 4 * cm
+        espacamento_x = 1 * cm
+
+        # Cobrir toda a página com linhas diagonais de marca d'água
+        for y in range(-5, int(page_height / espacamento_y) + 5):
+            for x in range(-2, 4):
+                pos_x = x * 8 * cm + espacamento_x
+                pos_y = y * espacamento_y
+                self.saveState()
+                self.translate(pos_x, pos_y)
+                self.rotate(angulo)
+                self.drawString(0, 0, marca_dagua_texto)
+                self.restoreState()
+
+        self.restoreState()
 
         # CABEÇALHO
         self.saveState()
