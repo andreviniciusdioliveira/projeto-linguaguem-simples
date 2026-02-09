@@ -272,7 +272,14 @@ ANTES de simplificar, analise a NATUREZA do processo, TIPO de ação, PARTES e A
 
 **INDICADORES QUE EXIGEM SEGREDO:** Termos explícitos ("segredo de justiça", "sigiloso", "restrito"), partes por iniciais, Vara de Família/Infância/Violência Doméstica, termos como estupro/assédio/alimentos/guarda/divórcio/paternidade/interceptação, decisão judicial decretando sigilo, dados de saúde mental/HIV/dependência química, marcação de sigilo em cabeçalhos/metadados.
 
-**EXCEÇÃO — MANDADOS JUDICIAIS:** Mandados (intimação, citação, notificação) são documentos PROCEDIMENTAIS e DEVEM SER SIMPLIFICADOS mesmo quando originam de varas especializadas ou processos sigilosos, pois contêm apenas dados operacionais (data, hora, local, instruções). EXCEÇÃO: se o mandado contiver transcrições extensas do CONTEÚDO SIGILOSO (relato de violência, laudos, depoimentos), aí sim bloquear.
+**⚠️ EXCEÇÃO PRIORITÁRIA — MANDADOS E INTIMAÇÕES (AVALIAR ANTES DE BLOQUEAR):**
+Documentos dos tipos MANDADO, INTIMAÇÃO, CITAÇÃO e NOTIFICAÇÃO são documentos PROCEDIMENTAIS e DEVEM SER SIMPLIFICADOS NORMALMENTE (segredo_justica.detectado: false), MESMO QUANDO:
+- Originam de Vara de Família, Infância, Violência Doméstica ou qualquer vara especializada
+- O processo é sigiloso
+- Contêm nomes de partes envolvidas em processos sensíveis
+- Mencionam teleaudiência, audiência, comparecimento
+Estes documentos contêm apenas dados operacionais (data, hora, local, instruções) e NÃO expõem o mérito sigiloso.
+ÚNICO CASO de bloqueio para mandados/intimações: se contiver transcrições extensas do CONTEÚDO SIGILOSO em si (relato detalhado de violência, laudos médicos/psicológicos, depoimentos). Apenas mencionar o tipo de vara ou a natureza da ação NÃO é motivo para bloquear.
 
 **EXCEÇÃO — ATO INFRACIONAL (ECA):** Pode simplificar se NÃO houver indicação explícita de sigilo, for direcionado ao adolescente/responsáveis, e NÃO envolver crimes sexuais/violência doméstica.
 
@@ -1111,9 +1118,10 @@ Procure no documento por detalhamentos de valores (palavras: "sendo", "compreend
 ```
 
 **SEGREDO DE JUSTIÇA NO JSON:**
-Se detectar segredo: preencha `segredo_justica.detectado: true` com motivo e hipotese_legal, demais campos null/[]/false.
+Se detectar segredo: preencha `segredo_justica.detectado: true` com motivo e hipotese_legal. SEMPRE preencha `tipo_documento` corretamente (mesmo com segredo detectado). Demais campos null/[]/false.
 No texto simplificado retorne APENAS: "O processo envolve segredo de justiça, procure a Comarca do fórum da sua cidade."
 Se NÃO detectar: prossiga normalmente.
+LEMBRETE: Mandados, intimações, citações e notificações NÃO devem ter segredo_justica.detectado: true, a menos que contenham transcrições extensas de conteúdo sigiloso (laudos, depoimentos, relatos de violência).
 
 ═══════════════════════════════════════════════════════════════════
 
@@ -1570,45 +1578,78 @@ def processar():
         # 🔒 VERIFICAÇÃO DE SEGREDO DE JUSTIÇA
         segredo_justica = analise_completa.get("segredo_justica", {})
         if segredo_justica.get("detectado") == True:
-            logging.warning(f"🔒 SEGREDO DE JUSTIÇA DETECTADO - Motivo: {segredo_justica.get('motivo', 'Não especificado')}")
-            logging.warning(f"🔒 Hipótese legal: {segredo_justica.get('hipotese_legal', 'Não especificada')}")
+            tipo_doc_segredo = (analise_completa.get("tipo_documento") or "").lower().strip()
+            # Mandados e intimações são documentos procedimentais - não restringir
+            tipos_procedimentais = ["mandado", "intimacao", "intimação", "citacao", "citação", "notificacao", "notificação"]
+            # Fallback: detectar tipo procedimental pelo texto original caso Gemini não preencha tipo_documento
+            if not tipo_doc_segredo or tipo_doc_segredo == "sigiloso":
+                texto_upper = texto_original[:3000].upper()
+                termos_procedimentais = ["MANDADO DE INTIMAÇÃO", "MANDADO DE CITAÇÃO", "MANDADO DE NOTIFICAÇÃO",
+                                        "INTIMAÇÃO", "CITAÇÃO", "NOTIFICAÇÃO", "OFICIAL DE JUSTIÇA", "CUMPRA-SE"]
+                for termo in termos_procedimentais:
+                    if termo in texto_upper:
+                        tipo_doc_segredo = "mandado" if "MANDADO" in termo else termo.lower()
+                        logging.info(f"📋 Tipo procedimental detectado pelo texto original: '{termo}'")
+                        break
+            if tipo_doc_segredo in tipos_procedimentais:
+                logging.warning(f"🔒 Segredo detectado pelo Gemini, mas documento é tipo '{tipo_doc_segredo}' (procedimental) - IGNORANDO restrição")
+                # Verificar se o texto simplificado está vazio/padrão (Gemini pode ter retornado só a msg de segredo)
+                texto_simp = analise_completa.get("texto_simplificado", "")
+                msg_padrao_segredo = "segredo de justiça"
+                if not texto_simp or msg_padrao_segredo in texto_simp.lower():
+                    logging.warning("🔄 Texto simplificado está vazio ou é mensagem padrão de segredo - re-analisando documento...")
+                    # Invalidar cache para forçar nova análise
+                    cache_key = hashlib.md5(f"{texto_original[:5000]}:{perspectiva}".encode()).hexdigest()
+                    with cleanup_lock:
+                        if cache_key in results_cache:
+                            del results_cache[cache_key]
+                    try:
+                        analise_completa = analisar_documento_completo_gemini(texto_original, perspectiva)
+                    except Exception as e:
+                        logging.error(f"❌ Erro na re-análise: {e}")
+                        # Continuar com a análise original mesmo incompleta
+                # Limpar a flag de segredo para que o documento seja simplificado normalmente
+                analise_completa["segredo_justica"] = {"detectado": False, "motivo": None, "hipotese_legal": None}
+            else:
+                logging.warning(f"🔒 SEGREDO DE JUSTIÇA DETECTADO - Motivo: {segredo_justica.get('motivo', 'Não especificado')}")
+                logging.warning(f"🔒 Hipótese legal: {segredo_justica.get('hipotese_legal', 'Não especificada')}")
 
-            # Retornar resposta específica sem informações do documento
-            return jsonify({
-                "texto": "O processo envolve segredo de justiça, procure a Comarca do fórum da sua cidade.",
-                "tipo_documento": "sigiloso",
-                "confianca_tipo": "ALTA",
-                "razao_tipo": "Documento identificado como protegido por segredo de justiça",
-                "urgencia": "MÉDIA",
-                "acao_necessaria": "Procure a Comarca do fórum da sua cidade",
-                "dados_extraidos": {
-                    "numero_processo": None,
+                # Retornar resposta específica sem informações do documento
+                return jsonify({
+                    "texto": "O processo envolve segredo de justiça, procure a Comarca do fórum da sua cidade.",
                     "tipo_documento": "sigiloso",
-                    "partes": {},
-                    "autoridade": {},
-                    "valores": {},
-                    "prazos": [],
-                    "decisao": None,
-                    "audiencias": [],
-                    "links_audiencia": []
-                },
-                "recursos_cabiveis": {
-                    "cabe_recurso": "Não disponível",
-                    "prazo": None
-                },
-                "perguntas_sugeridas": [],
-                "tem_justica_gratuita": None,
-                "caracteres_original": len(texto_original),
-                "caracteres_simplificado": 0,
-                "modelo_usado": analise_completa.get("modelo_usado", GEMINI_MODELS[0]["name"]),
-                "perspectiva_aplicada": perspectiva,
-                "segredo_justica": {
-                    "detectado": True,
-                    "motivo": segredo_justica.get("motivo"),
-                    "hipotese_legal": segredo_justica.get("hipotese_legal")
-                },
-                "pdf_download_url": None
-            })
+                    "confianca_tipo": "ALTA",
+                    "razao_tipo": "Documento identificado como protegido por segredo de justiça",
+                    "urgencia": "MÉDIA",
+                    "acao_necessaria": "Procure a Comarca do fórum da sua cidade",
+                    "dados_extraidos": {
+                        "numero_processo": None,
+                        "tipo_documento": "sigiloso",
+                        "partes": {},
+                        "autoridade": {},
+                        "valores": {},
+                        "prazos": [],
+                        "decisao": None,
+                        "audiencias": [],
+                        "links_audiencia": []
+                    },
+                    "recursos_cabiveis": {
+                        "cabe_recurso": "Não disponível",
+                        "prazo": None
+                    },
+                    "perguntas_sugeridas": [],
+                    "tem_justica_gratuita": None,
+                    "caracteres_original": len(texto_original),
+                    "caracteres_simplificado": 0,
+                    "modelo_usado": analise_completa.get("modelo_usado", GEMINI_MODELS[0]["name"]),
+                    "perspectiva_aplicada": perspectiva,
+                    "segredo_justica": {
+                        "detectado": True,
+                        "motivo": segredo_justica.get("motivo"),
+                        "hipotese_legal": segredo_justica.get("hipotese_legal")
+                    },
+                    "pdf_download_url": None
+                })
 
         tipo_doc = analise_completa.get("tipo_documento", "desconhecido")
         texto_simplificado = analise_completa.get("texto_simplificado", "")
