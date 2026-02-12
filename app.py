@@ -1795,6 +1795,255 @@ def processar():
         logging.error(f"❌ Erro: {e}", exc_info=True)
         return jsonify({"erro": "Erro ao processar arquivo"}), 500
 
+@app.route("/processar_texto", methods=["POST"])
+@rate_limit
+def processar_texto():
+    """Processa texto colado diretamente pelo usuário"""
+    try:
+        session.permanent = True
+        session.modified = True
+
+        data = request.get_json()
+        if not data or 'texto' not in data:
+            return jsonify({"erro": "Nenhum texto enviado"}), 400
+
+        texto_original = data['texto'].strip()
+        perspectiva = data.get('perspectiva', 'nao_informado')
+
+        logging.info(f"""
+╔════════════════════════════════════════════════╗
+║  📋 TEXTO COLADO RECEBIDO                     ║
+║  Perspectiva: {perspectiva:^30} ║
+║  Caracteres: {len(texto_original):^31} ║
+╚════════════════════════════════════════════════╝
+        """)
+
+        if len(texto_original) < 20:
+            return jsonify({"erro": "Texto muito curto. Mínimo: 20 caracteres"}), 400
+
+        if len(texto_original) > 10000:
+            return jsonify({"erro": "Texto muito longo. Máximo: 10.000 caracteres"}), 400
+
+        text_hash = hashlib.md5(texto_original.encode('utf-8')).hexdigest()
+
+        logging.info(f"📝 Processando texto colado: {len(texto_original)} caracteres")
+
+        # 🎯 ANÁLISE COMPLETA COM GEMINI
+        logging.info(f"🤖 Iniciando análise completa com Gemini (perspectiva: {perspectiva})...")
+
+        try:
+            analise_completa = analisar_documento_completo_gemini(texto_original, perspectiva)
+        except Exception as e:
+            logging.error(f"❌ ERRO CRÍTICO na análise Gemini: {e}", exc_info=True)
+            erro_msg = str(e)
+            if "quota" in erro_msg.lower() or "429" in erro_msg or "limite" in erro_msg.lower():
+                return jsonify({
+                    "erro": "O serviço de IA está temporariamente indisponível devido ao limite de uso. "
+                            "Por favor, aguarde alguns minutos e tente novamente."
+                }), 503
+            return jsonify({"erro": f"Erro ao analisar documento: {erro_msg}"}), 500
+
+        # 🔒 VERIFICAÇÃO DE SEGREDO DE JUSTIÇA
+        segredo_justica = analise_completa.get("segredo_justica", {})
+        if segredo_justica.get("detectado") == True:
+            tipo_doc_segredo = (analise_completa.get("tipo_documento") or "").lower().strip()
+            tipos_procedimentais = ["mandado", "intimacao", "intimação", "citacao", "citação", "notificacao", "notificação"]
+            if not tipo_doc_segredo or tipo_doc_segredo == "sigiloso":
+                texto_upper = texto_original[:3000].upper()
+                termos_procedimentais = ["MANDADO DE INTIMAÇÃO", "MANDADO DE CITAÇÃO", "MANDADO DE NOTIFICAÇÃO",
+                                        "INTIMAÇÃO", "CITAÇÃO", "NOTIFICAÇÃO", "OFICIAL DE JUSTIÇA", "CUMPRA-SE"]
+                for termo in termos_procedimentais:
+                    if termo in texto_upper:
+                        tipo_doc_segredo = "mandado" if "MANDADO" in termo else termo.lower()
+                        logging.info(f"📋 Tipo procedimental detectado pelo texto original: '{termo}'")
+                        break
+            if tipo_doc_segredo in tipos_procedimentais:
+                logging.warning(f"🔒 Segredo detectado pelo Gemini, mas documento é tipo '{tipo_doc_segredo}' (procedimental) - IGNORANDO restrição")
+                texto_simp = analise_completa.get("texto_simplificado", "")
+                msg_padrao_segredo = "segredo de justiça"
+                if not texto_simp or msg_padrao_segredo in texto_simp.lower():
+                    logging.warning("🔄 Texto simplificado está vazio ou é mensagem padrão de segredo - re-analisando documento...")
+                    cache_key = hashlib.md5(f"{texto_original[:5000]}:{perspectiva}".encode()).hexdigest()
+                    with cleanup_lock:
+                        if cache_key in results_cache:
+                            del results_cache[cache_key]
+                    try:
+                        analise_completa = analisar_documento_completo_gemini(texto_original, perspectiva)
+                    except Exception as e:
+                        logging.error(f"❌ Erro na re-análise: {e}")
+                analise_completa["segredo_justica"] = {"detectado": False, "motivo": None, "hipotese_legal": None}
+            else:
+                logging.warning(f"🔒 SEGREDO DE JUSTIÇA DETECTADO - Motivo: {segredo_justica.get('motivo', 'Não especificado')}")
+                return jsonify({
+                    "texto": "O processo envolve segredo de justiça, procure a Comarca do fórum da sua cidade.",
+                    "tipo_documento": "sigiloso",
+                    "confianca_tipo": "ALTA",
+                    "razao_tipo": "Documento identificado como protegido por segredo de justiça",
+                    "urgencia": "MÉDIA",
+                    "acao_necessaria": "Procure a Comarca do fórum da sua cidade",
+                    "dados_extraidos": {
+                        "numero_processo": None, "tipo_documento": "sigiloso",
+                        "partes": {}, "autoridade": {}, "valores": {},
+                        "prazos": [], "decisao": None, "audiencias": [], "links_audiencia": []
+                    },
+                    "recursos_cabiveis": {"cabe_recurso": "Não disponível", "prazo": None},
+                    "perguntas_sugeridas": [],
+                    "tem_justica_gratuita": None,
+                    "caracteres_original": len(texto_original),
+                    "caracteres_simplificado": 0,
+                    "modelo_usado": analise_completa.get("modelo_usado", GEMINI_MODELS[0]["name"]),
+                    "perspectiva_aplicada": perspectiva,
+                    "segredo_justica": {
+                        "detectado": True,
+                        "motivo": segredo_justica.get("motivo"),
+                        "hipotese_legal": segredo_justica.get("hipotese_legal")
+                    },
+                    "pdf_download_url": None
+                })
+
+        tipo_doc = analise_completa.get("tipo_documento", "desconhecido")
+        texto_simplificado = analise_completa.get("texto_simplificado", "")
+        modelo_usado = analise_completa.get("modelo_usado", GEMINI_MODELS[0]["name"])
+        perspectiva_aplicada = analise_completa.get("perspectiva_aplicada", perspectiva)
+
+        logging.info(f"✅ Análise concluída: tipo={tipo_doc}, modelo={modelo_usado}, perspectiva={perspectiva_aplicada}")
+
+        # Preparar dados estruturados
+        prazos_validos = []
+        for p in analise_completa.get("prazos", []):
+            if isinstance(p, dict) and p.get("prazo") and p.get("prazo") != "null":
+                prazos_validos.append(p)
+
+        dados_estruturados = {
+            "numero_processo": extrair_numero_processo_regex(texto_original),
+            "tipo_documento": tipo_doc,
+            "partes": analise_completa.get("partes", {}),
+            "autoridade": analise_completa.get("autoridade", {}),
+            "valores": analise_completa.get("valores_principais", {}),
+            "prazos": prazos_validos,
+            "decisao": analise_completa.get("decisao_resumida"),
+            "audiencias": [analise_completa.get("audiencia")] if analise_completa.get("audiencia", {}).get("tem_audiencia") else [],
+            "links_audiencia": [analise_completa.get("audiencia", {}).get("link")] if analise_completa.get("audiencia", {}).get("link") else [],
+        }
+
+        info_doc = {
+            "urgencia": analise_completa.get("urgencia", "MÉDIA"),
+            "acao_necessaria": analise_completa.get("acao_necessaria", "Verificar documento")
+        }
+
+        recursos_info = analise_completa.get("recursos_cabiveis", {
+            "cabe_recurso": "Consulte advogado(a) ou defensoria pública",
+            "prazo": None
+        })
+
+        # Contexto chat
+        contexto_chat = {
+            "dados_extraidos": dados_estruturados,
+            "perspectiva": perspectiva,
+            "perguntas_sugeridas": gerar_perguntas_sugeridas(dados_estruturados)
+        }
+
+        # Salvar texto original
+        texto_original_path = os.path.join(TEMP_DIR, f"texto_{text_hash[:8]}.txt")
+        with open(texto_original_path, 'w', encoding='utf-8') as f:
+            f.write(texto_original)
+        registrar_arquivo_temporario(texto_original_path, session_id=session.get('session_id'))
+
+        # 🔐 GERAR ID E HASH DE VALIDAÇÃO (LGPD compliant)
+        doc_id = gerar_doc_id()
+        hash_conteudo = gerar_hash_conteudo(texto_simplificado)
+        hash_curto = f"{hash_conteudo[:8]}...{hash_conteudo[-8:]}"
+
+        # Hash do IP (LGPD: nunca armazena o IP real)
+        ip_address = request.headers.get('X-Forwarded-For', request.remote_addr)
+        if ip_address and ',' in ip_address:
+            ip_address = ip_address.split(',')[0].strip()
+        ip_hash = gerar_hash_ip(ip_address or '0.0.0.0')
+
+        # URL de validação
+        base_url = request.host_url.rstrip('/')
+        validation_url = f"{base_url}/validar/{doc_id}"
+
+        # Registrar validação no banco (LGPD compliant)
+        try:
+            registrar_validacao(doc_id, hash_conteudo, ip_hash, tipo_doc)
+        except Exception as e:
+            logging.error(f"❌ Erro ao registrar validação: {e}")
+
+        # Gerar PDF
+        metadados_pdf = {
+            "modelo": modelo_usado,
+            "tipo": "texto_colado",
+            "tipo_documento": tipo_doc,
+            "urgencia": info_doc["urgencia"],
+            "dados": dados_estruturados,
+            "recursos": recursos_info,
+            "confianca": analise_completa.get("confianca_tipo", "MÉDIA"),
+            "perspectiva": perspectiva_aplicada,
+            "doc_id": doc_id,
+            "hash_curto": hash_curto,
+            "validation_url": validation_url
+        }
+
+        pdf_filename = f"simplificado_{text_hash[:8]}.pdf"
+        pdf_path = gerar_pdf_simplificado(texto_simplificado, metadados_pdf, pdf_filename)
+
+        # Salvar na sessão
+        session['pdf_path'] = pdf_path
+        session['pdf_filename'] = pdf_filename
+        session['texto_original_path'] = texto_original_path
+        session['contexto_chat'] = contexto_chat
+        session.modified = True
+
+        # Estatísticas
+        try:
+            database.incrementar_documento(tipo_doc)
+        except Exception as e:
+            logging.error(f"Erro stats: {e}")
+
+        # 📋 Auditoria de IP (registra IP real + metadados, SEM conteúdo do documento)
+        try:
+            registrar_auditoria_ip(
+                ip_address=ip_address or '0.0.0.0',
+                tipo_documento=tipo_doc,
+                nome_arquivo="texto_colado",
+                tamanho_bytes=len(texto_original.encode('utf-8')),
+                modelo_usado=modelo_usado
+            )
+        except Exception as e:
+            logging.error(f"❌ Erro ao registrar auditoria: {e}")
+
+        logging.info(f"✅ Texto colado processado: {tipo_doc} (confiança: {analise_completa.get('confianca_tipo')}, perspectiva: {perspectiva_aplicada})")
+
+        return jsonify({
+            "texto": texto_simplificado,
+            "tipo_documento": tipo_doc,
+            "confianca_tipo": analise_completa.get("confianca_tipo"),
+            "razao_tipo": analise_completa.get("razao_tipo"),
+            "urgencia": info_doc["urgencia"],
+            "acao_necessaria": info_doc["acao_necessaria"],
+            "dados_extraidos": dados_estruturados,
+            "recursos_cabiveis": recursos_info,
+            "perguntas_sugeridas": contexto_chat["perguntas_sugeridas"],
+            "tem_justica_gratuita": analise_completa.get("tem_justica_gratuita"),
+            "caracteres_original": len(texto_original),
+            "caracteres_simplificado": len(texto_simplificado),
+            "modelo_usado": modelo_usado,
+            "perspectiva_aplicada": perspectiva_aplicada,
+            "segredo_justica": {
+                "detectado": False,
+                "motivo": None,
+                "hipotese_legal": None
+            },
+            "pdf_download_url": f"/download_pdf?path={os.path.basename(pdf_path)}&filename={pdf_filename}",
+            "doc_id": doc_id,
+            "validation_url": validation_url
+        })
+
+    except Exception as e:
+        logging.error(f"❌ Erro ao processar texto: {e}", exc_info=True)
+        return jsonify({"erro": "Erro ao processar texto"}), 500
+
 @app.route("/chat", methods=["POST"])
 @rate_limit
 def chat_contextual():
