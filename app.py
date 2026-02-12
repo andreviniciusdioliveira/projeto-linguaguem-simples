@@ -1042,6 +1042,10 @@ Analise o documento e retorne JSON com:
     "hipotese_legal": "Art. X, Lei Y ou null se não detectado"
   }},
 
+  "origem_documento": "judicial|advocaticio",
+  "confianca_origem": "ALTA|MÉDIA|BAIXA",
+  "razao_origem": "Explique em 1 frase por que classificou esta origem",
+
   "tipo_documento": "acordao|sentenca|mandado|decisao|despacho|intimacao",
   "confianca_tipo": "ALTA|MÉDIA|BAIXA",
   "razao_tipo": "Explique em 1 frase por que é este tipo",
@@ -1137,6 +1141,45 @@ Se em dúvida: confianca_tipo "BAIXA". Use apenas informações explícitas. Se 
 **PRAZOS:** Use APENAS prazos explícitos do documento com tipo, prazo, destinatário e finalidade. Se não menciona → prazos: [].
 
 **RECURSOS:** Mandados → "Não se aplica". Outros: escolha UMA opção entre "Sim"/"Não"/"Consulte advogado(a) ou defensoria pública" conforme o documento. Use linguagem simples no campo explicacao_simples.
+
+═══════════════════════════════════════════════════════════════════
+
+**CLASSIFICAÇÃO DE ORIGEM DO DOCUMENTO (MUITO IMPORTANTE):**
+
+Classifique a ORIGEM do documento em `origem_documento`:
+
+✅ **"judicial"** - Documentos ELABORADOS PELO PODER JUDICIÁRIO (juízes, desembargadores, tribunais, serventuários da justiça):
+- Sentenças, acórdãos, decisões interlocutórias, despachos
+- Mandados (citação, intimação, penhora, despejo)
+- Intimações e notificações judiciais
+- Certidões judiciais, editais judiciais
+- Termos de audiência lavrados pelo escrivão
+- Qualquer documento assinado por juiz, desembargador ou serventuário da justiça
+
+❌ **"advocaticio"** - Documentos ELABORADOS POR ADVOGADOS, DEFENSORES PÚBLICOS ou PARTES:
+- Petições iniciais, contestações, réplicas
+- Recursos de apelação, agravo, embargos (peças recursais elaboradas por advogados)
+- Memoriais, alegações finais
+- Procurações, substabelecimentos
+- Contratos, notificações extrajudiciais
+- Pareceres jurídicos
+- Qualquer documento com cabeçalho de escritório de advocacia, OAB, "Excelentíssimo Senhor Juiz"
+
+**Indicadores de documento advocatício:**
+- Presença de "OAB", "OAB/XX nº", "Advogado(a)", "Defensor(a) Público(a)" como subscritor/autor do documento
+- Cabeçalho com nome de escritório de advocacia
+- Expressões como "Vem, respeitosamente", "requer a Vossa Excelência", "Excelentíssimo", "data venia"
+- Documento endereçado ao juiz (ex: "Ao Juízo da X Vara")
+- Estrutura de petição: qualificação das partes + fatos + fundamentos + pedidos
+
+**Indicadores de documento judicial:**
+- Assinado por Juiz(a), Desembargador(a), Ministro(a)
+- Cabeçalho de tribunal (TJXX, TRF, STJ, STF)
+- Expressões como "JULGO", "DETERMINO", "DEFIRO", "INDEFIRO", "CUMPRA-SE"
+- Número do processo no cabeçalho oficial
+- Selo/brasão do tribunal
+
+Se em dúvida: confianca_origem "BAIXA" e classifique como "judicial" para não bloquear indevidamente.
 
 ═══════════════════════════════════════════════════════════════════
 
@@ -1651,6 +1694,45 @@ def processar():
                     "pdf_download_url": None
                 })
 
+        # 🚫 VERIFICAÇÃO DE DOCUMENTO ADVOCATÍCIO (não-judicial)
+        origem_doc = (analise_completa.get("origem_documento") or "").lower().strip()
+        confianca_origem = (analise_completa.get("confianca_origem") or "").upper().strip()
+        razao_origem = analise_completa.get("razao_origem", "")
+
+        if origem_doc == "advocaticio" and confianca_origem in ("ALTA", "MÉDIA"):
+            logging.warning(f"🚫 DOCUMENTO ADVOCATÍCIO DETECTADO - Confiança: {confianca_origem}")
+            logging.warning(f"🚫 Razão: {razao_origem}")
+
+            return jsonify({
+                "documento_nao_judicial": True,
+                "texto": "",
+                "tipo_documento": "advocaticio",
+                "confianca_tipo": confianca_origem,
+                "razao_tipo": razao_origem,
+                "urgencia": None,
+                "acao_necessaria": None,
+                "dados_extraidos": {
+                    "numero_processo": None,
+                    "tipo_documento": "advocaticio",
+                    "partes": {},
+                    "autoridade": {},
+                    "valores": {},
+                    "prazos": [],
+                    "decisao": None,
+                    "audiencias": [],
+                    "links_audiencia": []
+                },
+                "recursos_cabiveis": {"cabe_recurso": None, "prazo": None},
+                "perguntas_sugeridas": [],
+                "tem_justica_gratuita": None,
+                "caracteres_original": len(texto_original),
+                "caracteres_simplificado": 0,
+                "modelo_usado": analise_completa.get("modelo_usado", GEMINI_MODELS[0]["name"]),
+                "perspectiva_aplicada": perspectiva,
+                "segredo_justica": {"detectado": False, "motivo": None, "hipotese_legal": None},
+                "pdf_download_url": None
+            })
+
         tipo_doc = analise_completa.get("tipo_documento", "desconhecido")
         texto_simplificado = analise_completa.get("texto_simplificado", "")
         modelo_usado = analise_completa.get("modelo_usado", GEMINI_MODELS[0]["name"])
@@ -1900,6 +1982,45 @@ def processar_texto():
                     },
                     "pdf_download_url": None
                 })
+
+        # 🚫 VERIFICAÇÃO DE DOCUMENTO ADVOCATÍCIO (não-judicial)
+        origem_doc = (analise_completa.get("origem_documento") or "").lower().strip()
+        confianca_origem = (analise_completa.get("confianca_origem") or "").upper().strip()
+        razao_origem = analise_completa.get("razao_origem", "")
+
+        if origem_doc == "advocaticio" and confianca_origem in ("ALTA", "MÉDIA"):
+            logging.warning(f"🚫 DOCUMENTO ADVOCATÍCIO DETECTADO (texto colado) - Confiança: {confianca_origem}")
+            logging.warning(f"🚫 Razão: {razao_origem}")
+
+            return jsonify({
+                "documento_nao_judicial": True,
+                "texto": "",
+                "tipo_documento": "advocaticio",
+                "confianca_tipo": confianca_origem,
+                "razao_tipo": razao_origem,
+                "urgencia": None,
+                "acao_necessaria": None,
+                "dados_extraidos": {
+                    "numero_processo": None,
+                    "tipo_documento": "advocaticio",
+                    "partes": {},
+                    "autoridade": {},
+                    "valores": {},
+                    "prazos": [],
+                    "decisao": None,
+                    "audiencias": [],
+                    "links_audiencia": []
+                },
+                "recursos_cabiveis": {"cabe_recurso": None, "prazo": None},
+                "perguntas_sugeridas": [],
+                "tem_justica_gratuita": None,
+                "caracteres_original": len(texto_original),
+                "caracteres_simplificado": 0,
+                "modelo_usado": analise_completa.get("modelo_usado", GEMINI_MODELS[0]["name"]),
+                "perspectiva_aplicada": perspectiva,
+                "segredo_justica": {"detectado": False, "motivo": None, "hipotese_legal": None},
+                "pdf_download_url": None
+            })
 
         tipo_doc = analise_completa.get("tipo_documento", "desconhecido")
         texto_simplificado = analise_completa.get("texto_simplificado", "")
