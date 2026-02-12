@@ -3297,12 +3297,14 @@
             showLoading('Processando texto...');
             updateProgressSteps(2);
             
+            const perspectiva = document.querySelector('input[name="perspectiva"]:checked').value;
+
             fetch('/processar_texto', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ texto: text })
+                body: JSON.stringify({ texto: text, perspectiva: perspectiva })
             })
             .then(response => {
                 if (!response.ok) {
