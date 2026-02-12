@@ -3456,8 +3456,15 @@
                 }
             }
             
+            // 🚫 VERIFICAÇÃO DE DOCUMENTO NÃO-JUDICIAL (advocatício)
+            if (data.documento_nao_judicial === true) {
+                showDocumentoNaoJudicial(data.razao_tipo);
+                document.getElementById('simplifiedText').innerHTML = '';
+                document.getElementById('structuredDataSection').style.display = 'none';
+                document.getElementById('downloadBtn').style.display = 'none';
+            }
             // 🔒 VERIFICAÇÃO DE SEGREDO DE JUSTIÇA
-            if (data.segredo_justica && data.segredo_justica.detectado === true) {
+            else if (data.segredo_justica && data.segredo_justica.detectado === true) {
                 showSegredoJustica(data.segredo_justica);
                 document.getElementById('simplifiedText').innerHTML = '';
                 document.getElementById('structuredDataSection').style.display = 'none';
@@ -3593,6 +3600,49 @@
             formatted = formatted.replace(/\n/g, '<br>');
 
             return formatted;
+        }
+
+        function showDocumentoNaoJudicial(razao) {
+            const section = document.getElementById('documentTypeSection');
+            const razaoTexto = razao ? escapeHtml(razao) : 'Documento identificado como peça elaborada por advogado ou defensor';
+
+            const html = `
+                <div style="background: #e3f2fd; border: 2px solid #1565c0; padding: 2rem; border-radius: 12px; text-align: center;">
+                    <div style="font-size: 3rem; margin-bottom: 1rem;">📋</div>
+                    <h2 style="color: #1565c0; margin-bottom: 1rem; font-size: 1.5rem;">
+                        Documento Não Judicial
+                    </h2>
+                    <p style="color: #333; font-size: 1.1rem; margin-bottom: 1.5rem; line-height: 1.6;">
+                        Este documento foi identificado como uma <strong>peça elaborada por advogado(a) ou defensor(a)</strong>,
+                        como petição, contestação, recurso ou similar.
+                    </p>
+                    <div style="background: white; border-radius: 8px; padding: 1.25rem; margin-bottom: 1.5rem; text-align: left;">
+                        <p style="margin: 0 0 0.75rem 0; color: #555;">
+                            <strong>Por que não simplificamos:</strong> ${razaoTexto}
+                        </p>
+                        <p style="margin: 0; color: #555;">
+                            O <strong>Entenda Aqui</strong> simplifica apenas documentos elaborados pelo <strong>Poder Judiciário</strong>, como:
+                        </p>
+                        <ul style="margin: 0.75rem 0 0 0; padding-left: 1.5rem; color: #555; line-height: 1.8;">
+                            <li>⚖️ <strong>Sentenças</strong> - decisões de juízes</li>
+                            <li>📜 <strong>Acórdãos</strong> - decisões de tribunais</li>
+                            <li>📨 <strong>Mandados</strong> - citação, intimação, penhora</li>
+                            <li>📋 <strong>Despachos</strong> - determinações do juiz</li>
+                            <li>📢 <strong>Intimações</strong> - notificações judiciais</li>
+                            <li>🔔 <strong>Decisões interlocutórias</strong> - decisões durante o processo</li>
+                        </ul>
+                    </div>
+                    <div style="background: #fff3e0; border-radius: 8px; padding: 1.25rem;">
+                        <p style="margin: 0; color: #e65100; font-weight: bold; font-size: 1.05rem;">
+                            💡 Dica: Se você recebeu este documento de um tribunal ou fórum, tente enviar novamente.
+                            Se o problema persistir, o documento pode ser uma peça advocatícia anexada ao processo.
+                        </p>
+                    </div>
+                </div>
+            `;
+
+            section.innerHTML = html;
+            section.style.display = 'block';
         }
 
         function showSegredoJustica(segredo) {
