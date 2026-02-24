@@ -26,7 +26,14 @@ import subprocess
 import numpy as np
 import google.generativeai as genai
 import database
-from database import gerar_doc_id, gerar_hash_conteudo, gerar_hash_ip, registrar_validacao, buscar_validacao, registrar_auditoria_ip, get_auditoria_ip
+from database import (
+    gerar_doc_id, gerar_hash_conteudo, gerar_hash_ip,
+    registrar_validacao, buscar_validacao,
+    registrar_auditoria_ip, get_auditoria_ip,
+    registrar_uso_tokens, verificar_limite_tokens, get_uso_tokens_hoje,
+    registrar_cpf_vault, verificar_cpf_rate_limit,
+    gerar_hash_cpf, CPF_DAILY_LIMIT, DAILY_TOKEN_LIMIT
+)
 # Importar gerador de PDF melhorado
 from gerador_pdf import gerar_pdf_simplificado as gerar_pdf_melhorado
 
@@ -118,6 +125,104 @@ model_usage_stats = {model["name"]: {"attempts": 0, "successes": 0, "failures": 
 logging.info(f"🤖 Sistema multi-modelo configurado com {len(GEMINI_MODELS)} modelos:")
 for idx, model in enumerate(sorted(GEMINI_MODELS, key=lambda x: x["priority"]), 1):
     logging.info(f"  {idx}. {model['name']} (priority {model['priority']}) - {model.get('description', 'N/A')}")
+
+# ===== VALIDAÇÃO ALGORÍTMICA DE CPF =====
+
+def validar_cpf(cpf):
+    """
+    Valida CPF usando algoritmo oficial dos dígitos verificadores.
+    Rejeita CPFs com todos os dígitos iguais (ex: 111.111.111-11).
+
+    Args:
+        cpf: String com CPF (aceita formatado ou só dígitos)
+
+    Returns:
+        Tuple (valido: bool, cpf_limpo: str, mensagem: str)
+    """
+    # Limpar CPF - manter apenas dígitos
+    cpf_limpo = re.sub(r'\D', '', cpf)
+
+    if len(cpf_limpo) != 11:
+        return False, cpf_limpo, "CPF deve ter 11 dígitos"
+
+    # Rejeitar CPFs com todos os dígitos iguais
+    if cpf_limpo == cpf_limpo[0] * 11:
+        return False, cpf_limpo, "CPF inválido"
+
+    # Calcular primeiro dígito verificador
+    soma = 0
+    for i in range(9):
+        soma += int(cpf_limpo[i]) * (10 - i)
+    resto = soma % 11
+    digito1 = 0 if resto < 2 else 11 - resto
+
+    if int(cpf_limpo[9]) != digito1:
+        return False, cpf_limpo, "CPF inválido"
+
+    # Calcular segundo dígito verificador
+    soma = 0
+    for i in range(10):
+        soma += int(cpf_limpo[i]) * (11 - i)
+    resto = soma % 11
+    digito2 = 0 if resto < 2 else 11 - resto
+
+    if int(cpf_limpo[10]) != digito2:
+        return False, cpf_limpo, "CPF inválido"
+
+    return True, cpf_limpo, "CPF válido"
+
+
+def verificar_limite_tokens_request():
+    """
+    Decorator-like check: verifica se o limite diário de tokens foi atingido.
+    Retorna response de erro se atingido, None se OK.
+    """
+    resultado = verificar_limite_tokens()
+    if resultado["limite_atingido"]:
+        return jsonify({
+            "erro": "O limite diário de processamento foi atingido. "
+                    "O sistema processa até 171,6 milhões de tokens por dia. "
+                    "Tente novamente amanhã.",
+            "limite_tokens": True,
+            "uso_tokens": resultado
+        }), 503
+    return None
+
+
+def verificar_cpf_request():
+    """
+    Extrai e valida CPF do request (form ou JSON).
+    Retorna (cpf_limpo, error_response).
+    Se error_response não for None, retornar como resposta HTTP.
+    """
+    # Tentar pegar CPF do form ou JSON
+    cpf = None
+    if request.is_json:
+        data = request.get_json(silent=True)
+        if data:
+            cpf = data.get('cpf', '')
+    else:
+        cpf = request.form.get('cpf', '')
+
+    if not cpf:
+        return None, (jsonify({"erro": "CPF é obrigatório para processar documentos", "cpf_required": True}), 400)
+
+    # Validar algoritmo do CPF
+    valido, cpf_limpo, mensagem = validar_cpf(cpf)
+    if not valido:
+        return None, (jsonify({"erro": mensagem, "cpf_invalid": True}), 400)
+
+    # Verificar rate limit por CPF
+    rate_info = verificar_cpf_rate_limit(cpf_limpo)
+    if rate_info["limite_atingido"]:
+        return None, (jsonify({
+            "erro": f"Limite de {CPF_DAILY_LIMIT} documentos por dia atingido para este CPF. Tente novamente amanhã.",
+            "cpf_limit": True,
+            "uso_cpf": rate_info
+        }), 429)
+
+    return cpf_limpo, None
+
 
 # ===== LGPD - Sistema de Limpeza Automática =====
 temp_files_tracker = {}
@@ -1316,6 +1421,25 @@ Responda EXATAMENTE neste formato:
             model_usage_stats[modelo_nome]["attempts"] += 1
             model_usage_stats[modelo_nome]["successes"] += 1
 
+            # 📊 REGISTRAR TOKENS CONSUMIDOS
+            try:
+                usage = getattr(response, 'usage_metadata', None)
+                if usage:
+                    tokens_in = getattr(usage, 'prompt_token_count', 0) or 0
+                    tokens_out = getattr(usage, 'candidates_token_count', 0) or 0
+                    registrar_uso_tokens(tokens_input=tokens_in, tokens_output=tokens_out)
+                    analise["tokens_usados"] = {"input": tokens_in, "output": tokens_out, "total": tokens_in + tokens_out}
+                    logging.info(f"📊 Tokens: input={tokens_in:,}, output={tokens_out:,}, total={tokens_in + tokens_out:,}")
+                else:
+                    # Estimar tokens se metadata não disponível (~4 chars = 1 token)
+                    tokens_est_in = len(prompt) // 4
+                    tokens_est_out = len(resposta_completa) // 4
+                    registrar_uso_tokens(tokens_input=tokens_est_in, tokens_output=tokens_est_out)
+                    analise["tokens_usados"] = {"input": tokens_est_in, "output": tokens_est_out, "total": tokens_est_in + tokens_est_out, "estimado": True}
+                    logging.info(f"📊 Tokens (estimado): input≈{tokens_est_in:,}, output≈{tokens_est_out:,}")
+            except Exception as e:
+                logging.warning(f"⚠️ Erro ao registrar tokens: {e}")
+
             logging.info(f"✅ Análise completa com {modelo_nome}: tipo={analise.get('tipo_documento')}, confiança={analise.get('confianca_tipo')}, perspectiva={perspectiva}")
 
             # Salvar resultado no cache
@@ -1540,13 +1664,63 @@ def gerar_pdf_simplificado(texto, metadados=None, filename="documento_simplifica
 def index():
     return render_template("index.html")
 
+
+@app.route("/validar_cpf", methods=["POST"])
+def validar_cpf_endpoint():
+    """
+    Valida CPF e verifica rate limit antes do processamento.
+    Chamado pelo frontend antes de enviar o documento.
+    """
+    try:
+        data = request.get_json()
+        if not data or 'cpf' not in data:
+            return jsonify({"erro": "CPF não informado", "valido": False}), 400
+
+        cpf = data['cpf']
+        valido, cpf_limpo, mensagem = validar_cpf(cpf)
+
+        if not valido:
+            return jsonify({"erro": mensagem, "valido": False}), 400
+
+        # Verificar rate limit
+        rate_info = verificar_cpf_rate_limit(cpf_limpo)
+
+        # Verificar limite de tokens
+        token_info = verificar_limite_tokens()
+
+        return jsonify({
+            "valido": True,
+            "mensagem": "CPF válido",
+            "uso_cpf": rate_info,
+            "uso_tokens": {
+                "percentual": token_info["percentual_uso"],
+                "limite_atingido": token_info["limite_atingido"]
+            }
+        })
+
+    except Exception as e:
+        logging.error(f"❌ Erro ao validar CPF: {e}")
+        return jsonify({"erro": "Erro interno ao validar CPF", "valido": False}), 500
+
+
 @app.route("/processar", methods=["POST"])
 @rate_limit
 def processar():
     """Processa upload com análise 100% Gemini - VERSÃO CORRIGIDA"""
+    cpf_limpo = None
     try:
         session.permanent = True
         session.modified = True
+
+        # 🔐 VERIFICAR LIMITE DE TOKENS
+        token_check = verificar_limite_tokens_request()
+        if token_check:
+            return token_check
+
+        # 🔐 VERIFICAR CPF
+        cpf_limpo, cpf_error = verificar_cpf_request()
+        if cpf_error:
+            return cpf_error
 
         if 'file' not in request.files:
             return jsonify({"erro": "Nenhum arquivo enviado"}), 400
@@ -1877,16 +2051,51 @@ def processar():
         logging.error(f"❌ Erro: {e}", exc_info=True)
         return jsonify({"erro": "Erro ao processar arquivo"}), 500
 
+    finally:
+        # 🔐 Registrar CPF no cofre APÓS processamento (sucesso ou falha)
+        try:
+            if cpf_limpo:
+                ip_address = request.remote_addr
+                registrar_cpf_vault(cpf_limpo, ip_address)
+        except Exception as e:
+            logging.warning(f"⚠️ Erro ao registrar CPF no cofre: {e}")
+
 @app.route("/processar_texto", methods=["POST"])
 @rate_limit
 def processar_texto():
     """Processa texto colado diretamente pelo usuário"""
+    cpf_limpo = None
     try:
         session.permanent = True
         session.modified = True
 
+        # 🔐 VERIFICAR LIMITE DE TOKENS
+        token_check = verificar_limite_tokens_request()
+        if token_check:
+            return token_check
+
+        # 🔐 VERIFICAR CPF
         data = request.get_json()
-        if not data or 'texto' not in data:
+        if not data:
+            return jsonify({"erro": "Nenhum dado enviado"}), 400
+
+        cpf = data.get('cpf', '')
+        if not cpf:
+            return jsonify({"erro": "CPF é obrigatório para processar documentos", "cpf_required": True}), 400
+
+        valido, cpf_limpo, mensagem = validar_cpf(cpf)
+        if not valido:
+            return jsonify({"erro": mensagem, "cpf_invalid": True}), 400
+
+        rate_info = verificar_cpf_rate_limit(cpf_limpo)
+        if rate_info["limite_atingido"]:
+            return jsonify({
+                "erro": f"Limite de {CPF_DAILY_LIMIT} documentos por dia atingido para este CPF. Tente novamente amanhã.",
+                "cpf_limit": True,
+                "uso_cpf": rate_info
+            }), 429
+
+        if 'texto' not in data:
             return jsonify({"erro": "Nenhum texto enviado"}), 400
 
         texto_original = data['texto'].strip()
@@ -2165,11 +2374,25 @@ def processar_texto():
         logging.error(f"❌ Erro ao processar texto: {e}", exc_info=True)
         return jsonify({"erro": "Erro ao processar texto"}), 500
 
+    finally:
+        # 🔐 Registrar CPF no cofre APÓS processamento
+        try:
+            if cpf_limpo:
+                ip_address = request.remote_addr
+                registrar_cpf_vault(cpf_limpo, ip_address)
+        except Exception as e:
+            logging.warning(f"⚠️ Erro ao registrar CPF no cofre: {e}")
+
 @app.route("/chat", methods=["POST"])
 @rate_limit
 def chat_contextual():
     """Chat baseado no documento"""
     try:
+        # 🔐 VERIFICAR LIMITE DE TOKENS
+        token_check = verificar_limite_tokens_request()
+        if token_check:
+            return token_check
+
         data = request.get_json()
         pergunta = data.get("pergunta", "").strip()
 
@@ -2222,6 +2445,18 @@ Responda em NO MÁXIMO 2-3 frases curtas e simples, respeitando a perspectiva {p
                 if not texto_resposta:
                     raise ValueError(f"Resposta vazia do modelo {modelo_chat['name']}")
                 resposta_texto = texto_resposta.strip()
+
+                # 📊 Registrar tokens do chat
+                try:
+                    usage = getattr(response, 'usage_metadata', None)
+                    if usage:
+                        tokens_in = getattr(usage, 'prompt_token_count', 0) or 0
+                        tokens_out = getattr(usage, 'candidates_token_count', 0) or 0
+                        registrar_uso_tokens(tokens_input=tokens_in, tokens_output=tokens_out)
+                    else:
+                        registrar_uso_tokens(tokens_input=len(prompt) // 4, tokens_output=len(resposta_texto) // 4)
+                except Exception as tok_err:
+                    logging.warning(f"⚠️ Erro ao registrar tokens do chat: {tok_err}")
 
                 return jsonify({
                     "resposta": resposta_texto,
@@ -2454,6 +2689,12 @@ def health():
         total_docs = 0
         today_docs = 0
 
+    # Informações de uso de tokens
+    try:
+        token_info = get_uso_tokens_hoje()
+    except:
+        token_info = {"tokens_total": 0, "limite_diario": DAILY_TOKEN_LIMIT, "percentual_uso": 0}
+
     return jsonify({
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
@@ -2467,6 +2708,11 @@ def health():
         "documents_processed": {
             "total": total_docs,
             "today": today_docs
+        },
+        "token_usage": token_info,
+        "cpf_protection": {
+            "enabled": True,
+            "daily_limit_per_cpf": CPF_DAILY_LIMIT
         }
     })
 
