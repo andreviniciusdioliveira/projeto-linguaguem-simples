@@ -1262,20 +1262,32 @@ Classifique a ORIGEM do documento em `origem_documento`:
 - Qualquer documento assinado por juiz, desembargador ou serventuário da justiça
 
 ❌ **"advocaticio"** - Documentos ELABORADOS POR ADVOGADOS, DEFENSORES PÚBLICOS ou PARTES:
-- Petições iniciais, contestações, réplicas
+- Petições iniciais de QUALQUER tipo (cível, trabalhista, criminal, previdenciária, tributária)
+- **Reclamações trabalhistas** (reclamação trabalhista = petição inicial na Justiça do Trabalho, é documento DO ADVOGADO, NÃO do juiz)
+- Contestações, réplicas, impugnações
 - Recursos de apelação, agravo, embargos (peças recursais elaboradas por advogados)
-- Memoriais, alegações finais
+- Memoriais, alegações finais, razões e contrarrazões de recurso
 - Procurações, substabelecimentos
 - Contratos, notificações extrajudiciais
 - Pareceres jurídicos
+- Queixas-crime, denúncias (peças do MP quando não são decisões judiciais)
 - Qualquer documento com cabeçalho de escritório de advocacia, OAB, "Excelentíssimo Senhor Juiz"
+
+⚠️ **ATENÇÃO ESPECIAL - RECLAMAÇÃO TRABALHISTA:**
+Reclamação trabalhista é a petição inicial do advogado na Justiça do Trabalho. NÃO é documento judicial.
+Mesmo que mencione "Vara do Trabalho" ou "Justiça do Trabalho", se foi ELABORADA pelo advogado/reclamante, é "advocaticio".
+Documentos judiciais trabalhistas são: sentenças trabalhistas, acórdãos do TRT/TST, mandados de citação/penhora trabalhistas, despachos de juiz do trabalho.
 
 **Indicadores de documento advocatício:**
 - Presença de "OAB", "OAB/XX nº", "Advogado(a)", "Defensor(a) Público(a)" como subscritor/autor do documento
 - Cabeçalho com nome de escritório de advocacia
 - Expressões como "Vem, respeitosamente", "requer a Vossa Excelência", "Excelentíssimo", "data venia"
-- Documento endereçado ao juiz (ex: "Ao Juízo da X Vara")
+- Documento endereçado ao juiz (ex: "Ao Juízo da X Vara", "Ao Juízo da X Vara do Trabalho")
 - Estrutura de petição: qualificação das partes + fatos + fundamentos + pedidos
+- Título "RECLAMAÇÃO TRABALHISTA" ou "PETIÇÃO INICIAL" no cabeçalho
+- Expressões como "Reclamante", "Reclamada" quando usados no contexto de quem está PROPONDO a ação
+- Presença de "DOS FATOS", "DO DIREITO", "DOS PEDIDOS", "DO VALOR DA CAUSA" como seções do documento
+- Pedidos numerados ao final (ex: "Requer: a) ...; b) ...; c) ...")
 
 **Indicadores de documento judicial:**
 - Assinado por Juiz(a), Desembargador(a), Ministro(a)
@@ -1703,6 +1715,95 @@ def validar_cpf_endpoint():
         return jsonify({"erro": "Erro interno ao validar CPF", "valido": False}), 500
 
 
+def detectar_documento_advocaticio(texto):
+    """Pré-validação textual para detectar documentos advocatícios (petições, reclamações trabalhistas, etc.)
+    antes de enviar ao Gemini. Funciona como rede de segurança para evitar processar documentos não-judiciais."""
+    import re
+
+    texto_upper = texto.upper()
+
+    # Padrões fortes que indicam documento advocatício
+    # Cada padrão tem: (regex ou verificação, peso, razão)
+    indicadores = []
+    peso_total = 0
+
+    # --- INDICADORES DE ALTA CONFIANÇA (peso 3) ---
+
+    # Reclamação trabalhista no título/cabeçalho (primeiros 2000 caracteres)
+    cabecalho = texto_upper[:2000]
+    if re.search(r'RECLAMA[ÇC][ÃA]O\s+TRABALHISTA', cabecalho):
+        indicadores.append("Título 'Reclamação Trabalhista' no cabeçalho")
+        peso_total += 3
+
+    # Petição inicial no título
+    if re.search(r'PETI[ÇC][ÃA]O\s+INICIAL', cabecalho):
+        indicadores.append("Título 'Petição Inicial' no cabeçalho")
+        peso_total += 3
+
+    # Estrutura clássica de petição: seções DOS FATOS + DOS PEDIDOS
+    tem_dos_fatos = bool(re.search(r'\b(DOS?\s+FATOS?|DA\s+NARRATIVA|DO\s+RELATO)', texto_upper))
+    tem_dos_pedidos = bool(re.search(r'\b(DOS?\s+PEDIDOS?|DO\s+REQUERIMENTO)', texto_upper))
+    tem_do_direito = bool(re.search(r'\b(DO\s+DIREITO|DOS?\s+FUNDAMENTOS?\s+JUR[IÍ]DICOS?)', texto_upper))
+
+    if tem_dos_fatos and tem_dos_pedidos:
+        indicadores.append("Estrutura de petição: seções 'Dos Fatos' e 'Dos Pedidos'")
+        peso_total += 3
+
+    if tem_do_direito and tem_dos_pedidos:
+        indicadores.append("Estrutura de petição: seções 'Do Direito' e 'Dos Pedidos'")
+        peso_total += 3
+
+    # --- INDICADORES DE MÉDIA CONFIANÇA (peso 2) ---
+
+    # Expressões advocatícias clássicas
+    expressoes_advocaticias = [
+        (r'VEM[\s,]+RESPEITOSAMENTE', "Expressão 'Vem, respeitosamente'"),
+        (r'REQUER\s+A\s+VOSSA\s+EXCEL[EÊ]NCIA', "Expressão 'Requer a Vossa Excelência'"),
+        (r'TERMOS\s+EM\s+QUE[\s,]*\n?\s*PEDE\s+DEFERIMENTO', "Expressão 'Termos em que pede deferimento'"),
+        (r'NESTES\s+TERMOS[\s,]*\n?\s*PEDE\s+DEFERIMENTO', "Expressão 'Nestes termos, pede deferimento'"),
+        (r'PEDE\s+E?\s*ESPERA\s+DEFERIMENTO', "Expressão 'Pede deferimento'"),
+        (r'DATA\s+VENIA', "Expressão 'data venia'"),
+    ]
+
+    for padrao, razao in expressoes_advocaticias:
+        if re.search(padrao, texto_upper):
+            indicadores.append(razao)
+            peso_total += 2
+
+    # DO VALOR DA CAUSA (típico de petições iniciais)
+    if re.search(r'\bDO\s+VALOR\s+DA\s+CAUSA\b', texto_upper):
+        indicadores.append("Seção 'Do Valor da Causa' (típico de petição inicial)")
+        peso_total += 2
+
+    # Endereçamento ao juiz (no cabeçalho)
+    if re.search(r'EXCELENT[IÍ]SSIMO.*(?:JUIZ|JU[IÍ]ZO|VARA)', cabecalho):
+        indicadores.append("Endereçado ao juiz ('Excelentíssimo...')")
+        peso_total += 2
+
+    # --- INDICADORES DE BAIXA CONFIANÇA (peso 1) ---
+
+    # OAB como subscritor (não apenas mencionado)
+    # Procurar OAB nos últimos 1500 caracteres (assinatura)
+    assinatura = texto_upper[-1500:]
+    if re.search(r'OAB[/\s]*[A-Z]{2}\s*(?:N[ºO°]?\s*)?\d+', assinatura):
+        indicadores.append("Advogado com OAB na assinatura")
+        peso_total += 1
+
+    # Qualificação das partes (típico de petição)
+    if re.search(r'(?:BRASILEIRO|BRASILEIRA)[\s,]+(?:SOLTEIRO|CASADO|DIVORCIADO|VI[UÚ]VO|SOLTEIRA|CASADA|DIVORCIADA|VI[UÚ]VA)', texto_upper[:3000]):
+        indicadores.append("Qualificação das partes no início (típico de petição)")
+        peso_total += 1
+
+    # Decidir com base no peso total
+    # Peso >= 5: ALTA confiança de documento advocatício → bloquear
+    # Peso 3-4: precisa de pelo menos 2 indicadores para bloquear
+    if peso_total >= 5 or (peso_total >= 3 and len(indicadores) >= 2):
+        razao = f"Documento identificado como peça advocatícia: {'; '.join(indicadores[:3])}"
+        return {"detectado": True, "razao": razao, "indicadores": indicadores, "peso": peso_total}
+
+    return {"detectado": False, "razao": None, "indicadores": indicadores, "peso": peso_total}
+
+
 @app.route("/processar", methods=["POST"])
 @rate_limit
 def processar():
@@ -1774,6 +1875,40 @@ def processar():
         if len(texto_original) < 10:
             logging.warning(f"⚠️ Texto muito curto: {len(texto_original)} caracteres")
             return jsonify({"erro": "Texto insuficiente no documento"}), 400
+
+        # 🚫 PRÉ-VALIDAÇÃO: Detectar documentos advocatícios antes de enviar ao Gemini
+        pre_validacao = detectar_documento_advocaticio(texto_original)
+        if pre_validacao["detectado"]:
+            logging.warning(f"🚫 PRÉ-VALIDAÇÃO: Documento advocatício detectado - {pre_validacao['razao']}")
+            return jsonify({
+                "documento_nao_judicial": True,
+                "texto": "",
+                "tipo_documento": "advocaticio",
+                "confianca_tipo": "ALTA",
+                "razao_tipo": pre_validacao["razao"],
+                "urgencia": None,
+                "acao_necessaria": None,
+                "dados_extraidos": {
+                    "numero_processo": None,
+                    "tipo_documento": "advocaticio",
+                    "partes": {},
+                    "autoridade": {},
+                    "valores": {},
+                    "prazos": [],
+                    "decisao": None,
+                    "audiencias": [],
+                    "links_audiencia": []
+                },
+                "recursos_cabiveis": {"cabe_recurso": None, "prazo": None},
+                "perguntas_sugeridas": [],
+                "tem_justica_gratuita": None,
+                "caracteres_original": len(texto_original),
+                "caracteres_simplificado": 0,
+                "modelo_usado": "pre-validacao",
+                "perspectiva_aplicada": perspectiva,
+                "segredo_justica": {"detectado": False, "motivo": None, "hipotese_legal": None},
+                "pdf_download_url": None
+            })
 
         # 🎯 ANÁLISE COMPLETA COM GEMINI (COM PERSPECTIVA CORRIGIDA)
         logging.info(f"🤖 Iniciando análise completa com Gemini (perspectiva: {perspectiva})...")
