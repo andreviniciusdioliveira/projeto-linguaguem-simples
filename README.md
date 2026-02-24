@@ -69,7 +69,6 @@ O Entenda Aqui recebe o documento jurídico (PDF, imagem ou texto), processa com
 | **Perspectiva Personalizada** | Explicação adaptada para autor, réu ou caso ECA |
 | **Detecção de Segredo de Justiça** | Bloqueio automático de documentos sigilosos (exceto mandados e intimações) |
 | **Validação Judicial** | Aceita apenas documentos emitidos pelo Poder Judiciário — bloqueia petições e reclamações trabalhistas |
-| **Chat Interativo** | Faça perguntas sobre o documento processado |
 | **Perguntas Sugeridas** | Sugestões contextuais baseadas no tipo de documento |
 
 ### Segurança e Proteção Anti-Abuso
@@ -457,7 +456,6 @@ railway up
 | `POST` | `/validar_cpf` | Valida CPF e verifica rate limit por CPF |
 | `POST` | `/processar` | Processa documento enviado (PDF/imagem) |
 | `POST` | `/processar_texto` | Processa texto jurídico colado diretamente |
-| `POST` | `/chat` | Envia pergunta sobre o documento processado |
 | `GET` | `/download_pdf` | Baixa o PDF simplificado gerado |
 | `GET` | `/validar/<doc_id>` | Página de validação de integridade |
 | `POST` | `/validar/<doc_id>/verificar` | Verifica hash de integridade do documento |
@@ -541,25 +539,7 @@ Processa texto jurídico colado diretamente pelo usuário.
 
 **Response:** Mesmo formato de `/processar`.
 
-### POST `/chat`
 
-Envia uma pergunta sobre o documento previamente processado.
-
-**Request:**
-```json
-{
-  "mensagem": "Quais são os prazos mencionados?",
-  "contexto": "Texto do documento original...",
-  "resultado": "Resultado da simplificação anterior..."
-}
-```
-
-**Response (200):**
-```json
-{
-  "resposta": "O documento menciona os seguintes prazos..."
-}
-```
 
 ### GET `/health`
 
@@ -631,7 +611,6 @@ O Entenda Aqui foi projetado desde a concepção para estar em total conformidad
 - Dados pessoais dos usuários
 - CPFs em texto claro (apenas hash irreversível ou criptografia temporária)
 - Texto original ou simplificado
-- Histórico de conversas do chat
 - Cookies de rastreamento
 
 ### O que **É** armazenado (somente agregados)
@@ -835,11 +814,10 @@ O projeto não possui testes automatizados. Ao fazer alterações, verifique:
 6. Rejeição de documentos não-judiciais (petições, reclamações trabalhistas)
 7. Rate limiting por IP (enviar 11 requisições em 1 minuto)
 8. Rate limiting por CPF (enviar 6 documentos com mesmo CPF)
-9. Chat com perguntas sobre o documento
-10. Download do PDF simplificado
-11. Alternância de tema escuro/claro
-12. Interface em dispositivo móvel
-13. Limpeza automática de arquivos temporários
+9. Download do PDF simplificado
+10. Alternância de tema escuro/claro
+11. Interface em dispositivo móvel
+12. Limpeza automática de arquivos temporários
 
 ---
 
