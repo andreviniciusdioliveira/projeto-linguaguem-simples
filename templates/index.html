@@ -2386,18 +2386,26 @@
         <!-- Upload Card -->
         <div class="card">
             <h2 style="color: var(--jus-azul); margin-bottom: 1.5rem;">📤 Enviar Documento ou Imagem</h2>
-            <div id="drop-area">
-                <div class="file-type-icon" id="fileTypeIcon">📁</div>
-                <p style="font-size: 1.1rem; color: var(--text); margin-bottom: 1rem;">
-                    Arraste seu arquivo aqui ou clique para selecionar
-                </p>
-                <input type="file" id="fileInput" accept=".pdf,image/*" style="display: none;">
-                <button class="button" onclick="document.getElementById('fileInput').click()">
-                    <span>📎</span> Escolher Arquivo
-                </button>
+
+                <!-- Campo de CPF (proteção anti-bot) -->
+                <div id="cpfSection" style="padding: 1.5rem; background: #f0f7ff; border-radius: 8px; border-left: 4px solid var(--jus-azul); margin-bottom: 1.5rem;">
+                    <div style="font-weight: bold; margin-bottom: 0.75rem; color: var(--jus-azul);">🔐 Identificação (obrigatório)</div>
+                    <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+                        <input type="text" id="cpfInput" placeholder="Digite seu CPF" maxlength="14"
+                            style="flex: 1; min-width: 180px; padding: 0.75rem 1rem; border: 2px solid var(--border); border-radius: 8px; font-size: 1rem; font-family: inherit; transition: border-color 0.3s;"
+                            oninput="formatarCPF(this)" onblur="validarCPFInput()">
+                        <span id="cpfStatus" style="font-size: 0.9rem; font-weight: 500;"></span>
+                    </div>
+                    <div id="cpfUsageInfo" style="display: none; margin-top: 0.5rem; font-size: 0.8rem; color: var(--text-muted);"></div>
+                    <p style="font-size: 0.7rem; color: var(--text-muted); margin-top: 0.75rem; text-align: center; line-height: 1.4;">
+                        Seu CPF é armazenado de forma criptografada e apagado automaticamente a cada 24 horas.
+                        Usado apenas para limitar o uso a 5 documentos por dia por pessoa (proteção contra abusos).
+                        <br><strong>Em conformidade com a LGPD.</strong>
+                    </p>
+                </div>
 
                 <!-- Seletor de Perspectiva -->
-                <div style="margin-top: 2rem; padding: 1.5rem; background: var(--info-bg); border-radius: 8px; border-left: 4px solid var(--jus-azul);">
+                <div style="padding: 1.5rem; background: var(--info-bg); border-radius: 8px; border-left: 4px solid var(--jus-azul); margin-bottom: 1.5rem;">
                     <div style="font-weight: bold; margin-bottom: 1rem; color: var(--jus-azul);">👤 Você está:</div>
                     <div style="display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center;">
                         <label style="cursor: pointer; flex: 1; min-width: 150px;">
@@ -2418,22 +2426,15 @@
                     </p>
                 </div>
 
-                <!-- Campo de CPF (proteção anti-bot) -->
-                <div id="cpfSection" style="margin-top: 1.5rem; padding: 1.5rem; background: #f0f7ff; border-radius: 8px; border-left: 4px solid var(--jus-azul);">
-                    <div style="font-weight: bold; margin-bottom: 0.75rem; color: var(--jus-azul);">🔐 Identificação (obrigatório)</div>
-                    <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
-                        <input type="text" id="cpfInput" placeholder="Digite seu CPF" maxlength="14"
-                            style="flex: 1; min-width: 180px; padding: 0.75rem 1rem; border: 2px solid var(--border); border-radius: 8px; font-size: 1rem; font-family: inherit; transition: border-color 0.3s;"
-                            oninput="formatarCPF(this)" onblur="validarCPFInput()">
-                        <span id="cpfStatus" style="font-size: 0.9rem; font-weight: 500;"></span>
-                    </div>
-                    <div id="cpfUsageInfo" style="display: none; margin-top: 0.5rem; font-size: 0.8rem; color: var(--text-muted);"></div>
-                    <p style="font-size: 0.7rem; color: var(--text-muted); margin-top: 0.75rem; text-align: center; line-height: 1.4;">
-                        Seu CPF é armazenado de forma criptografada e apagado automaticamente a cada 24 horas.
-                        Usado apenas para limitar o uso a 5 documentos por dia por pessoa (proteção contra abusos).
-                        <br><strong>Em conformidade com a LGPD.</strong>
-                    </p>
-                </div>
+            <div id="drop-area">
+                <div class="file-type-icon" id="fileTypeIcon">📁</div>
+                <p style="font-size: 1.1rem; color: var(--text); margin-bottom: 1rem;">
+                    Arraste seu arquivo aqui ou clique para selecionar
+                </p>
+                <input type="file" id="fileInput" accept=".pdf,image/*" style="display: none;">
+                <button class="button" onclick="document.getElementById('fileInput').click()">
+                    <span>📎</span> Escolher Arquivo
+                </button>
 
                 <!-- Formatos suportados -->
                 <div class="formats-grid" style="margin-top: 2rem;">
@@ -2491,6 +2492,13 @@
                     <span id="fileNameInfo" style="font-weight: 600;"></span>
                     <span id="fileSizeInfo" style="font-size: 0.875rem; color: var(--text-muted);"></span>
                 </p>
+            </div>
+
+            <!-- Botão Processar Documento -->
+            <div id="processFileBtn" style="display: none; margin-top: 1.5rem; text-align: center;">
+                <button class="button" onclick="uploadFile(currentFile)" style="font-size: 1.1rem; padding: 0.85rem 2.5rem;">
+                    <span>🔄</span> Processar Documento
+                </button>
             </div>
         </div>
 
@@ -3250,34 +3258,36 @@
 
         function handleFiles(files) {
             if (files.length === 0) return;
-            
+
             const file = files[0];
             const extension = getFileExtension(file.name);
-            
+
             if (!ALLOWED_EXTENSIONS.includes(extension)) {
                 showToast('Formato não suportado. Use: PDF, PNG, JPG, GIF, BMP, TIFF, WEBP', 'error');
                 onFileUploadError();
                 return;
             }
-            
+
             if (file.size > MAX_FILE_SIZE) {
                 showToast(`Arquivo muito grande. Máximo: ${MAX_FILE_SIZE / 1024 / 1024}MB`, 'error');
                 onFileUploadError();
                 return;
             }
-            
+
             currentFile = file;
             currentFileType = extension;
-            
+
             onFileSelected();
-            
+
             if (IMAGE_EXTENSIONS.includes(extension)) {
                 showImagePreview(file);
             } else {
                 showPDFInfo(file);
             }
-            
-            uploadFile(file);
+
+            // Mostrar botão de processar documento
+            const processBtn = document.getElementById('processFileBtn');
+            if (processBtn) processBtn.style.display = 'block';
         }
 
         function showImagePreview(file) {
@@ -3308,6 +3318,7 @@
             currentFileType = null;
             document.getElementById('previewContainer').style.display = 'none';
             document.getElementById('fileInfo').style.display = 'none';
+            document.getElementById('processFileBtn').style.display = 'none';
             fileInput.value = '';
             fileTypeIcon.textContent = '📁';
             showToast('Arquivo removido', 'info');
@@ -3327,9 +3338,18 @@
                 return;
             }
 
+            if (!file) {
+                showToast('Por favor, selecione um arquivo primeiro', 'warning');
+                return;
+            }
+
             // Validar CPF antes de processar
             const cpf = obterCPFValidado();
             if (!cpf) return;
+
+            // Esconder botão de processar
+            const processBtn = document.getElementById('processFileBtn');
+            if (processBtn) processBtn.style.display = 'none';
 
             isProcessing = true;
 
@@ -3397,7 +3417,13 @@
             .catch(error => {
                 showToast(error.message || 'Erro ao processar arquivo', 'error');
                 console.error('Erro:', error);
-                
+
+                // Mostrar botão de processar novamente para permitir nova tentativa
+                if (currentFile) {
+                    const processBtn = document.getElementById('processFileBtn');
+                    if (processBtn) processBtn.style.display = 'block';
+                }
+
                 onFileUploadError();
             })
             .finally(() => {
@@ -4641,6 +4667,7 @@
             document.getElementById('resultSection').style.display = 'none';
             document.getElementById('fileInfo').style.display = 'none';
             document.getElementById('previewContainer').style.display = 'none';
+            document.getElementById('processFileBtn').style.display = 'none';
             fileInput.value = '';
             currentFile = null;
             currentFileType = null;
