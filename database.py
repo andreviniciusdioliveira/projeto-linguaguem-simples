@@ -2,6 +2,7 @@
 Sistema de estatísticas agregadas para o Entenda Aqui
 LGPD COMPLIANT - Armazena APENAS contadores e hashes, ZERO dados de documentos
 Inclui auditoria de IP para administração (sem conteúdo de documentos)
+Inclui cofre criptografado de CPF (apagado diariamente) e controle de tokens
 """
 import sqlite3
 import os
@@ -12,11 +13,50 @@ from datetime import datetime
 from threading import Lock, Thread, Event
 import time
 
+# Criptografia para cofre de CPF
+try:
+    from cryptography.fernet import Fernet
+    CRYPTO_AVAILABLE = True
+except ImportError:
+    CRYPTO_AVAILABLE = False
+    logging.warning("⚠️ cryptography não disponível - cofre de CPF desabilitado")
+
 # Lock para operações thread-safe
 db_lock = Lock()
 
 # Caminho do banco (persistente, não em TEMP_DIR para não perder dados)
 DB_PATH = os.path.join(os.path.dirname(__file__), 'stats.db')
+
+# === CONFIGURAÇÕES DE LIMITE DE TOKENS ===
+# Limite diário: 171.6 milhões de tokens
+DAILY_TOKEN_LIMIT = 171_600_000
+
+# === CONFIGURAÇÕES DO COFRE DE CPF ===
+# Chave de criptografia do cofre (deve ser definida como variável de ambiente)
+CPF_VAULT_KEY = os.getenv("CPF_VAULT_KEY", "")
+# Limite de documentos por CPF por dia
+CPF_DAILY_LIMIT = 5
+
+# Inicializar Fernet se chave disponível
+_fernet = None
+if CRYPTO_AVAILABLE and CPF_VAULT_KEY:
+    try:
+        # Derivar chave Fernet de 32 bytes a partir da chave fornecida
+        key_bytes = hashlib.sha256(CPF_VAULT_KEY.encode()).digest()
+        import base64
+        fernet_key = base64.urlsafe_b64encode(key_bytes)
+        _fernet = Fernet(fernet_key)
+        logging.info("🔐 Cofre de CPF inicializado com criptografia Fernet")
+    except Exception as e:
+        logging.error(f"❌ Erro ao inicializar cofre de CPF: {e}")
+        _fernet = None
+elif CRYPTO_AVAILABLE and not CPF_VAULT_KEY:
+    # Gerar chave temporária (dados perdidos ao reiniciar - aceitável pois limpeza é diária)
+    key_bytes = hashlib.sha256(secrets.token_bytes(32)).digest()
+    import base64
+    fernet_key = base64.urlsafe_b64encode(key_bytes)
+    _fernet = Fernet(fernet_key)
+    logging.warning("⚠️ CPF_VAULT_KEY não configurada - usando chave temporária (dados perdidos ao reiniciar)")
 
 def init_db():
     """Inicializa banco de dados com tabelas de estatísticas"""
@@ -82,6 +122,43 @@ def init_db():
                 tamanho_bytes INTEGER,
                 modelo_usado TEXT,
                 data_processamento TEXT NOT NULL
+            )
+        ''')
+
+        # === TABELA DE USO DIÁRIO DE TOKENS ===
+        # Controla o consumo de tokens da API Gemini por dia
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS token_usage_diario (
+                data TEXT PRIMARY KEY,
+                tokens_input INTEGER DEFAULT 0,
+                tokens_output INTEGER DEFAULT 0,
+                tokens_total INTEGER DEFAULT 0,
+                requisicoes INTEGER DEFAULT 0,
+                ultima_atualizacao TEXT
+            )
+        ''')
+
+        # === COFRE CRIPTOGRAFADO DE CPF (LGPD) ===
+        # CPFs criptografados com Fernet - apagados diariamente
+        # Hash SHA-256 para lookup rápido sem descriptografar
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS cpf_vault (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                cpf_hash TEXT NOT NULL,
+                cpf_encrypted TEXT NOT NULL,
+                data_registro TEXT NOT NULL,
+                ip_hash TEXT
+            )
+        ''')
+
+        # === CONTROLE DE USO POR CPF ===
+        # Rate limiting por CPF (máximo X documentos por dia)
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS cpf_rate_limit (
+                cpf_hash TEXT NOT NULL,
+                data TEXT NOT NULL,
+                contagem INTEGER DEFAULT 0,
+                PRIMARY KEY (cpf_hash, data)
             )
         ''')
 
@@ -509,6 +586,352 @@ def get_auditoria_ip(limite=100, pagina=1, filtro_ip=None, filtro_tipo=None, fil
         }
 
 
+# ==========================================
+# === FUNÇÕES DE CONTROLE DE TOKENS ===
+# ==========================================
+
+def registrar_uso_tokens(tokens_input=0, tokens_output=0):
+    """
+    Registra tokens consumidos na requisição atual.
+    Incrementa contadores diários de input, output e total.
+
+    Args:
+        tokens_input: Tokens consumidos no prompt (input)
+        tokens_output: Tokens gerados na resposta (output)
+
+    Returns:
+        Dict com tokens_total_hoje e limite_atingido
+    """
+    tokens_total = tokens_input + tokens_output
+    hoje = datetime.now().strftime('%Y-%m-%d')
+
+    with db_lock:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+
+        cursor.execute('''
+            INSERT INTO token_usage_diario (data, tokens_input, tokens_output, tokens_total, requisicoes, ultima_atualizacao)
+            VALUES (?, ?, ?, ?, 1, ?)
+            ON CONFLICT(data) DO UPDATE SET
+                tokens_input = tokens_input + ?,
+                tokens_output = tokens_output + ?,
+                tokens_total = tokens_total + ?,
+                requisicoes = requisicoes + 1,
+                ultima_atualizacao = ?
+        ''', (
+            hoje, tokens_input, tokens_output, tokens_total, datetime.now().isoformat(),
+            tokens_input, tokens_output, tokens_total, datetime.now().isoformat()
+        ))
+
+        # Buscar total atualizado
+        cursor.execute('SELECT tokens_total, requisicoes FROM token_usage_diario WHERE data = ?', (hoje,))
+        row = cursor.fetchone()
+        total_hoje = row[0] if row else 0
+        reqs_hoje = row[1] if row else 0
+
+        conn.commit()
+        conn.close()
+
+    limite_atingido = total_hoje >= DAILY_TOKEN_LIMIT
+    percentual = min(100, int((total_hoje / DAILY_TOKEN_LIMIT) * 100))
+
+    if limite_atingido:
+        logging.warning(f"⚠️ LIMITE DIÁRIO DE TOKENS ATINGIDO: {total_hoje:,} / {DAILY_TOKEN_LIMIT:,}")
+    else:
+        logging.info(f"📊 Tokens hoje: {total_hoje:,} / {DAILY_TOKEN_LIMIT:,} ({percentual}%) - Requisições: {reqs_hoje}")
+
+    return {
+        "tokens_total_hoje": total_hoje,
+        "limite_diario": DAILY_TOKEN_LIMIT,
+        "limite_atingido": limite_atingido,
+        "percentual_uso": percentual,
+        "requisicoes_hoje": reqs_hoje
+    }
+
+
+def verificar_limite_tokens():
+    """
+    Verifica se o limite diário de tokens foi atingido.
+
+    Returns:
+        Dict com tokens_total_hoje, limite_atingido, percentual_uso
+    """
+    hoje = datetime.now().strftime('%Y-%m-%d')
+
+    with db_lock:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+
+        cursor.execute('SELECT tokens_total, requisicoes FROM token_usage_diario WHERE data = ?', (hoje,))
+        row = cursor.fetchone()
+
+        conn.close()
+
+    total_hoje = row[0] if row else 0
+    reqs_hoje = row[1] if row else 0
+    limite_atingido = total_hoje >= DAILY_TOKEN_LIMIT
+    percentual = min(100, int((total_hoje / DAILY_TOKEN_LIMIT) * 100))
+
+    return {
+        "tokens_total_hoje": total_hoje,
+        "limite_diario": DAILY_TOKEN_LIMIT,
+        "limite_atingido": limite_atingido,
+        "percentual_uso": percentual,
+        "requisicoes_hoje": reqs_hoje
+    }
+
+
+def get_uso_tokens_hoje():
+    """Retorna resumo do uso de tokens do dia para o endpoint /health"""
+    hoje = datetime.now().strftime('%Y-%m-%d')
+
+    with db_lock:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+
+        cursor.execute('SELECT tokens_input, tokens_output, tokens_total, requisicoes FROM token_usage_diario WHERE data = ?', (hoje,))
+        row = cursor.fetchone()
+
+        conn.close()
+
+    if row:
+        return {
+            "data": hoje,
+            "tokens_input": row[0],
+            "tokens_output": row[1],
+            "tokens_total": row[2],
+            "requisicoes": row[3],
+            "limite_diario": DAILY_TOKEN_LIMIT,
+            "percentual_uso": min(100, int((row[2] / DAILY_TOKEN_LIMIT) * 100))
+        }
+    return {
+        "data": hoje,
+        "tokens_input": 0,
+        "tokens_output": 0,
+        "tokens_total": 0,
+        "requisicoes": 0,
+        "limite_diario": DAILY_TOKEN_LIMIT,
+        "percentual_uso": 0
+    }
+
+
+def limpar_tokens_antigos(dias=7):
+    """Remove registros de uso de tokens com mais de X dias"""
+    with db_lock:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+
+        cursor.execute('''
+            DELETE FROM token_usage_diario
+            WHERE date(data) < date('now', ? || ' days')
+        ''', (f'-{dias}',))
+
+        deletados = cursor.rowcount
+        conn.commit()
+        conn.close()
+
+        if deletados > 0:
+            logging.info(f"🗑️ Tokens: Removidos {deletados} registros de uso antigos")
+
+        return deletados
+
+
+# ==========================================
+# === FUNÇÕES DO COFRE DE CPF (LGPD) ===
+# ==========================================
+
+def gerar_hash_cpf(cpf):
+    """
+    Gera hash SHA-256 do CPF para lookup rápido.
+    LGPD: O hash é irreversível - impossível reconstruir o CPF.
+
+    Args:
+        cpf: CPF limpo (apenas dígitos, 11 caracteres)
+    """
+    salt = "entenda-aqui-cpf-vault-2024"
+    return hashlib.sha256(f"{salt}:{cpf}".encode('utf-8')).hexdigest()
+
+
+def criptografar_cpf(cpf):
+    """
+    Criptografa CPF usando Fernet (AES-128-CBC).
+
+    Args:
+        cpf: CPF limpo (apenas dígitos)
+
+    Returns:
+        CPF criptografado em base64, ou None se criptografia indisponível
+    """
+    if not _fernet:
+        return None
+    try:
+        return _fernet.encrypt(cpf.encode('utf-8')).decode('utf-8')
+    except Exception as e:
+        logging.error(f"❌ Erro ao criptografar CPF: {e}")
+        return None
+
+
+def descriptografar_cpf(cpf_encrypted):
+    """
+    Descriptografa CPF do cofre.
+
+    Args:
+        cpf_encrypted: CPF criptografado em base64
+
+    Returns:
+        CPF descriptografado ou None se falhar
+    """
+    if not _fernet:
+        return None
+    try:
+        return _fernet.decrypt(cpf_encrypted.encode('utf-8')).decode('utf-8')
+    except Exception as e:
+        logging.error(f"❌ Erro ao descriptografar CPF: {e}")
+        return None
+
+
+def registrar_cpf_vault(cpf, ip_address=None):
+    """
+    Registra CPF no cofre criptografado e incrementa rate limit.
+    LGPD: CPF é armazenado CRIPTOGRAFADO e apagado diariamente.
+
+    Args:
+        cpf: CPF limpo (apenas dígitos, 11 caracteres)
+        ip_address: IP do usuário (será convertido em hash)
+
+    Returns:
+        Dict com sucesso, contagem_hoje, limite_atingido
+    """
+    cpf_hash = gerar_hash_cpf(cpf)
+    cpf_encrypted = criptografar_cpf(cpf)
+    ip_hash = gerar_hash_ip(ip_address) if ip_address else None
+    hoje = datetime.now().strftime('%Y-%m-%d')
+
+    with db_lock:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+
+        # Verificar rate limit ANTES de registrar
+        cursor.execute('''
+            SELECT contagem FROM cpf_rate_limit
+            WHERE cpf_hash = ? AND data = ?
+        ''', (cpf_hash, hoje))
+        row = cursor.fetchone()
+        contagem_atual = row[0] if row else 0
+
+        if contagem_atual >= CPF_DAILY_LIMIT:
+            conn.close()
+            logging.warning(f"⚠️ CPF rate limit atingido: hash={cpf_hash[:16]}... ({contagem_atual}/{CPF_DAILY_LIMIT})")
+            return {
+                "sucesso": False,
+                "contagem_hoje": contagem_atual,
+                "limite": CPF_DAILY_LIMIT,
+                "limite_atingido": True,
+                "mensagem": f"Limite de {CPF_DAILY_LIMIT} documentos por dia atingido para este CPF."
+            }
+
+        # Registrar no cofre (apenas se criptografia disponível)
+        if cpf_encrypted:
+            cursor.execute('''
+                INSERT INTO cpf_vault (cpf_hash, cpf_encrypted, data_registro, ip_hash)
+                VALUES (?, ?, ?, ?)
+            ''', (cpf_hash, cpf_encrypted, datetime.now().isoformat(), ip_hash))
+
+        # Incrementar rate limit
+        cursor.execute('''
+            INSERT INTO cpf_rate_limit (cpf_hash, data, contagem)
+            VALUES (?, ?, 1)
+            ON CONFLICT(cpf_hash, data) DO UPDATE SET contagem = contagem + 1
+        ''', (cpf_hash, hoje))
+
+        # Buscar contagem atualizada
+        cursor.execute('''
+            SELECT contagem FROM cpf_rate_limit
+            WHERE cpf_hash = ? AND data = ?
+        ''', (cpf_hash, hoje))
+        nova_contagem = cursor.fetchone()[0]
+
+        conn.commit()
+        conn.close()
+
+    logging.info(f"🔐 CPF registrado no cofre: hash={cpf_hash[:16]}... (uso: {nova_contagem}/{CPF_DAILY_LIMIT})")
+
+    return {
+        "sucesso": True,
+        "contagem_hoje": nova_contagem,
+        "limite": CPF_DAILY_LIMIT,
+        "limite_atingido": False,
+        "restantes": CPF_DAILY_LIMIT - nova_contagem
+    }
+
+
+def verificar_cpf_rate_limit(cpf):
+    """
+    Verifica se o CPF ainda pode processar documentos hoje.
+
+    Args:
+        cpf: CPF limpo (apenas dígitos)
+
+    Returns:
+        Dict com contagem_hoje, limite, limite_atingido, restantes
+    """
+    cpf_hash = gerar_hash_cpf(cpf)
+    hoje = datetime.now().strftime('%Y-%m-%d')
+
+    with db_lock:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+
+        cursor.execute('''
+            SELECT contagem FROM cpf_rate_limit
+            WHERE cpf_hash = ? AND data = ?
+        ''', (cpf_hash, hoje))
+        row = cursor.fetchone()
+
+        conn.close()
+
+    contagem = row[0] if row else 0
+    limite_atingido = contagem >= CPF_DAILY_LIMIT
+
+    return {
+        "contagem_hoje": contagem,
+        "limite": CPF_DAILY_LIMIT,
+        "limite_atingido": limite_atingido,
+        "restantes": max(0, CPF_DAILY_LIMIT - contagem)
+    }
+
+
+def limpar_cpf_vault():
+    """
+    Remove TODOS os registros do cofre de CPF.
+    LGPD: Limpeza diária obrigatória - nenhum CPF persiste mais de 24h.
+
+    Returns:
+        Número de registros removidos
+    """
+    with db_lock:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+
+        # Limpar cofre de CPFs criptografados
+        cursor.execute('DELETE FROM cpf_vault')
+        deletados_vault = cursor.rowcount
+
+        # Limpar rate limits de dias anteriores (manter apenas hoje)
+        hoje = datetime.now().strftime('%Y-%m-%d')
+        cursor.execute('DELETE FROM cpf_rate_limit WHERE data < ?', (hoje,))
+        deletados_rate = cursor.rowcount
+
+        conn.commit()
+        conn.close()
+
+    total = deletados_vault + deletados_rate
+    if total > 0:
+        logging.info(f"🗑️ LGPD CPF: Removidos {deletados_vault} CPFs do cofre + {deletados_rate} registros de rate limit antigos")
+
+    return total
+
+
 def limpar_auditoria_antiga(dias=90):
     """
     Remove registros de auditoria com mais de X dias.
@@ -580,10 +1003,12 @@ def executar_limpeza_periodica():
             deletados = limpar_estatisticas_antigas()
             deletados_validacao = limpar_validacoes_expiradas()
             deletados_auditoria = limpar_auditoria_antiga()
+            deletados_cpf = limpar_cpf_vault()
+            deletados_tokens = limpar_tokens_antigos()
 
-            total_deletados = deletados + deletados_validacao + deletados_auditoria
+            total_deletados = deletados + deletados_validacao + deletados_auditoria + deletados_cpf + deletados_tokens
             if total_deletados > 0:
-                logging.info(f"✅ Limpeza concluída: {deletados} stats + {deletados_validacao} validações + {deletados_auditoria} auditoria removidos")
+                logging.info(f"✅ Limpeza concluída: {deletados} stats + {deletados_validacao} validações + {deletados_auditoria} auditoria + {deletados_cpf} CPFs + {deletados_tokens} tokens removidos")
             else:
                 logging.info("✅ Limpeza concluída: nenhum registro antigo encontrado")
 
@@ -617,8 +1042,11 @@ try:
     deletados = limpar_estatisticas_antigas()
     deletados_val = limpar_validacoes_expiradas()
     deletados_aud = limpar_auditoria_antiga()
-    if deletados > 0 or deletados_val > 0 or deletados_aud > 0:
-        logging.info(f"🧹 Limpeza inicial: {deletados} stats + {deletados_val} validações + {deletados_aud} auditoria removidos")
+    deletados_cpf = limpar_cpf_vault()
+    deletados_tok = limpar_tokens_antigos()
+    total_limpeza = deletados + deletados_val + deletados_aud + deletados_cpf + deletados_tok
+    if total_limpeza > 0:
+        logging.info(f"🧹 Limpeza inicial: {deletados} stats + {deletados_val} validações + {deletados_aud} auditoria + {deletados_cpf} CPFs + {deletados_tok} tokens removidos")
 
     # Iniciar thread de limpeza automática
     iniciar_limpeza_automatica()

@@ -2418,6 +2418,23 @@
                     </p>
                 </div>
 
+                <!-- Campo de CPF (proteção anti-bot) -->
+                <div id="cpfSection" style="margin-top: 1.5rem; padding: 1.5rem; background: #f0f7ff; border-radius: 8px; border-left: 4px solid var(--jus-azul);">
+                    <div style="font-weight: bold; margin-bottom: 0.75rem; color: var(--jus-azul);">🔐 Identificação (obrigatório)</div>
+                    <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+                        <input type="text" id="cpfInput" placeholder="Digite seu CPF" maxlength="14"
+                            style="flex: 1; min-width: 180px; padding: 0.75rem 1rem; border: 2px solid var(--border); border-radius: 8px; font-size: 1rem; font-family: inherit; transition: border-color 0.3s;"
+                            oninput="formatarCPF(this)" onblur="validarCPFInput()">
+                        <span id="cpfStatus" style="font-size: 0.9rem; font-weight: 500;"></span>
+                    </div>
+                    <div id="cpfUsageInfo" style="display: none; margin-top: 0.5rem; font-size: 0.8rem; color: var(--text-muted);"></div>
+                    <p style="font-size: 0.7rem; color: var(--text-muted); margin-top: 0.75rem; text-align: center; line-height: 1.4;">
+                        Seu CPF é armazenado de forma criptografada e apagado automaticamente a cada 24 horas.
+                        Usado apenas para limitar o uso a 5 documentos por dia por pessoa (proteção contra abusos).
+                        <br><strong>Em conformidade com a LGPD.</strong>
+                    </p>
+                </div>
+
                 <!-- Formatos suportados -->
                 <div class="formats-grid" style="margin-top: 2rem;">
                     <div class="format-item">
@@ -3066,6 +3083,122 @@
         dropArea.addEventListener('drop', handleDrop, false);
         fileInput.addEventListener('change', handleFileSelect, false);
 
+        // ===== FUNÇÕES DE CPF (PROTEÇÃO ANTI-BOT) =====
+
+        // Formatar CPF enquanto digita: 000.000.000-00
+        function formatarCPF(input) {
+            let valor = input.value.replace(/\D/g, '');
+            if (valor.length > 11) valor = valor.slice(0, 11);
+
+            if (valor.length > 9) {
+                valor = valor.replace(/(\d{3})(\d{3})(\d{3})(\d{1,2})/, '$1.$2.$3-$4');
+            } else if (valor.length > 6) {
+                valor = valor.replace(/(\d{3})(\d{3})(\d{1,3})/, '$1.$2.$3');
+            } else if (valor.length > 3) {
+                valor = valor.replace(/(\d{3})(\d{1,3})/, '$1.$2');
+            }
+
+            input.value = valor;
+        }
+
+        // Validação algorítmica de CPF no frontend
+        function validarCPFAlgoritmo(cpf) {
+            const cpfLimpo = cpf.replace(/\D/g, '');
+
+            if (cpfLimpo.length !== 11) return false;
+
+            // Rejeitar CPFs com todos os dígitos iguais
+            if (/^(\d)\1{10}$/.test(cpfLimpo)) return false;
+
+            // Primeiro dígito verificador
+            let soma = 0;
+            for (let i = 0; i < 9; i++) {
+                soma += parseInt(cpfLimpo[i]) * (10 - i);
+            }
+            let resto = soma % 11;
+            let digito1 = resto < 2 ? 0 : 11 - resto;
+            if (parseInt(cpfLimpo[9]) !== digito1) return false;
+
+            // Segundo dígito verificador
+            soma = 0;
+            for (let i = 0; i < 10; i++) {
+                soma += parseInt(cpfLimpo[i]) * (11 - i);
+            }
+            resto = soma % 11;
+            let digito2 = resto < 2 ? 0 : 11 - resto;
+            if (parseInt(cpfLimpo[10]) !== digito2) return false;
+
+            return true;
+        }
+
+        // Validar CPF ao sair do campo
+        function validarCPFInput() {
+            const input = document.getElementById('cpfInput');
+            const status = document.getElementById('cpfStatus');
+            const cpf = input.value;
+
+            if (!cpf || cpf.replace(/\D/g, '').length < 11) {
+                status.textContent = '';
+                input.style.borderColor = 'var(--border)';
+                return;
+            }
+
+            if (validarCPFAlgoritmo(cpf)) {
+                status.innerHTML = '<span style="color: var(--success);">&#10003; CPF válido</span>';
+                input.style.borderColor = 'var(--success)';
+
+                // Verificar uso no servidor
+                fetch('/validar_cpf', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ cpf: cpf })
+                })
+                .then(r => r.json())
+                .then(data => {
+                    const usageInfo = document.getElementById('cpfUsageInfo');
+                    if (data.valido && data.uso_cpf) {
+                        const restantes = data.uso_cpf.restantes;
+                        usageInfo.style.display = 'block';
+                        usageInfo.innerHTML = `Documentos restantes hoje: <strong>${restantes}/${data.uso_cpf.limite}</strong>`;
+                        if (restantes === 0) {
+                            status.innerHTML = '<span style="color: var(--danger);">&#10007; Limite diário atingido</span>';
+                            input.style.borderColor = 'var(--danger)';
+                        }
+                    }
+                    if (data.uso_tokens && data.uso_tokens.limite_atingido) {
+                        usageInfo.style.display = 'block';
+                        usageInfo.innerHTML += '<br><span style="color: var(--danger);">Sistema no limite diário de processamento. Tente amanhã.</span>';
+                    }
+                })
+                .catch(() => {});
+            } else {
+                status.innerHTML = '<span style="color: var(--danger);">&#10007; CPF inválido</span>';
+                input.style.borderColor = 'var(--danger)';
+            }
+        }
+
+        // Obter CPF validado (retorna CPF limpo ou null com toast de erro)
+        function obterCPFValidado() {
+            const input = document.getElementById('cpfInput');
+            const cpf = input.value;
+
+            if (!cpf || cpf.replace(/\D/g, '').length < 11) {
+                showToast('Por favor, informe seu CPF para continuar', 'warning');
+                input.focus();
+                input.style.borderColor = 'var(--danger)';
+                return null;
+            }
+
+            if (!validarCPFAlgoritmo(cpf)) {
+                showToast('CPF inválido. Verifique os números digitados.', 'error');
+                input.focus();
+                input.style.borderColor = 'var(--danger)';
+                return null;
+            }
+
+            return cpf.replace(/\D/g, '');
+        }
+
         // FEEDBACK DE PERSPECTIVA
         // Adicionar feedback visual quando o usuário seleciona uma perspectiva
         document.querySelectorAll('input[name="perspectiva"]').forEach(radio => {
@@ -3193,28 +3326,35 @@
                 showToast('Aguarde o processamento atual terminar', 'warning');
                 return;
             }
-            
+
+            // Validar CPF antes de processar
+            const cpf = obterCPFValidado();
+            if (!cpf) return;
+
             isProcessing = true;
-            
+
             const extension = getFileExtension(file.name);
             const isImage = IMAGE_EXTENSIONS.includes(extension);
-            
+
             onFileUploadStart();
-            
+
             if (isImage) {
                 showLoading('Processando imagem...', true);
             } else {
                 showLoading('Processando PDF...');
             }
-            
+
             updateProgressSteps(2);
-            
+
             const formData = new FormData();
             formData.append('file', file);
 
             // Adicionar perspectiva selecionada
             const perspectiva = document.querySelector('input[name="perspectiva"]:checked').value;
             formData.append('perspectiva', perspectiva);
+
+            // Adicionar CPF
+            formData.append('cpf', cpf);
             
             let progress = 0;
             const progressInterval = setInterval(() => {
@@ -3269,34 +3409,38 @@
 
         function processManualText() {
             const text = document.getElementById('manualText').value.trim();
-            
+
             if (!text) {
                 showToast('Por favor, insira algum texto', 'warning');
                 return;
             }
-            
+
             if (text.length < 20) {
                 showToast('Texto muito curto. Mínimo: 20 caracteres', 'warning');
                 return;
             }
-            
+
             if (text.length > 10000) {
                 showToast('Texto muito longo. Máximo: 10.000 caracteres', 'warning');
                 return;
             }
-            
+
+            // Validar CPF antes de processar
+            const cpf = obterCPFValidado();
+            if (!cpf) return;
+
             if (isProcessing) {
                 showToast('Aguarde o processamento atual terminar', 'warning');
                 return;
             }
-            
+
             isProcessing = true;
-            
+
             onFileUploadStart();
-            
+
             showLoading('Processando texto...');
             updateProgressSteps(2);
-            
+
             const perspectiva = document.querySelector('input[name="perspectiva"]:checked').value;
 
             fetch('/processar_texto', {
@@ -3304,7 +3448,7 @@
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ texto: text, perspectiva: perspectiva })
+                body: JSON.stringify({ texto: text, perspectiva: perspectiva, cpf: cpf })
             })
             .then(response => {
                 if (!response.ok) {
