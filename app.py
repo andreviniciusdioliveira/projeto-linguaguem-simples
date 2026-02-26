@@ -1159,6 +1159,7 @@ Analise o documento e retorne JSON com:
   "acao_necessaria": "Frase MUITO SIMPLES sobre o que fazer agora",
 
 **acao_necessaria:** Máximo 8 palavras, linguagem ULTRA SIMPLES. Evite termos técnicos. Para sentenças/acórdãos prefira "Fale com advogado(a) ou defensoria pública". Evite "Aguarde" (execução raramente é automática). Para mandados: "Vá ao endereço indicado no prazo".
+ATENÇÃO: O campo acao_necessaria é uma RECOMENDAÇÃO ao cidadão. Ele NÃO tem relação com a classificação de origem_documento. Uma sentença que recomenda "Fale com advogado" continua sendo documento JUDICIAL (origem_documento: "judicial").
 
   "tem_justica_gratuita": true|false,
   "trecho_justica_gratuita": "trecho literal ou vazio",
@@ -1251,10 +1252,16 @@ Se em dúvida: confianca_tipo "BAIXA". Use apenas informações explícitas. Se 
 
 **CLASSIFICAÇÃO DE ORIGEM DO DOCUMENTO (MUITO IMPORTANTE):**
 
-Classifique a ORIGEM do documento em `origem_documento`:
+Classifique a ORIGEM do documento — ou seja, QUEM ELABOROU/REDIGIU o documento — em `origem_documento`:
+
+⚠️ **REGRA FUNDAMENTAL:** A pergunta é: "QUEM ESCREVEU este documento?" Se foi escrito por um JUIZ, DESEMBARGADOR ou SERVENTUÁRIO DA JUSTIÇA, é "judicial". Se foi escrito por um ADVOGADO ou PARTE, é "advocaticio".
+
+🚨 **ERRO COMUM A EVITAR:** Sentenças e acórdãos frequentemente CITAM trechos de petições, mencionam advogados das partes, transcrevem pedidos e argumentos. Isso NÃO torna o documento advocatício. Uma sentença que cita "Dos Fatos", "Dos Pedidos", menciona OAB de advogados, ou reproduz argumentos das partes continua sendo documento JUDICIAL — porque foi ESCRITA pelo juiz.
 
 ✅ **"judicial"** - Documentos ELABORADOS PELO PODER JUDICIÁRIO (juízes, desembargadores, tribunais, serventuários da justiça):
-- Sentenças, acórdãos, decisões interlocutórias, despachos
+- **SENTENÇAS** (mesmo que citem petições, mencionem advogados ou reproduzam argumentos das partes)
+- **ACÓRDÃOS** (mesmo que transcrevam trechos de recursos ou petições)
+- Decisões interlocutórias, despachos
 - Mandados (citação, intimação, penhora, despejo)
 - Intimações e notificações judiciais
 - Certidões judiciais, editais judiciais
@@ -1278,23 +1285,32 @@ Reclamação trabalhista é a petição inicial do advogado na Justiça do Traba
 Mesmo que mencione "Vara do Trabalho" ou "Justiça do Trabalho", se foi ELABORADA pelo advogado/reclamante, é "advocaticio".
 Documentos judiciais trabalhistas são: sentenças trabalhistas, acórdãos do TRT/TST, mandados de citação/penhora trabalhistas, despachos de juiz do trabalho.
 
-**Indicadores de documento advocatício:**
-- Presença de "OAB", "OAB/XX nº", "Advogado(a)", "Defensor(a) Público(a)" como subscritor/autor do documento
+⚠️ **ATENÇÃO ESPECIAL - SENTENÇAS QUE CITAM PETIÇÕES:**
+Sentenças SEMPRE contêm trechos de petições (relatório do caso, citação dos pedidos, argumentos das partes). Isso é NORMAL e NÃO muda a origem do documento. Se o documento contém "JULGO PROCEDENTE/IMPROCEDENTE", "Ante o exposto", "P.R.I.", "Vistos, etc.", ou é assinado por juiz → é JUDICIAL, independente de quantos trechos advocatícios sejam citados dentro dele.
+
+**Indicadores de documento advocatício (COMO DOCUMENTO PRINCIPAL, não como citação):**
+- Presença de "OAB", "OAB/XX nº", "Advogado(a)", "Defensor(a) Público(a)" como subscritor/AUTOR do documento
 - Cabeçalho com nome de escritório de advocacia
-- Expressões como "Vem, respeitosamente", "requer a Vossa Excelência", "Excelentíssimo", "data venia"
+- Expressões como "Vem, respeitosamente", "requer a Vossa Excelência", "Excelentíssimo", "data venia" como CORPO PRINCIPAL (não como citação do juiz)
 - Documento endereçado ao juiz (ex: "Ao Juízo da X Vara", "Ao Juízo da X Vara do Trabalho")
-- Estrutura de petição: qualificação das partes + fatos + fundamentos + pedidos
+- Estrutura de petição: qualificação das partes + fatos + fundamentos + pedidos como ESTRUTURA PRINCIPAL
 - Título "RECLAMAÇÃO TRABALHISTA" ou "PETIÇÃO INICIAL" no cabeçalho
 - Expressões como "Reclamante", "Reclamada" quando usados no contexto de quem está PROPONDO a ação
-- Presença de "DOS FATOS", "DO DIREITO", "DOS PEDIDOS", "DO VALOR DA CAUSA" como seções do documento
+- Presença de "DOS FATOS", "DO DIREITO", "DOS PEDIDOS", "DO VALOR DA CAUSA" como seções PRÓPRIAS do documento (não citadas pelo juiz)
 - Pedidos numerados ao final (ex: "Requer: a) ...; b) ...; c) ...")
 
-**Indicadores de documento judicial:**
+**Indicadores de documento judicial (TÊM PRIORIDADE sobre indicadores advocatícios citados):**
 - Assinado por Juiz(a), Desembargador(a), Ministro(a)
-- Cabeçalho de tribunal (TJXX, TRF, STJ, STF)
+- Cabeçalho de tribunal (TJXX, TRF, STJ, STF) ou "Poder Judiciário"
 - Expressões como "JULGO", "DETERMINO", "DEFIRO", "INDEFIRO", "CUMPRA-SE"
+- "Vistos, etc.", "Vistos, relatados e discutidos"
+- "Ante o exposto", "Diante do exposto", "Face ao exposto"
+- "P.R.I." ou "P.R.I.C." (Publique-se, Registre-se, Intime-se)
 - Número do processo no cabeçalho oficial
 - Selo/brasão do tribunal
+- Verbo "CONDENO", "ABSOLVO", "HOMOLOGO"
+
+**REGRA DE OURO:** Se o documento contém QUALQUER indicador judicial forte (JULGO, P.R.I., Vistos, assinatura de juiz), classifique como "judicial" MESMO QUE contenha muitos termos advocatícios — pois sentenças naturalmente citam petições.
 
 Se em dúvida: confianca_origem "BAIXA" e classifique como "judicial" para não bloquear indevidamente.
 
@@ -1717,11 +1733,83 @@ def validar_cpf_endpoint():
 
 def detectar_documento_advocaticio(texto):
     """Pré-validação textual para detectar documentos advocatícios (petições, reclamações trabalhistas, etc.)
-    antes de enviar ao Gemini. Funciona como rede de segurança para evitar processar documentos não-judiciais."""
+    antes de enviar ao Gemini. Funciona como rede de segurança para evitar processar documentos não-judiciais.
+    IMPORTANTE: Sentenças e acórdãos frequentemente citam trechos de petições, então contra-indicadores
+    judiciais são verificados para evitar falsos positivos."""
     import re
 
     texto_upper = texto.upper()
 
+    # --- CONTRA-INDICADORES JUDICIAIS (detectar ANTES dos indicadores advocatícios) ---
+    # Sentenças e acórdãos citam petições, por isso contêm termos advocatícios.
+    # Se detectarmos marcadores fortes de documento judicial, NÃO bloquear.
+    contra_indicadores_judiciais = []
+    peso_judicial = 0
+
+    cabecalho = texto_upper[:3000]
+
+    # SENTENÇA no título/cabeçalho (peso 5 - supera qualquer indicador advocatício)
+    if re.search(r'\bSENTEN[ÇC]A\b', cabecalho):
+        contra_indicadores_judiciais.append("Palavra 'SENTENÇA' no cabeçalho")
+        peso_judicial += 5
+
+    # ACÓRDÃO no título/cabeçalho
+    if re.search(r'\bAC[OÓ]RD[AÃ]O\b', cabecalho):
+        contra_indicadores_judiciais.append("Palavra 'ACÓRDÃO' no cabeçalho")
+        peso_judicial += 5
+
+    # Expressões decisórias típicas de juiz (JULGO PROCEDENTE/IMPROCEDENTE)
+    if re.search(r'\bJULGO\s+(?:PARCIALMENTE\s+)?(?:PROCEDENTE|IMPROCEDENTE)', texto_upper):
+        contra_indicadores_judiciais.append("Expressão decisória 'JULGO PROCEDENTE/IMPROCEDENTE'")
+        peso_judicial += 5
+
+    # VISTOS, etc. (abertura clássica de sentença)
+    if re.search(r'\bVISTOS[\s,]+(?:ETC|EXAMINADOS|RELATADOS)', texto_upper):
+        contra_indicadores_judiciais.append("Abertura judicial 'Vistos, etc.'")
+        peso_judicial += 4
+
+    # VISTOS, RELATADOS E DISCUTIDOS (abertura de acórdão)
+    if re.search(r'VISTOS[\s,]+RELATADOS\s+E\s+DISCUTIDOS', texto_upper):
+        contra_indicadores_judiciais.append("Abertura de acórdão 'Vistos, relatados e discutidos'")
+        peso_judicial += 5
+
+    # DISPOSITIVO / ANTE O EXPOSTO / DIANTE DO EXPOSTO (seção decisória)
+    if re.search(r'\b(?:ANTE|DIANTE|FACE)\s+(?:O|DO|AO)\s+EXPOSTO', texto_upper):
+        contra_indicadores_judiciais.append("Expressão decisória 'Ante/Diante o exposto'")
+        peso_judicial += 4
+
+    # DETERMINO / DEFIRO / INDEFIRO (verbos de comando judicial)
+    if re.search(r'\b(?:DETERMINO|DEFIRO|INDEFIRO|HOMOLOGO|CONDENO|ABSOLVO)\b', texto_upper):
+        contra_indicadores_judiciais.append("Verbo de comando judicial")
+        peso_judicial += 3
+
+    # P.R.I. ou P.R.I.C. (Publique-se, Registre-se, Intime-se - encerramento de sentença)
+    if re.search(r'\bP\s*\.?\s*R\s*\.?\s*I\s*\.?\s*(?:C\s*\.?)?\b', texto_upper):
+        contra_indicadores_judiciais.append("Encerramento judicial 'P.R.I.'")
+        peso_judicial += 3
+
+    # Assinatura de juiz(a) ou desembargador(a)
+    if re.search(r'(?:JU[IÍ]Z(?:A)?|DESEMBARGADOR(?:A)?|MINISTRO(?:A)?)\s+(?:DE\s+DIREITO|FEDERAL|RELATOR(?:A)?)', texto_upper):
+        contra_indicadores_judiciais.append("Assinatura de autoridade judicial")
+        peso_judicial += 3
+
+    # Cabeçalho de tribunal (TJXX, TRT, TRF, STJ, STF)
+    if re.search(r'\b(?:TRIBUNAL\s+DE\s+JUSTI[ÇC]A|TJ[A-Z]{2}|TRT|TRF|STJ|STF|PODER\s+JUDICI[AÁ]RIO)\b', cabecalho):
+        contra_indicadores_judiciais.append("Cabeçalho de tribunal/poder judiciário")
+        peso_judicial += 4
+
+    # CUMPRA-SE (ordem judicial)
+    if re.search(r'\bCUMPRA[\s-]*SE\b', texto_upper):
+        contra_indicadores_judiciais.append("Ordem judicial 'Cumpra-se'")
+        peso_judicial += 2
+
+    # Se há contra-indicadores judiciais fortes, o documento é judicial - não bloquear
+    if peso_judicial >= 4:
+        logging.info(f"✅ PRÉ-VALIDAÇÃO: Contra-indicadores judiciais detectados (peso {peso_judicial}): {'; '.join(contra_indicadores_judiciais[:3])}")
+        return {"detectado": False, "razao": None, "indicadores": [], "peso": 0,
+                "contra_indicadores": contra_indicadores_judiciais, "peso_judicial": peso_judicial}
+
+    # --- INDICADORES DE DOCUMENTO ADVOCATÍCIO ---
     # Padrões fortes que indicam documento advocatício
     # Cada padrão tem: (regex ou verificação, peso, razão)
     indicadores = []
@@ -1730,13 +1818,13 @@ def detectar_documento_advocaticio(texto):
     # --- INDICADORES DE ALTA CONFIANÇA (peso 3) ---
 
     # Reclamação trabalhista no título/cabeçalho (primeiros 2000 caracteres)
-    cabecalho = texto_upper[:2000]
-    if re.search(r'RECLAMA[ÇC][ÃA]O\s+TRABALHISTA', cabecalho):
+    cabecalho_curto = texto_upper[:2000]
+    if re.search(r'RECLAMA[ÇC][ÃA]O\s+TRABALHISTA', cabecalho_curto):
         indicadores.append("Título 'Reclamação Trabalhista' no cabeçalho")
         peso_total += 3
 
     # Petição inicial no título
-    if re.search(r'PETI[ÇC][ÃA]O\s+INICIAL', cabecalho):
+    if re.search(r'PETI[ÇC][ÃA]O\s+INICIAL', cabecalho_curto):
         indicadores.append("Título 'Petição Inicial' no cabeçalho")
         peso_total += 3
 
@@ -1776,7 +1864,7 @@ def detectar_documento_advocaticio(texto):
         peso_total += 2
 
     # Endereçamento ao juiz (no cabeçalho)
-    if re.search(r'EXCELENT[IÍ]SSIMO.*(?:JUIZ|JU[IÍ]ZO|VARA)', cabecalho):
+    if re.search(r'EXCELENT[IÍ]SSIMO.*(?:JUIZ|JU[IÍ]ZO|VARA)', cabecalho_curto):
         indicadores.append("Endereçado ao juiz ('Excelentíssimo...')")
         peso_total += 2
 
@@ -2007,6 +2095,19 @@ def processar():
         origem_doc = (analise_completa.get("origem_documento") or "").lower().strip()
         confianca_origem = (analise_completa.get("confianca_origem") or "").upper().strip()
         razao_origem = analise_completa.get("razao_origem", "")
+        tipo_doc_gemini = (analise_completa.get("tipo_documento") or "").lower().strip()
+
+        # Verificação cruzada: tipos judiciais NUNCA podem ser classificados como advocatícios
+        # Sentenças, acórdãos, mandados, decisões, despachos e intimações são SEMPRE judiciais
+        tipos_sempre_judiciais = ["sentenca", "acordao", "mandado", "decisao", "despacho", "intimacao"]
+        if origem_doc == "advocaticio" and tipo_doc_gemini in tipos_sempre_judiciais:
+            logging.warning(f"⚠️ CORREÇÃO AUTOMÁTICA: Gemini classificou origem como 'advocaticio' mas tipo_documento é '{tipo_doc_gemini}' (sempre judicial)")
+            logging.warning(f"⚠️ Razão original do Gemini: {razao_origem}")
+            logging.info(f"✅ Corrigindo origem_documento de 'advocaticio' para 'judicial' (tipo '{tipo_doc_gemini}' é intrinsecamente judicial)")
+            origem_doc = "judicial"
+            analise_completa["origem_documento"] = "judicial"
+            analise_completa["confianca_origem"] = "ALTA"
+            analise_completa["razao_origem"] = f"Corrigido automaticamente: {tipo_doc_gemini} é documento judicial (classificação original incorreta: {razao_origem})"
 
         if origem_doc == "advocaticio" and confianca_origem in ("ALTA", "MÉDIA"):
             logging.warning(f"🚫 DOCUMENTO ADVOCATÍCIO DETECTADO - Confiança: {confianca_origem}")
