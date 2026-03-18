@@ -241,7 +241,7 @@ projeto-linguaguem-simples/
 │                                   #   - Contadores agregados
 │                                   #   - Cofre criptografado de CPF
 │                                   #   - Controle de tokens diários
-│                                   #   - Limpeza automática (30/90 dias)
+│                                   #   - Limpeza automática
 │                                   #   - Validação de documentos (hash)
 │                                   #   - Auditoria administrativa
 │
@@ -905,5 +905,5 @@ Projeto desenvolvido para democratizar o acesso à justiça, tornando documentos
 </p>
 
 <p align="center">
-  Se este projeto foi útil, deixe uma ⭐ no repositório!
+ 
 </p>
