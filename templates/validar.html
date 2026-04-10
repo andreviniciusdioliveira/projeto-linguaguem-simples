@@ -360,7 +360,7 @@
             btn.textContent = 'Verificando...';
 
             try {
-                const response = await fetch('/validar/{{ doc_id }}/verificar', {
+                const response = await fetch('/validar/' + encodeURIComponent({{ doc_id | tojson }}) + '/verificar', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ texto: texto })

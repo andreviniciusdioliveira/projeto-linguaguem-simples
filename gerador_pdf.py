@@ -27,8 +27,8 @@ except ImportError:
     QRCODE_AVAILABLE = False
     logging.warning("⚠️ qrcode não disponível - QR codes não serão gerados")
 
-# Configurar logging
-logging.basicConfig(level=logging.INFO)
+# Diretório base do projeto para paths de assets
+_BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # Cores JUS
 JUS_VINHO = colors.HexColor('#6d2932')
@@ -52,7 +52,7 @@ def registrar_fontes():
                     pdfmetrics.registerFont(TTFont('CustomFont', font_path))
                     logging.info(f"✅ Fonte registrada: {font_path}")
                     return True
-                except:
+                except Exception:
                     continue
     except Exception as e:
         logging.warning(f"Usando fontes padrão: {e}")
@@ -110,7 +110,7 @@ class HeaderFooterCanvas(canvas.Canvas):
         self.restoreState()
 
         # MARCA D'ÁGUA TJTO - Múltiplas miniaturas da logo para dificultar falsificação
-        logo_tjto_path = 'static/logotjto.png'
+        logo_tjto_path = os.path.join(_BASE_DIR, 'static', 'logotjto.png')
         if os.path.exists(logo_tjto_path):
             try:
                 self.saveState()
@@ -192,7 +192,7 @@ class HeaderFooterCanvas(canvas.Canvas):
         self.rect(2*page_width/3, page_height - 1.5*cm, page_width/3, 0.3*cm, fill=True, stroke=False)
 
         # Logo JUS (esquerda)
-        logo_jus_path = 'static/avatar.png'
+        logo_jus_path = os.path.join(_BASE_DIR, 'static', 'avatar.png')
         if os.path.exists(logo_jus_path):
             try:
                 self.drawImage(logo_jus_path, 1.5*cm, page_height - 2.8*cm,
@@ -213,7 +213,7 @@ class HeaderFooterCanvas(canvas.Canvas):
                               "Documento em Linguagem Simples")
 
         # Logo INOVASSOL (direita)
-        logo_inovassol_path = 'static/inovassol.png'
+        logo_inovassol_path = os.path.join(_BASE_DIR, 'static', 'inovassol.png')
         if os.path.exists(logo_inovassol_path):
             try:
                 self.drawImage(logo_inovassol_path, page_width - 2.7*cm, page_height - 2.8*cm,
