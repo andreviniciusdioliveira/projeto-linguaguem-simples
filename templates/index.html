@@ -2655,7 +2655,7 @@
     <!-- Logo INOVASSOL fixo no canto inferior esquerdo -->
     <div class="logo-inovassol-container">
         <div class="logo-inovassol"
-             onclick="window.open('https://www.tjto.jus.br', '_blank')"
+             onclick="window.open('https://www.tjto.jus.br', '_blank', 'noopener,noreferrer')"
              title="INOVASSOL - Centro de Inovação do TJTO">
             <img src="/static/inovassol.png"
                  alt="INOVASSOL Logo"
@@ -4035,20 +4035,20 @@
                     // Suporte para ambos os formatos: string simples ou objeto completo
                     if (typeof p === 'string') {
                         // Formato antigo (string simples)
-                        html += `• ${p}<br>`;
+                        html += `• ${escapeHtml(p || '')}<br>`;
                     } else if (p && p.prazo) {
                         // Novo formato (objeto com campos detalhados)
                         let texto = ``;
 
                         // Formatar: "Destinatário tem X prazo para fazer Y"
                         if (p.destinatario && p.finalidade) {
-                            texto = `${p.destinatario} tem ${p.prazo} ${p.finalidade}`;
+                            texto = `${escapeHtml(p.destinatario || '')} tem ${escapeHtml(p.prazo || '')} ${escapeHtml(p.finalidade || '')}`;
                         } else if (p.destinatario) {
-                            texto = `${p.destinatario}: ${p.prazo}`;
+                            texto = `${escapeHtml(p.destinatario || '')}: ${escapeHtml(p.prazo || '')}`;
                         } else if (p.finalidade) {
-                            texto = `${p.prazo} ${p.finalidade}`;
+                            texto = `${escapeHtml(p.prazo || '')} ${escapeHtml(p.finalidade || '')}`;
                         } else {
-                            texto = p.prazo;
+                            texto = escapeHtml(p.prazo || '');
                         }
 
                         html += `• ${texto}<br>`;
@@ -4065,7 +4065,7 @@
                     html += '<div style="background: white; padding: 1rem; border-radius: 6px; border-left: 4px solid var(--warning);">';
                     html += '<strong>📅 Audiências Marcadas:</strong><br>';
                     audienciasValidas.forEach(aud => {
-                        html += `• ${aud.data} às ${aud.hora}<br>`;
+                        html += `• ${escapeHtml(aud.data || '')} às ${escapeHtml(aud.hora || '')}<br>`;
                     });
                     html += '</div>';
                 }
@@ -4076,7 +4076,12 @@
                 html += '<div style="background: #e8f5e9; padding: 1rem; border-radius: 6px; border-left: 4px solid #4caf50;">';
                 html += '<strong>🔗 Links de Audiência Online:</strong><br>';
                 dados.links_audiencia.forEach(link => {
-                    html += `• <a href="${link}" target="_blank" style="color: var(--jus-azul); text-decoration: underline;">${link}</a><br>`;
+                    const safeLink = escapeHtml(link || '');
+                    if (safeLink.startsWith('http')) {
+                        html += `• <a href="${safeLink}" target="_blank" rel="noopener noreferrer" style="color: var(--jus-azul); text-decoration: underline;">${safeLink}</a><br>`;
+                    } else {
+                        html += `• ${safeLink}<br>`;
+                    }
                 });
                 html += '</div>';
             }
@@ -4086,7 +4091,7 @@
                 html += '<div style="background: white; padding: 1rem; border-radius: 6px;">';
                 html += '<strong>📞 Telefones:</strong><br>';
                 dados.telefones.forEach(tel => {
-                    html += `• ${tel}<br>`;
+                    html += `• ${escapeHtml(tel || '')}<br>`;
                 });
                 html += '</div>';
             }
@@ -4096,7 +4101,8 @@
                 html += '<div style="background: white; padding: 1rem; border-radius: 6px;">';
                 html += '<strong>✉️ Emails:</strong><br>';
                 dados.emails.forEach(email => {
-                    html += `• <a href="mailto:${email}" style="color: var(--jus-azul);">${email}</a><br>`;
+                    const safeEmail = escapeHtml(email || '');
+                    html += `• <a href="mailto:${safeEmail}" style="color: var(--jus-azul);">${safeEmail}</a><br>`;
                 });
                 html += '</div>';
             }
@@ -4106,7 +4112,7 @@
                 html += '<div style="background: #fff3e0; padding: 1rem; border-radius: 6px; border-left: 4px solid #ff9800;">';
                 html += '<strong>📱 QR Code:</strong><br>';
                 dados.qr_codes.forEach(qr => {
-                    html += `• ${qr}<br>`;
+                    html += `• ${escapeHtml(qr || '')}<br>`;
                 });
                 html += '</div>';
             }
@@ -4117,7 +4123,7 @@
                 const emoji = (dados.autoridade.cargo === 'Juíza' || dados.autoridade.cargo === 'Desembargadora') ? '👩‍⚖️' : '👨‍⚖️';
                 html += `
                     <div style="background: white; padding: 1rem; border-radius: 6px;">
-                        <strong>${emoji} ${dados.autoridade.cargo}: ${dados.autoridade.nome}</strong>
+                        <strong>${emoji} ${escapeHtml(dados.autoridade.cargo || '')}: ${escapeHtml(dados.autoridade.nome || '')}</strong>
                     </div>
                 `;
             }
@@ -4139,15 +4145,33 @@
             // Cabe recurso (principal)
             html += `
                 <div style="background: white; padding: 1rem; border-radius: 6px; margin-bottom: 0.5rem;">
-                    <strong>📜 Cabe recurso:</strong> ${recursos.cabe_recurso}
+                    <strong>📜 Cabe recurso:</strong> ${escapeHtml(recursos.cabe_recurso || '')}
                 </div>
             `;
+
+            // Tipo de recurso
+            if (recursos.tipo_recurso) {
+                html += `
+                    <div style="background: white; padding: 1rem; border-radius: 6px; margin-bottom: 0.5rem;">
+                        <strong>📄 Tipo de recurso:</strong> ${escapeHtml(recursos.tipo_recurso || '')}
+                    </div>
+                `;
+            }
 
             // Prazo (só mostra se encontrado no documento)
             if (recursos.prazo) {
                 html += `
                     <div style="background: white; padding: 1rem; border-radius: 6px; margin-bottom: 0.5rem;">
-                        <strong>⏰ Prazo mencionado no documento:</strong> ${recursos.prazo}
+                        <strong>⏰ Prazo mencionado no documento:</strong> ${escapeHtml(recursos.prazo || '')}
+                    </div>
+                `;
+            }
+
+            // Explicação simples
+            if (recursos.explicacao_simples) {
+                html += `
+                    <div style="background: #e8f5e9; padding: 1rem; border-radius: 6px; margin-top: 1rem;">
+                        <strong>📝 Explicação:</strong> ${escapeHtml(recursos.explicacao_simples || '')}
                     </div>
                 `;
             }
@@ -4156,7 +4180,7 @@
             if (recursos.dica) {
                 html += `
                     <div style="background: #fef7e0; padding: 1rem; border-radius: 6px; margin-top: 1rem;">
-                        <strong>💡 Dica:</strong> ${recursos.dica}
+                        <strong>💡 Dica:</strong> ${escapeHtml(recursos.dica || '')}
                     </div>
                 `;
             }
@@ -4165,7 +4189,7 @@
             if (recursos.observacao) {
                 html += `
                     <div style="background: white; padding: 1rem; border-radius: 6px; margin-top: 1rem;">
-                        <strong>ℹ️</strong> ${recursos.observacao}
+                        <strong>ℹ️</strong> ${escapeHtml(recursos.observacao || '')}
                     </div>
                 `;
             }
@@ -4576,7 +4600,7 @@
             const url = isMobile ? urlMobile : urlDesktop;
 
             // Abrir WhatsApp
-            window.open(url, '_blank');
+            window.open(url, '_blank', 'noopener,noreferrer');
 
             // Feedback
             showToastNotification('📱 Abrindo WhatsApp...', 'success');

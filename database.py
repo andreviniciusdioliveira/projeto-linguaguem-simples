@@ -103,69 +103,69 @@ def init_db():
                 )
             ''')
 
-        # Tabela de validação de documentos (LGPD compliant)
-        # Armazena APENAS: ID, hash do conteúdo (não o conteúdo), hash do IP (não o IP)
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS validacao_documentos (
-                doc_id TEXT PRIMARY KEY,
-                hash_conteudo TEXT NOT NULL,
-                ip_hash TEXT NOT NULL,
-                tipo_documento TEXT,
-                data_criacao TEXT NOT NULL,
-                data_expiracao TEXT NOT NULL
-            )
-        ''')
+            # Tabela de validação de documentos (LGPD compliant)
+            # Armazena APENAS: ID, hash do conteúdo (não o conteúdo), hash do IP (não o IP)
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS validacao_documentos (
+                    doc_id TEXT PRIMARY KEY,
+                    hash_conteudo TEXT NOT NULL,
+                    ip_hash TEXT NOT NULL,
+                    tipo_documento TEXT,
+                    data_criacao TEXT NOT NULL,
+                    data_expiracao TEXT NOT NULL
+                )
+            ''')
 
-        # Tabela de auditoria de IP (para administração)
-        # Armazena HASH do IP + tipo de documento processado (SEM conteúdo do documento)
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS audit_ip (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                ip_hash TEXT NOT NULL,
-                tipo_documento TEXT NOT NULL,
-                nome_arquivo_hash TEXT,
-                tamanho_bytes INTEGER,
-                modelo_usado TEXT,
-                data_processamento TEXT NOT NULL
-            )
-        ''')
+            # Tabela de auditoria de IP (para administração)
+            # Armazena HASH do IP + tipo de documento processado (SEM conteúdo do documento)
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS audit_ip (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    ip_hash TEXT NOT NULL,
+                    tipo_documento TEXT NOT NULL,
+                    nome_arquivo_hash TEXT,
+                    tamanho_bytes INTEGER,
+                    modelo_usado TEXT,
+                    data_processamento TEXT NOT NULL
+                )
+            ''')
 
-        # === TABELA DE USO DIÁRIO DE TOKENS ===
-        # Controla o consumo de tokens da API Gemini por dia
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS token_usage_diario (
-                data TEXT PRIMARY KEY,
-                tokens_input INTEGER DEFAULT 0,
-                tokens_output INTEGER DEFAULT 0,
-                tokens_total INTEGER DEFAULT 0,
-                requisicoes INTEGER DEFAULT 0,
-                ultima_atualizacao TEXT
-            )
-        ''')
+            # === TABELA DE USO DIÁRIO DE TOKENS ===
+            # Controla o consumo de tokens da API Gemini por dia
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS token_usage_diario (
+                    data TEXT PRIMARY KEY,
+                    tokens_input INTEGER DEFAULT 0,
+                    tokens_output INTEGER DEFAULT 0,
+                    tokens_total INTEGER DEFAULT 0,
+                    requisicoes INTEGER DEFAULT 0,
+                    ultima_atualizacao TEXT
+                )
+            ''')
 
-        # === COFRE CRIPTOGRAFADO DE CPF (LGPD) ===
-        # CPFs criptografados com Fernet - apagados diariamente
-        # Hash SHA-256 para lookup rápido sem descriptografar
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS cpf_vault (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                cpf_hash TEXT NOT NULL,
-                cpf_encrypted TEXT NOT NULL,
-                data_registro TEXT NOT NULL,
-                ip_hash TEXT
-            )
-        ''')
+            # === COFRE CRIPTOGRAFADO DE CPF (LGPD) ===
+            # CPFs criptografados com Fernet - apagados diariamente
+            # Hash SHA-256 para lookup rápido sem descriptografar
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS cpf_vault (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    cpf_hash TEXT NOT NULL,
+                    cpf_encrypted TEXT NOT NULL,
+                    data_registro TEXT NOT NULL,
+                    ip_hash TEXT
+                )
+            ''')
 
-        # === CONTROLE DE USO POR CPF ===
-        # Rate limiting por CPF (máximo X documentos por dia)
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS cpf_rate_limit (
-                cpf_hash TEXT NOT NULL,
-                data TEXT NOT NULL,
-                contagem INTEGER DEFAULT 0,
-                PRIMARY KEY (cpf_hash, data)
-            )
-        ''')
+            # === CONTROLE DE USO POR CPF ===
+            # Rate limiting por CPF (máximo X documentos por dia)
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS cpf_rate_limit (
+                    cpf_hash TEXT NOT NULL,
+                    data TEXT NOT NULL,
+                    contagem INTEGER DEFAULT 0,
+                    PRIMARY KEY (cpf_hash, data)
+                )
+            ''')
 
             # Inserir registro inicial se não existir
             cursor.execute('SELECT COUNT(*) FROM stats_geral')

@@ -3034,14 +3034,14 @@ def health():
         stats = database.get_estatisticas()
         total_docs = stats.get("total_documentos", 0)
         today_docs = stats.get("documentos_hoje", 0)
-    except:
+    except Exception:
         total_docs = 0
         today_docs = 0
 
     # Informações de uso de tokens
     try:
         token_info = get_uso_tokens_hoje()
-    except:
+    except Exception:
         token_info = {"tokens_total": 0, "limite_diario": DAILY_TOKEN_LIMIT, "percentual_uso": 0}
 
     return jsonify({
@@ -3093,9 +3093,10 @@ def cleanup_temp_files():
                     except Exception as e:
                         logging.warning(f"Erro ao remover {filename}: {e}")
 
-            to_remove = [k for k, v in results_cache.items() if time.time() - v["timestamp"] > CACHE_EXPIRATION]
-            for key in to_remove:
-                del results_cache[key]
+            with cleanup_lock:
+                to_remove = [k for k, v in results_cache.items() if time.time() - v["timestamp"] > CACHE_EXPIRATION]
+                for key in to_remove:
+                    del results_cache[key]
 
         except Exception as e:
             logging.error(f"Erro na limpeza: {e}")
