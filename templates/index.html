@@ -4292,14 +4292,12 @@
                                 <div style="font-weight: bold; margin-bottom: 1rem;">💡 Perguntas sugeridas:</div>
                                 <div style="display: flex; flex-direction: column; gap: 0.5rem;">
                                     ${resposta.sugestoes.map(sug => {
-                                        const sugSegura = escapeHtml(sug);
-                                        const sugOnclick = sug.replace(/'/g, "\\'").replace(/"/g, "&quot;");
                                         return `
-                                        <button onclick="this.closest('div[style*=fixed]').remove(); askQuestion('${sugOnclick}')"
+                                        <button class="chat-suggestion-btn" data-question="${escapeHtml(sug)}" onclick="this.closest('div[style*=fixed]').remove(); askQuestion(this.dataset.question)"
                                                 style="background: var(--light); border: 2px solid var(--jus-azul); color: var(--jus-azul);
                                                        padding: 0.75rem; border-radius: 8px; cursor: pointer; text-align: left;
                                                        transition: all 0.3s ease; font-weight: 500;">
-                                            ${sugSegura}
+                                            ${escapeHtml(sug)}
                                         </button>
                                         `;
                                     }).join('')}
@@ -5090,15 +5088,15 @@ P.R.I.`;
 
             switch(platform) {
                 case 'whatsapp':
-                    window.open(`https://wa.me/?text=${encodeURIComponent(message + ' ' + url)}`, '_blank');
+                    window.open(`https://wa.me/?text=${encodeURIComponent(message + ' ' + url)}`, '_blank', 'noopener,noreferrer');
                     break;
 
                 case 'twitter':
-                    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(message)}&url=${encodeURIComponent(url)}`, '_blank');
+                    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(message)}&url=${encodeURIComponent(url)}`, '_blank', 'noopener,noreferrer');
                     break;
 
                 case 'facebook':
-                    window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, '_blank');
+                    window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, '_blank', 'noopener,noreferrer');
                     break;
 
                 case 'copy':
