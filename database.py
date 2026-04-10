@@ -69,6 +69,9 @@ def init_db():
         try:
             cursor = conn.cursor()
 
+            # Ativar WAL mode para melhor concorrência entre processos
+            cursor.execute('PRAGMA journal_mode=WAL')
+
             # Tabela de estatísticas gerais
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS stats_geral (
@@ -116,8 +119,17 @@ def init_db():
                 )
             ''')
 
-            # Tabela de auditoria de IP (para administração)
-            # Armazena HASH do IP + tipo de documento processado (SEM conteúdo do documento)
+            # Tabela de auditoria (LGPD compliant - apenas hashes)
+            # Migração: se tabela antiga existe com ip_address, recriar com ip_hash
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='audit_ip'")
+            if cursor.fetchone():
+                # Verificar se precisa migrar (coluna antiga ip_address)
+                cursor.execute('PRAGMA table_info(audit_ip)')
+                colunas = [col[1] for col in cursor.fetchall()]
+                if 'ip_address' in colunas:
+                    logging.info("🔄 Migrando tabela audit_ip: removendo dados com IP real (LGPD)")
+                    cursor.execute('DROP TABLE audit_ip')
+
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS audit_ip (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -174,8 +186,6 @@ def init_db():
                     INSERT INTO stats_geral (id, total_documentos, data_inicio, ultima_atualizacao)
                     VALUES (1, 0, ?, ?)
                 ''', (datetime.now().isoformat(), datetime.now().isoformat()))
-
-            cursor.execute('PRAGMA journal_mode=WAL')
 
             conn.commit()
         finally:
