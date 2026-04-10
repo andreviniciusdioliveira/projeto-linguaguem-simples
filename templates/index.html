@@ -3736,7 +3736,8 @@
          * Escapa caracteres perigosos antes de processar markdown
          */
         function escapeHtml(unsafe) {
-            return unsafe
+            if (unsafe == null) return '';
+            return String(unsafe)
                 .replace(/&/g, "&amp;")
                 .replace(/</g, "&lt;")
                 .replace(/>/g, "&gt;")
@@ -3887,7 +3888,7 @@
                     </div>
                     ${acao ? `
                         <div style="background: white; padding: 1rem; border-radius: 6px; margin-top: 1rem;">
-                            <strong>⚡ Ação necessária:</strong> ${acao}
+                            <strong>⚡ Ação necessária:</strong> ${escapeHtml(acao || '')}
                         </div>
                     ` : ''}
                 </div>
@@ -3904,37 +3905,37 @@
             // Danos Materiais
             if (valores.danos_materiais_discriminado && valores.danos_materiais_discriminado.length > 0) {
                 html += '<div class="categoria-valor">';
-                html += '<h4>📋 Danos Materiais: ' + valores.danos_materiais + '</h4>';
+                html += '<h4>📋 Danos Materiais: ' + escapeHtml(valores.danos_materiais || '') + '</h4>';
                 html += '<ul>';
                 valores.danos_materiais_discriminado.forEach(item => {
-                    html += '<li>' + item.item + ': ' + item.valor + '</li>';
+                    html += '<li>' + escapeHtml(item.item || '') + ': ' + escapeHtml(item.valor || '') + '</li>';
                 });
                 html += '</ul></div>';
             } else if (valores.danos_materiais) {
                 html += '<div class="categoria-valor">';
-                html += '<p>📋 Danos Materiais: ' + valores.danos_materiais + '</p>';
+                html += '<p>📋 Danos Materiais: ' + escapeHtml(valores.danos_materiais || '') + '</p>';
                 html += '</div>';
             }
 
             // Danos Morais
             if (valores.danos_morais_discriminado && valores.danos_morais_discriminado.length > 0) {
                 html += '<div class="categoria-valor">';
-                html += '<h4>📋 Danos Morais: ' + valores.danos_morais + '</h4>';
+                html += '<h4>📋 Danos Morais: ' + escapeHtml(valores.danos_morais || '') + '</h4>';
                 html += '<ul>';
                 valores.danos_morais_discriminado.forEach(item => {
-                    html += '<li>Para ' + item.beneficiario + ': ' + item.valor + '</li>';
+                    html += '<li>Para ' + escapeHtml(item.beneficiario || '') + ': ' + escapeHtml(item.valor || '') + '</li>';
                 });
                 html += '</ul></div>';
             } else if (valores.danos_morais) {
                 html += '<div class="categoria-valor">';
-                html += '<p>📋 Danos Morais: ' + valores.danos_morais + '</p>';
+                html += '<p>📋 Danos Morais: ' + escapeHtml(valores.danos_morais || '') + '</p>';
                 html += '</div>';
             }
 
             // Total
             if (valores.total_a_receber) {
                 html += '<div class="total-valor">';
-                html += '<h3>💰 TOTAL: ' + valores.total_a_receber + '</h3>';
+                html += '<h3>💰 TOTAL: ' + escapeHtml(valores.total_a_receber || '') + '</h3>';
                 html += '</div>';
             }
 
@@ -3952,7 +3953,7 @@
             if (dados.numero_processo) {
                 html += `
                     <div style="background: white; padding: 1rem; border-radius: 6px;">
-                        <strong>📋 Processo:</strong> ${dados.numero_processo}
+                        <strong>📋 Processo:</strong> ${escapeHtml(dados.numero_processo || '')}
                     </div>
                 `;
             }
@@ -3961,8 +3962,8 @@
             if (dados.partes && (dados.partes.autor || dados.partes.reu)) {
                 html += '<div style="background: white; padding: 1rem; border-radius: 6px;">';
                 html += '<strong>👥 Partes:</strong><br>';
-                if (dados.partes.autor) html += `• Autor: ${dados.partes.autor}<br>`;
-                if (dados.partes.reu) html += `• Réu: ${dados.partes.reu}`;
+                if (dados.partes.autor) html += `• Autor: ${escapeHtml(dados.partes.autor || '')}<br>`;
+                if (dados.partes.reu) html += `• Réu: ${escapeHtml(dados.partes.reu || '')}`;
                 html += '</div>';
             }
 
@@ -3987,7 +3988,7 @@
 
                 html += `
                     <div style="background: white; padding: 1rem; border-radius: 6px; border-left: 4px solid ${decisaoColor};">
-                        <strong>${decisaoIcon} Decisão:</strong> ${dados.decisao}
+                        <strong>${decisaoIcon} Decisão:</strong> ${escapeHtml(dados.decisao || '')}
                     </div>
                 `;
             }
@@ -4004,22 +4005,22 @@
                 } else {
                     // Formato antigo (sem discriminação)
                     if (dados.valores.danos_morais) {
-                        html += `• Danos morais: ${dados.valores.danos_morais}<br>`;
+                        html += `• Danos morais: ${escapeHtml(dados.valores.danos_morais || '')}<br>`;
                     }
                     if (dados.valores.danos_materiais) {
-                        html += `• Danos materiais: ${dados.valores.danos_materiais}<br>`;
+                        html += `• Danos materiais: ${escapeHtml(dados.valores.danos_materiais || '')}<br>`;
                     }
                     if (dados.valores.lucros_cessantes) {
-                        html += `• Lucros cessantes: ${dados.valores.lucros_cessantes}<br>`;
+                        html += `• Lucros cessantes: ${escapeHtml(dados.valores.lucros_cessantes || '')}<br>`;
                     }
                     if (dados.valores.total_a_receber) {
-                        html += `<br><strong style="color: var(--jus-dourado);">Total: ${dados.valores.total_a_receber}</strong><br>`;
+                        html += `<br><strong style="color: var(--jus-dourado);">Total: ${escapeHtml(dados.valores.total_a_receber || '')}</strong><br>`;
                     }
                     if (dados.valores.honorarios) {
-                        html += `• Honorários: ${dados.valores.honorarios}<br>`;
+                        html += `• Honorários: ${escapeHtml(dados.valores.honorarios || '')}<br>`;
                     }
                     if (dados.valores.valor_causa) {
-                        html += `• Valor da causa: ${dados.valores.valor_causa}`;
+                        html += `• Valor da causa: ${escapeHtml(dados.valores.valor_causa || '')}`;
                     }
                 }
 

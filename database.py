@@ -9,9 +9,11 @@ import os
 import logging
 import hashlib
 import secrets
-from datetime import datetime
+from datetime import datetime, timedelta
 from threading import Lock, Thread, Event
 import time
+import hmac
+import base64
 
 # Criptografia para cofre de CPF
 try:
@@ -37,13 +39,16 @@ CPF_VAULT_KEY = os.getenv("CPF_VAULT_KEY", "")
 # Limite de documentos por CPF por dia
 CPF_DAILY_LIMIT = 5
 
+# Salts para hashing (DEVEM ser definidos como variáveis de ambiente em produção)
+IP_HASH_SALT = os.getenv("IP_HASH_SALT", "entenda-aqui-tjto-2024-default")
+CPF_HASH_SALT = os.getenv("CPF_HASH_SALT", "entenda-aqui-cpf-vault-2024-default")
+
 # Inicializar Fernet se chave disponível
 _fernet = None
 if CRYPTO_AVAILABLE and CPF_VAULT_KEY:
     try:
         # Derivar chave Fernet de 32 bytes a partir da chave fornecida
         key_bytes = hashlib.sha256(CPF_VAULT_KEY.encode()).digest()
-        import base64
         fernet_key = base64.urlsafe_b64encode(key_bytes)
         _fernet = Fernet(fernet_key)
         logging.info("🔐 Cofre de CPF inicializado com criptografia Fernet")
@@ -53,7 +58,6 @@ if CRYPTO_AVAILABLE and CPF_VAULT_KEY:
 elif CRYPTO_AVAILABLE and not CPF_VAULT_KEY:
     # Gerar chave temporária (dados perdidos ao reiniciar - aceitável pois limpeza é diária)
     key_bytes = hashlib.sha256(secrets.token_bytes(32)).digest()
-    import base64
     fernet_key = base64.urlsafe_b64encode(key_bytes)
     _fernet = Fernet(fernet_key)
     logging.warning("⚠️ CPF_VAULT_KEY não configurada - usando chave temporária (dados perdidos ao reiniciar)")
@@ -61,42 +65,43 @@ elif CRYPTO_AVAILABLE and not CPF_VAULT_KEY:
 def init_db():
     """Inicializa banco de dados com tabelas de estatísticas"""
     with db_lock:
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
+        conn = sqlite3.connect(DB_PATH, timeout=30)
+        try:
+            cursor = conn.cursor()
 
-        # Tabela de estatísticas gerais
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS stats_geral (
-                id INTEGER PRIMARY KEY,
-                total_documentos INTEGER DEFAULT 0,
-                data_inicio TEXT,
-                ultima_atualizacao TEXT
-            )
-        ''')
+            # Tabela de estatísticas gerais
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS stats_geral (
+                    id INTEGER PRIMARY KEY,
+                    total_documentos INTEGER DEFAULT 0,
+                    data_inicio TEXT,
+                    ultima_atualizacao TEXT
+                )
+            ''')
 
-        # Tabela de estatísticas por tipo (APENAS contadores)
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS stats_por_tipo (
-                tipo TEXT PRIMARY KEY,
-                quantidade INTEGER DEFAULT 0
-            )
-        ''')
+            # Tabela de estatísticas por tipo (APENAS contadores)
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS stats_por_tipo (
+                    tipo TEXT PRIMARY KEY,
+                    quantidade INTEGER DEFAULT 0
+                )
+            ''')
 
-        # Tabela de estatísticas diárias (para "documentos processados hoje")
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS stats_diarias (
-                data TEXT PRIMARY KEY,
-                quantidade INTEGER DEFAULT 0
-            )
-        ''')
+            # Tabela de estatísticas diárias (para "documentos processados hoje")
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS stats_diarias (
+                    data TEXT PRIMARY KEY,
+                    quantidade INTEGER DEFAULT 0
+                )
+            ''')
 
-        # Tabela de feedback (LGPD compliant - só contadores)
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS stats_feedback (
-                tipo TEXT PRIMARY KEY,
-                quantidade INTEGER DEFAULT 0
-            )
-        ''')
+            # Tabela de feedback (LGPD compliant - só contadores)
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS stats_feedback (
+                    tipo TEXT PRIMARY KEY,
+                    quantidade INTEGER DEFAULT 0
+                )
+            ''')
 
         # Tabela de validação de documentos (LGPD compliant)
         # Armazena APENAS: ID, hash do conteúdo (não o conteúdo), hash do IP (não o IP)
@@ -112,13 +117,13 @@ def init_db():
         ''')
 
         # Tabela de auditoria de IP (para administração)
-        # Armazena IP real + tipo de documento processado (SEM conteúdo do documento)
+        # Armazena HASH do IP + tipo de documento processado (SEM conteúdo do documento)
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS audit_ip (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                ip_address TEXT NOT NULL,
+                ip_hash TEXT NOT NULL,
                 tipo_documento TEXT NOT NULL,
-                nome_arquivo TEXT,
+                nome_arquivo_hash TEXT,
                 tamanho_bytes INTEGER,
                 modelo_usado TEXT,
                 data_processamento TEXT NOT NULL
@@ -162,16 +167,19 @@ def init_db():
             )
         ''')
 
-        # Inserir registro inicial se não existir
-        cursor.execute('SELECT COUNT(*) FROM stats_geral')
-        if cursor.fetchone()[0] == 0:
-            cursor.execute('''
-                INSERT INTO stats_geral (id, total_documentos, data_inicio, ultima_atualizacao)
-                VALUES (1, 0, ?, ?)
-            ''', (datetime.now().isoformat(), datetime.now().isoformat()))
+            # Inserir registro inicial se não existir
+            cursor.execute('SELECT COUNT(*) FROM stats_geral')
+            if cursor.fetchone()[0] == 0:
+                cursor.execute('''
+                    INSERT INTO stats_geral (id, total_documentos, data_inicio, ultima_atualizacao)
+                    VALUES (1, 0, ?, ?)
+                ''', (datetime.now().isoformat(), datetime.now().isoformat()))
 
-        conn.commit()
-        conn.close()
+            cursor.execute('PRAGMA journal_mode=WAL')
+
+            conn.commit()
+        finally:
+            conn.close()
         logging.info("✅ Database de estatísticas inicializado")
 
 def incrementar_documento(tipo_documento):
@@ -183,36 +191,38 @@ def incrementar_documento(tipo_documento):
         tipo_documento: 'mandado', 'sentenca', 'acordao', etc
     """
     with db_lock:
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
+        conn = sqlite3.connect(DB_PATH, timeout=30)
+        try:
+            cursor = conn.cursor()
 
-        # Incrementar total geral
-        cursor.execute('''
-            UPDATE stats_geral
-            SET total_documentos = total_documentos + 1,
-                ultima_atualizacao = ?
-            WHERE id = 1
-        ''', (datetime.now().isoformat(),))
+            # Incrementar total geral
+            cursor.execute('''
+                UPDATE stats_geral
+                SET total_documentos = total_documentos + 1,
+                    ultima_atualizacao = ?
+                WHERE id = 1
+            ''', (datetime.now().isoformat(),))
 
-        # Incrementar por tipo
-        cursor.execute('''
-            INSERT INTO stats_por_tipo (tipo, quantidade) VALUES (?, 1)
-            ON CONFLICT(tipo) DO UPDATE SET quantidade = quantidade + 1
-        ''', (tipo_documento,))
+            # Incrementar por tipo
+            cursor.execute('''
+                INSERT INTO stats_por_tipo (tipo, quantidade) VALUES (?, 1)
+                ON CONFLICT(tipo) DO UPDATE SET quantidade = quantidade + 1
+            ''', (tipo_documento,))
 
-        # Incrementar contador diário
-        hoje = datetime.now().strftime('%Y-%m-%d')
-        cursor.execute('''
-            INSERT INTO stats_diarias (data, quantidade) VALUES (?, 1)
-            ON CONFLICT(data) DO UPDATE SET quantidade = quantidade + 1
-        ''', (hoje,))
+            # Incrementar contador diário
+            hoje = datetime.now().strftime('%Y-%m-%d')
+            cursor.execute('''
+                INSERT INTO stats_diarias (data, quantidade) VALUES (?, 1)
+                ON CONFLICT(data) DO UPDATE SET quantidade = quantidade + 1
+            ''', (hoje,))
 
-        # Buscar novo total
-        cursor.execute('SELECT total_documentos FROM stats_geral WHERE id = 1')
-        total = cursor.fetchone()[0]
+            # Buscar novo total
+            cursor.execute('SELECT total_documentos FROM stats_geral WHERE id = 1')
+            total = cursor.fetchone()[0]
 
-        conn.commit()
-        conn.close()
+            conn.commit()
+        finally:
+            conn.close()
 
         logging.info(f"📊 Estatísticas atualizadas: Total={total}, Tipo={tipo_documento}")
         return total
@@ -226,21 +236,23 @@ def incrementar_feedback(tipo_feedback):
         tipo_feedback: 'positivo' ou 'negativo'
     """
     with db_lock:
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
+        conn = sqlite3.connect(DB_PATH, timeout=30)
+        try:
+            cursor = conn.cursor()
 
-        # Incrementar contador de feedback
-        cursor.execute('''
-            INSERT INTO stats_feedback (tipo, quantidade) VALUES (?, 1)
-            ON CONFLICT(tipo) DO UPDATE SET quantidade = quantidade + 1
-        ''', (tipo_feedback,))
+            # Incrementar contador de feedback
+            cursor.execute('''
+                INSERT INTO stats_feedback (tipo, quantidade) VALUES (?, 1)
+                ON CONFLICT(tipo) DO UPDATE SET quantidade = quantidade + 1
+            ''', (tipo_feedback,))
 
-        # Buscar novo total
-        cursor.execute('SELECT quantidade FROM stats_feedback WHERE tipo = ?', (tipo_feedback,))
-        total = cursor.fetchone()[0]
+            # Buscar novo total
+            cursor.execute('SELECT quantidade FROM stats_feedback WHERE tipo = ?', (tipo_feedback,))
+            total = cursor.fetchone()[0]
 
-        conn.commit()
-        conn.close()
+            conn.commit()
+        finally:
+            conn.close()
 
         logging.info(f"👍👎 Feedback registrado: {tipo_feedback} (Total: {total})")
         return total
@@ -251,64 +263,65 @@ def get_estatisticas():
     LGPD: Apenas números, sem dados identificáveis
     """
     with db_lock:
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
+        conn = sqlite3.connect(DB_PATH, timeout=30)
+        try:
+            cursor = conn.cursor()
 
-        # Total geral
-        cursor.execute('SELECT total_documentos, data_inicio FROM stats_geral WHERE id = 1')
-        row = cursor.fetchone()
-        total_documentos = row[0] if row else 0
-        data_inicio = row[1] if row else None
+            # Total geral
+            cursor.execute('SELECT total_documentos, data_inicio FROM stats_geral WHERE id = 1')
+            row = cursor.fetchone()
+            total_documentos = row[0] if row else 0
+            data_inicio = row[1] if row else None
 
-        # Documentos hoje
-        hoje = datetime.now().strftime('%Y-%m-%d')
-        cursor.execute('SELECT quantidade FROM stats_diarias WHERE data = ?', (hoje,))
-        row = cursor.fetchone()
-        documentos_hoje = row[0] if row else 0
+            # Documentos hoje
+            hoje = datetime.now().strftime('%Y-%m-%d')
+            cursor.execute('SELECT quantidade FROM stats_diarias WHERE data = ?', (hoje,))
+            row = cursor.fetchone()
+            documentos_hoje = row[0] if row else 0
 
-        # Por tipo
-        cursor.execute('SELECT tipo, quantidade FROM stats_por_tipo ORDER BY quantidade DESC')
-        por_tipo = {row[0]: row[1] for row in cursor.fetchall()}
+            # Por tipo
+            cursor.execute('SELECT tipo, quantidade FROM stats_por_tipo ORDER BY quantidade DESC')
+            por_tipo = {row[0]: row[1] for row in cursor.fetchall()}
 
-        # Tipo mais comum
-        tipo_mais_comum = max(por_tipo.items(), key=lambda x: x[1])[0] if por_tipo else None
+            # Tipo mais comum
+            tipo_mais_comum = max(por_tipo.items(), key=lambda x: x[1])[0] if por_tipo else None
 
-        # Feedback
-        cursor.execute('SELECT tipo, quantidade FROM stats_feedback')
-        feedback_stats = {row[0]: row[1] for row in cursor.fetchall()}
-        total_feedback = sum(feedback_stats.values())
-        feedback_positivo = feedback_stats.get('positivo', 0)
-        feedback_negativo = feedback_stats.get('negativo', 0)
-        taxa_satisfacao = int((feedback_positivo / total_feedback * 100)) if total_feedback > 0 else 0
+            # Feedback
+            cursor.execute('SELECT tipo, quantidade FROM stats_feedback')
+            feedback_stats = {row[0]: row[1] for row in cursor.fetchall()}
+            total_feedback = sum(feedback_stats.values())
+            feedback_positivo = feedback_stats.get('positivo', 0)
+            feedback_negativo = feedback_stats.get('negativo', 0)
+            taxa_satisfacao = int((feedback_positivo / total_feedback * 100)) if total_feedback > 0 else 0
 
-        # Calcular milestone atual
-        milestones = [
-            {'valor': 100, 'nome': 'Bronze', 'emoji': '🥉'},
-            {'valor': 1000, 'nome': 'Prata', 'emoji': '🥈'},
-            {'valor': 10000, 'nome': 'Ouro', 'emoji': '🥇'},
-            {'valor': 100000, 'nome': 'Diamante', 'emoji': '💎'},
-        ]
+            # Calcular milestone atual
+            milestones = [
+                {'valor': 100, 'nome': 'Bronze', 'emoji': '🥉'},
+                {'valor': 1000, 'nome': 'Prata', 'emoji': '🥈'},
+                {'valor': 10000, 'nome': 'Ouro', 'emoji': '🥇'},
+                {'valor': 100000, 'nome': 'Diamante', 'emoji': '💎'},
+            ]
 
-        milestone_atual = None
-        proximo_milestone = None
-        progresso_percentual = 0
+            milestone_atual = None
+            proximo_milestone = None
+            progresso_percentual = 0
 
-        for m in milestones:
-            if total_documentos >= m['valor']:
-                milestone_atual = m
-            elif proximo_milestone is None:
-                proximo_milestone = m
-                if milestone_atual:
-                    # Calcular progresso entre milestones
-                    anterior = milestone_atual['valor']
-                    proximo = proximo_milestone['valor']
-                    progresso_percentual = int(((total_documentos - anterior) / (proximo - anterior)) * 100)
-                else:
-                    # Progresso até primeiro milestone
-                    progresso_percentual = int((total_documentos / proximo_milestone['valor']) * 100)
-                break
-
-        conn.close()
+            for m in milestones:
+                if total_documentos >= m['valor']:
+                    milestone_atual = m
+                elif proximo_milestone is None:
+                    proximo_milestone = m
+                    if milestone_atual:
+                        # Calcular progresso entre milestones
+                        anterior = milestone_atual['valor']
+                        proximo = proximo_milestone['valor']
+                        progresso_percentual = int(((total_documentos - anterior) / (proximo - anterior)) * 100)
+                    else:
+                        # Progresso até primeiro milestone
+                        progresso_percentual = int((total_documentos / proximo_milestone['valor']) * 100)
+                    break
+        finally:
+            conn.close()
 
         stats = {
             'total_documentos': total_documentos,
@@ -354,8 +367,7 @@ def gerar_hash_ip(ip_address):
     LGPD: O IP real NUNCA é armazenado, apenas seu hash
     O salt impede ataques de força bruta contra IPs conhecidos
     """
-    salt = "entenda-aqui-tjto-2024"
-    return hashlib.sha256(f"{salt}:{ip_address}".encode('utf-8')).hexdigest()
+    return hashlib.sha256(f"{IP_HASH_SALT}:{ip_address}".encode('utf-8')).hexdigest()
 
 
 def registrar_validacao(doc_id, hash_conteudo, ip_hash, tipo_documento):
@@ -370,32 +382,29 @@ def registrar_validacao(doc_id, hash_conteudo, ip_hash, tipo_documento):
         tipo_documento: Tipo do documento (sentença, mandado, etc.)
     """
     with db_lock:
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
+        conn = sqlite3.connect(DB_PATH, timeout=30)
+        try:
+            cursor = conn.cursor()
 
-        agora = datetime.now()
-        # Documentos expiram em 30 dias (LGPD)
-        expiracao = datetime(agora.year, agora.month, agora.day)
-        expiracao = agora.replace(day=1)
-        # Calcular 30 dias a partir de agora
-        from datetime import timedelta
-        expiracao = agora + timedelta(days=30)
+            agora = datetime.now()
+            expiracao = agora + timedelta(days=30)
 
-        cursor.execute('''
-            INSERT INTO validacao_documentos
-            (doc_id, hash_conteudo, ip_hash, tipo_documento, data_criacao, data_expiracao)
-            VALUES (?, ?, ?, ?, ?, ?)
-        ''', (
-            doc_id,
-            hash_conteudo,
-            ip_hash,
-            tipo_documento,
-            agora.isoformat(),
-            expiracao.isoformat()
-        ))
+            cursor.execute('''
+                INSERT INTO validacao_documentos
+                (doc_id, hash_conteudo, ip_hash, tipo_documento, data_criacao, data_expiracao)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', (
+                doc_id,
+                hash_conteudo,
+                ip_hash,
+                tipo_documento,
+                agora.isoformat(),
+                expiracao.isoformat()
+            ))
 
-        conn.commit()
-        conn.close()
+            conn.commit()
+        finally:
+            conn.close()
 
         logging.info(f"🔐 Validação registrada: {doc_id} (tipo: {tipo_documento})")
         return doc_id
@@ -410,17 +419,19 @@ def buscar_validacao(doc_id):
         doc_id: Identificador único do documento
     """
     with db_lock:
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
+        conn = sqlite3.connect(DB_PATH, timeout=30)
+        try:
+            cursor = conn.cursor()
 
-        cursor.execute('''
-            SELECT doc_id, hash_conteudo, ip_hash, tipo_documento, data_criacao, data_expiracao
-            FROM validacao_documentos
-            WHERE doc_id = ?
-        ''', (doc_id,))
+            cursor.execute('''
+                SELECT doc_id, hash_conteudo, ip_hash, tipo_documento, data_criacao, data_expiracao
+                FROM validacao_documentos
+                WHERE doc_id = ?
+            ''', (doc_id,))
 
-        row = cursor.fetchone()
-        conn.close()
+            row = cursor.fetchone()
+        finally:
+            conn.close()
 
         if not row:
             return None
@@ -441,17 +452,19 @@ def limpar_validacoes_expiradas():
     LGPD: Não mantém dados desnecessariamente
     """
     with db_lock:
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
+        conn = sqlite3.connect(DB_PATH, timeout=30)
+        try:
+            cursor = conn.cursor()
 
-        cursor.execute('''
-            DELETE FROM validacao_documentos
-            WHERE datetime(data_expiracao) < datetime('now')
-        ''')
+            cursor.execute('''
+                DELETE FROM validacao_documentos
+                WHERE datetime(data_expiracao) < datetime('now')
+            ''')
 
-        deletados = cursor.rowcount
-        conn.commit()
-        conn.close()
+            deletados = cursor.rowcount
+            conn.commit()
+        finally:
+            conn.close()
 
         if deletados > 0:
             logging.info(f"🗑️ LGPD: Removidos {deletados} registros de validação expirados")
@@ -461,36 +474,36 @@ def limpar_validacoes_expiradas():
 
 def registrar_auditoria_ip(ip_address, tipo_documento, nome_arquivo=None, tamanho_bytes=None, modelo_usado=None):
     """
-    Registra IP real e metadados do processamento para auditoria administrativa.
-    NÃO armazena conteúdo do documento - apenas metadados operacionais.
-
-    Args:
-        ip_address: IP real do usuário
-        tipo_documento: Tipo detectado (sentença, mandado, acórdão, etc.)
-        nome_arquivo: Nome original do arquivo (sanitizado)
-        tamanho_bytes: Tamanho do arquivo em bytes
-        modelo_usado: Modelo Gemini utilizado
+    Registra auditoria de processamento (LGPD compliant).
+    Armazena APENAS hashes - NUNCA dados identificáveis.
     """
+    ip_hash = gerar_hash_ip(ip_address) if ip_address else "unknown"
+    nome_hash = hashlib.sha256(nome_arquivo.encode('utf-8')).hexdigest()[:16] if nome_arquivo else None
+
     with db_lock:
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
+        try:
+            conn = sqlite3.connect(DB_PATH, timeout=30)
+            cursor = conn.cursor()
 
-        cursor.execute('''
-            INSERT INTO audit_ip (ip_address, tipo_documento, nome_arquivo, tamanho_bytes, modelo_usado, data_processamento)
-            VALUES (?, ?, ?, ?, ?, ?)
-        ''', (
-            ip_address,
-            tipo_documento,
-            nome_arquivo,
-            tamanho_bytes,
-            modelo_usado,
-            datetime.now().isoformat()
-        ))
+            cursor.execute('''
+                INSERT INTO audit_ip (ip_hash, tipo_documento, nome_arquivo_hash, tamanho_bytes, modelo_usado, data_processamento)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', (
+                ip_hash,
+                tipo_documento,
+                nome_hash,
+                tamanho_bytes,
+                modelo_usado,
+                datetime.now().isoformat()
+            ))
 
-        conn.commit()
-        conn.close()
+            conn.commit()
+        except Exception as e:
+            logging.error(f"❌ Erro ao registrar auditoria: {e}")
+        finally:
+            conn.close()
 
-        logging.info(f"📋 Auditoria registrada: IP={ip_address}, tipo={tipo_documento}")
+    logging.info(f"📋 Auditoria registrada: tipo={tipo_documento}")
 
 
 def get_auditoria_ip(limite=100, pagina=1, filtro_ip=None, filtro_tipo=None, filtro_data=None):
@@ -500,7 +513,7 @@ def get_auditoria_ip(limite=100, pagina=1, filtro_ip=None, filtro_tipo=None, fil
     Args:
         limite: Quantidade máxima de registros por página
         pagina: Número da página (1-indexed)
-        filtro_ip: Filtrar por IP específico
+        filtro_ip: Filtrar por hash de IP específico
         filtro_tipo: Filtrar por tipo de documento
         filtro_data: Filtrar por data (formato YYYY-MM-DD)
 
@@ -508,70 +521,71 @@ def get_auditoria_ip(limite=100, pagina=1, filtro_ip=None, filtro_tipo=None, fil
         Dict com registros, total e informações de paginação
     """
     with db_lock:
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
+        conn = sqlite3.connect(DB_PATH, timeout=30)
+        try:
+            cursor = conn.cursor()
 
-        # Construir query com filtros
-        where_clauses = []
-        params = []
+            # Construir query com filtros
+            where_clauses = []
+            params = []
 
-        if filtro_ip:
-            where_clauses.append("ip_address = ?")
-            params.append(filtro_ip)
+            if filtro_ip:
+                where_clauses.append("ip_hash = ?")
+                params.append(filtro_ip)
 
-        if filtro_tipo:
-            where_clauses.append("tipo_documento = ?")
-            params.append(filtro_tipo)
+            if filtro_tipo:
+                where_clauses.append("tipo_documento = ?")
+                params.append(filtro_tipo)
 
-        if filtro_data:
-            where_clauses.append("date(data_processamento) = ?")
-            params.append(filtro_data)
+            if filtro_data:
+                where_clauses.append("date(data_processamento) = ?")
+                params.append(filtro_data)
 
-        where_sql = ""
-        if where_clauses:
-            where_sql = "WHERE " + " AND ".join(where_clauses)
+            where_sql = ""
+            if where_clauses:
+                where_sql = "WHERE " + " AND ".join(where_clauses)
 
-        # Contar total
-        cursor.execute(f'SELECT COUNT(*) FROM audit_ip {where_sql}', params)
-        total = cursor.fetchone()[0]
+            # Contar total
+            cursor.execute(f'SELECT COUNT(*) FROM audit_ip {where_sql}', params)
+            total = cursor.fetchone()[0]
 
-        # Buscar registros com paginação
-        offset = (pagina - 1) * limite
-        cursor.execute(f'''
-            SELECT id, ip_address, tipo_documento, nome_arquivo, tamanho_bytes, modelo_usado, data_processamento
-            FROM audit_ip
-            {where_sql}
-            ORDER BY data_processamento DESC
-            LIMIT ? OFFSET ?
-        ''', params + [limite, offset])
+            # Buscar registros com paginação
+            offset = (pagina - 1) * limite
+            cursor.execute(f'''
+                SELECT id, ip_hash, tipo_documento, nome_arquivo_hash, tamanho_bytes, modelo_usado, data_processamento
+                FROM audit_ip
+                {where_sql}
+                ORDER BY data_processamento DESC
+                LIMIT ? OFFSET ?
+            ''', params + [limite, offset])
 
-        registros = []
-        for row in cursor.fetchall():
-            registros.append({
-                'id': row[0],
-                'ip_address': row[1],
-                'tipo_documento': row[2],
-                'nome_arquivo': row[3],
-                'tamanho_bytes': row[4],
-                'modelo_usado': row[5],
-                'data_processamento': row[6]
-            })
+            registros = []
+            for row in cursor.fetchall():
+                registros.append({
+                    'id': row[0],
+                    'ip_hash': row[1],
+                    'tipo_documento': row[2],
+                    'nome_arquivo_hash': row[3],
+                    'tamanho_bytes': row[4],
+                    'modelo_usado': row[5],
+                    'data_processamento': row[6]
+                })
 
-        # IPs únicos para resumo
-        cursor.execute(f'SELECT DISTINCT ip_address FROM audit_ip {where_sql}', params)
-        ips_unicos = len(cursor.fetchall())
+            # IPs únicos para resumo
+            cursor.execute(f'SELECT DISTINCT ip_hash FROM audit_ip {where_sql}', params)
+            ips_unicos = len(cursor.fetchall())
 
-        # Resumo por tipo
-        cursor.execute(f'''
-            SELECT tipo_documento, COUNT(*) as qtd
-            FROM audit_ip
-            {where_sql}
-            GROUP BY tipo_documento
-            ORDER BY qtd DESC
-        ''', params)
-        por_tipo = {row[0]: row[1] for row in cursor.fetchall()}
-
-        conn.close()
+            # Resumo por tipo
+            cursor.execute(f'''
+                SELECT tipo_documento, COUNT(*) as qtd
+                FROM audit_ip
+                {where_sql}
+                GROUP BY tipo_documento
+                ORDER BY qtd DESC
+            ''', params)
+            por_tipo = {row[0]: row[1] for row in cursor.fetchall()}
+        finally:
+            conn.close()
 
         total_paginas = (total + limite - 1) // limite if total > 0 else 1
 
@@ -606,31 +620,33 @@ def registrar_uso_tokens(tokens_input=0, tokens_output=0):
     hoje = datetime.now().strftime('%Y-%m-%d')
 
     with db_lock:
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
+        conn = sqlite3.connect(DB_PATH, timeout=30)
+        try:
+            cursor = conn.cursor()
 
-        cursor.execute('''
-            INSERT INTO token_usage_diario (data, tokens_input, tokens_output, tokens_total, requisicoes, ultima_atualizacao)
-            VALUES (?, ?, ?, ?, 1, ?)
-            ON CONFLICT(data) DO UPDATE SET
-                tokens_input = tokens_input + ?,
-                tokens_output = tokens_output + ?,
-                tokens_total = tokens_total + ?,
-                requisicoes = requisicoes + 1,
-                ultima_atualizacao = ?
-        ''', (
-            hoje, tokens_input, tokens_output, tokens_total, datetime.now().isoformat(),
-            tokens_input, tokens_output, tokens_total, datetime.now().isoformat()
-        ))
+            cursor.execute('''
+                INSERT INTO token_usage_diario (data, tokens_input, tokens_output, tokens_total, requisicoes, ultima_atualizacao)
+                VALUES (?, ?, ?, ?, 1, ?)
+                ON CONFLICT(data) DO UPDATE SET
+                    tokens_input = tokens_input + ?,
+                    tokens_output = tokens_output + ?,
+                    tokens_total = tokens_total + ?,
+                    requisicoes = requisicoes + 1,
+                    ultima_atualizacao = ?
+            ''', (
+                hoje, tokens_input, tokens_output, tokens_total, datetime.now().isoformat(),
+                tokens_input, tokens_output, tokens_total, datetime.now().isoformat()
+            ))
 
-        # Buscar total atualizado
-        cursor.execute('SELECT tokens_total, requisicoes FROM token_usage_diario WHERE data = ?', (hoje,))
-        row = cursor.fetchone()
-        total_hoje = row[0] if row else 0
-        reqs_hoje = row[1] if row else 0
+            # Buscar total atualizado
+            cursor.execute('SELECT tokens_total, requisicoes FROM token_usage_diario WHERE data = ?', (hoje,))
+            row = cursor.fetchone()
+            total_hoje = row[0] if row else 0
+            reqs_hoje = row[1] if row else 0
 
-        conn.commit()
-        conn.close()
+            conn.commit()
+        finally:
+            conn.close()
 
     limite_atingido = total_hoje >= DAILY_TOKEN_LIMIT
     percentual = min(100, int((total_hoje / DAILY_TOKEN_LIMIT) * 100))
@@ -659,13 +675,14 @@ def verificar_limite_tokens():
     hoje = datetime.now().strftime('%Y-%m-%d')
 
     with db_lock:
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
+        conn = sqlite3.connect(DB_PATH, timeout=30)
+        try:
+            cursor = conn.cursor()
 
-        cursor.execute('SELECT tokens_total, requisicoes FROM token_usage_diario WHERE data = ?', (hoje,))
-        row = cursor.fetchone()
-
-        conn.close()
+            cursor.execute('SELECT tokens_total, requisicoes FROM token_usage_diario WHERE data = ?', (hoje,))
+            row = cursor.fetchone()
+        finally:
+            conn.close()
 
     total_hoje = row[0] if row else 0
     reqs_hoje = row[1] if row else 0
@@ -686,13 +703,14 @@ def get_uso_tokens_hoje():
     hoje = datetime.now().strftime('%Y-%m-%d')
 
     with db_lock:
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
+        conn = sqlite3.connect(DB_PATH, timeout=30)
+        try:
+            cursor = conn.cursor()
 
-        cursor.execute('SELECT tokens_input, tokens_output, tokens_total, requisicoes FROM token_usage_diario WHERE data = ?', (hoje,))
-        row = cursor.fetchone()
-
-        conn.close()
+            cursor.execute('SELECT tokens_input, tokens_output, tokens_total, requisicoes FROM token_usage_diario WHERE data = ?', (hoje,))
+            row = cursor.fetchone()
+        finally:
+            conn.close()
 
     if row:
         return {
@@ -718,17 +736,19 @@ def get_uso_tokens_hoje():
 def limpar_tokens_antigos(dias=7):
     """Remove registros de uso de tokens com mais de X dias"""
     with db_lock:
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
+        conn = sqlite3.connect(DB_PATH, timeout=30)
+        try:
+            cursor = conn.cursor()
 
-        cursor.execute('''
-            DELETE FROM token_usage_diario
-            WHERE date(data) < date('now', ? || ' days')
-        ''', (f'-{dias}',))
+            cursor.execute('''
+                DELETE FROM token_usage_diario
+                WHERE date(data) < date('now', ? || ' days')
+            ''', (f'-{dias}',))
 
-        deletados = cursor.rowcount
-        conn.commit()
-        conn.close()
+            deletados = cursor.rowcount
+            conn.commit()
+        finally:
+            conn.close()
 
         if deletados > 0:
             logging.info(f"🗑️ Tokens: Removidos {deletados} registros de uso antigos")
@@ -748,8 +768,7 @@ def gerar_hash_cpf(cpf):
     Args:
         cpf: CPF limpo (apenas dígitos, 11 caracteres)
     """
-    salt = "entenda-aqui-cpf-vault-2024"
-    return hashlib.sha256(f"{salt}:{cpf}".encode('utf-8')).hexdigest()
+    return hashlib.sha256(f"{CPF_HASH_SALT}:{cpf}".encode('utf-8')).hexdigest()
 
 
 def criptografar_cpf(cpf):
@@ -804,57 +823,60 @@ def registrar_cpf_vault(cpf, ip_address=None):
     """
     cpf_hash = gerar_hash_cpf(cpf)
     cpf_encrypted = criptografar_cpf(cpf)
+    if not cpf_encrypted and not CPF_VAULT_KEY:
+        logging.warning("⚠️ CPF_VAULT_KEY não configurada - CPF não será armazenado no cofre")
     ip_hash = gerar_hash_ip(ip_address) if ip_address else None
     hoje = datetime.now().strftime('%Y-%m-%d')
 
     with db_lock:
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
+        conn = sqlite3.connect(DB_PATH, timeout=30)
+        try:
+            cursor = conn.cursor()
 
-        # Verificar rate limit ANTES de registrar
-        cursor.execute('''
-            SELECT contagem FROM cpf_rate_limit
-            WHERE cpf_hash = ? AND data = ?
-        ''', (cpf_hash, hoje))
-        row = cursor.fetchone()
-        contagem_atual = row[0] if row else 0
-
-        if contagem_atual >= CPF_DAILY_LIMIT:
-            conn.close()
-            logging.warning(f"⚠️ CPF rate limit atingido: hash={cpf_hash[:16]}... ({contagem_atual}/{CPF_DAILY_LIMIT})")
-            return {
-                "sucesso": False,
-                "contagem_hoje": contagem_atual,
-                "limite": CPF_DAILY_LIMIT,
-                "limite_atingido": True,
-                "mensagem": f"Limite de {CPF_DAILY_LIMIT} documentos por dia atingido para este CPF."
-            }
-
-        # Registrar no cofre (apenas se criptografia disponível)
-        if cpf_encrypted:
+            # Verificar rate limit ANTES de registrar
             cursor.execute('''
-                INSERT INTO cpf_vault (cpf_hash, cpf_encrypted, data_registro, ip_hash)
-                VALUES (?, ?, ?, ?)
-            ''', (cpf_hash, cpf_encrypted, datetime.now().isoformat(), ip_hash))
+                SELECT contagem FROM cpf_rate_limit
+                WHERE cpf_hash = ? AND data = ?
+            ''', (cpf_hash, hoje))
+            row = cursor.fetchone()
+            contagem_atual = row[0] if row else 0
 
-        # Incrementar rate limit
-        cursor.execute('''
-            INSERT INTO cpf_rate_limit (cpf_hash, data, contagem)
-            VALUES (?, ?, 1)
-            ON CONFLICT(cpf_hash, data) DO UPDATE SET contagem = contagem + 1
-        ''', (cpf_hash, hoje))
+            if contagem_atual >= CPF_DAILY_LIMIT:
+                logging.warning(f"⚠️ CPF rate limit atingido ({contagem_atual}/{CPF_DAILY_LIMIT})")
+                return {
+                    "sucesso": False,
+                    "contagem_hoje": contagem_atual,
+                    "limite": CPF_DAILY_LIMIT,
+                    "limite_atingido": True,
+                    "mensagem": f"Limite de {CPF_DAILY_LIMIT} documentos por dia atingido para este CPF."
+                }
 
-        # Buscar contagem atualizada
-        cursor.execute('''
-            SELECT contagem FROM cpf_rate_limit
-            WHERE cpf_hash = ? AND data = ?
-        ''', (cpf_hash, hoje))
-        nova_contagem = cursor.fetchone()[0]
+            # Registrar no cofre (apenas se criptografia disponível)
+            if cpf_encrypted:
+                cursor.execute('''
+                    INSERT INTO cpf_vault (cpf_hash, cpf_encrypted, data_registro, ip_hash)
+                    VALUES (?, ?, ?, ?)
+                ''', (cpf_hash, cpf_encrypted, datetime.now().isoformat(), ip_hash))
 
-        conn.commit()
-        conn.close()
+            # Incrementar rate limit
+            cursor.execute('''
+                INSERT INTO cpf_rate_limit (cpf_hash, data, contagem)
+                VALUES (?, ?, 1)
+                ON CONFLICT(cpf_hash, data) DO UPDATE SET contagem = contagem + 1
+            ''', (cpf_hash, hoje))
 
-    logging.info(f"🔐 CPF registrado no cofre: hash={cpf_hash[:16]}... (uso: {nova_contagem}/{CPF_DAILY_LIMIT})")
+            # Buscar contagem atualizada
+            cursor.execute('''
+                SELECT contagem FROM cpf_rate_limit
+                WHERE cpf_hash = ? AND data = ?
+            ''', (cpf_hash, hoje))
+            nova_contagem = cursor.fetchone()[0]
+
+            conn.commit()
+        finally:
+            conn.close()
+
+    logging.info(f"🔐 CPF registrado no cofre (uso: {nova_contagem}/{CPF_DAILY_LIMIT})")
 
     return {
         "sucesso": True,
@@ -879,16 +901,17 @@ def verificar_cpf_rate_limit(cpf):
     hoje = datetime.now().strftime('%Y-%m-%d')
 
     with db_lock:
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
+        conn = sqlite3.connect(DB_PATH, timeout=30)
+        try:
+            cursor = conn.cursor()
 
-        cursor.execute('''
-            SELECT contagem FROM cpf_rate_limit
-            WHERE cpf_hash = ? AND data = ?
-        ''', (cpf_hash, hoje))
-        row = cursor.fetchone()
-
-        conn.close()
+            cursor.execute('''
+                SELECT contagem FROM cpf_rate_limit
+                WHERE cpf_hash = ? AND data = ?
+            ''', (cpf_hash, hoje))
+            row = cursor.fetchone()
+        finally:
+            conn.close()
 
     contagem = row[0] if row else 0
     limite_atingido = contagem >= CPF_DAILY_LIMIT
@@ -910,20 +933,22 @@ def limpar_cpf_vault():
         Número de registros removidos
     """
     with db_lock:
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
+        conn = sqlite3.connect(DB_PATH, timeout=30)
+        try:
+            cursor = conn.cursor()
 
-        # Limpar cofre de CPFs criptografados
-        cursor.execute('DELETE FROM cpf_vault')
-        deletados_vault = cursor.rowcount
+            # Limpar cofre de CPFs criptografados
+            cursor.execute('DELETE FROM cpf_vault')
+            deletados_vault = cursor.rowcount
 
-        # Limpar rate limits de dias anteriores (manter apenas hoje)
-        hoje = datetime.now().strftime('%Y-%m-%d')
-        cursor.execute('DELETE FROM cpf_rate_limit WHERE data < ?', (hoje,))
-        deletados_rate = cursor.rowcount
+            # Limpar rate limits de dias anteriores (manter apenas hoje)
+            hoje = datetime.now().strftime('%Y-%m-%d')
+            cursor.execute('DELETE FROM cpf_rate_limit WHERE data < ?', (hoje,))
+            deletados_rate = cursor.rowcount
 
-        conn.commit()
-        conn.close()
+            conn.commit()
+        finally:
+            conn.close()
 
     total = deletados_vault + deletados_rate
     if total > 0:
@@ -932,26 +957,28 @@ def limpar_cpf_vault():
     return total
 
 
-def limpar_auditoria_antiga(dias=90):
+def limpar_auditoria_antiga(dias=30):
     """
     Remove registros de auditoria com mais de X dias.
-    Mantém histórico por 90 dias por padrão.
+    Mantém histórico por 30 dias por padrão.
 
     Args:
-        dias: Quantidade de dias para manter (padrão: 90)
+        dias: Quantidade de dias para manter (padrão: 30)
     """
     with db_lock:
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
+        conn = sqlite3.connect(DB_PATH, timeout=30)
+        try:
+            cursor = conn.cursor()
 
-        cursor.execute('''
-            DELETE FROM audit_ip
-            WHERE date(data_processamento) < date('now', ? || ' days')
-        ''', (f'-{dias}',))
+            cursor.execute('''
+                DELETE FROM audit_ip
+                WHERE date(data_processamento) < date('now', ? || ' days')
+            ''', (f'-{dias}',))
 
-        deletados = cursor.rowcount
-        conn.commit()
-        conn.close()
+            deletados = cursor.rowcount
+            conn.commit()
+        finally:
+            conn.close()
 
         if deletados > 0:
             logging.info(f"🗑️ Auditoria: Removidos {deletados} registros com mais de {dias} dias")
@@ -965,18 +992,20 @@ def limpar_estatisticas_antigas():
     LGPD: Não mantém dados antigos desnecessariamente
     """
     with db_lock:
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
+        conn = sqlite3.connect(DB_PATH, timeout=30)
+        try:
+            cursor = conn.cursor()
 
-        # Manter apenas últimos 30 dias
-        cursor.execute('''
-            DELETE FROM stats_diarias
-            WHERE date(data) < date('now', '-30 days')
-        ''')
+            # Manter apenas últimos 30 dias
+            cursor.execute('''
+                DELETE FROM stats_diarias
+                WHERE date(data) < date('now', '-30 days')
+            ''')
 
-        deletados = cursor.rowcount
-        conn.commit()
-        conn.close()
+            deletados = cursor.rowcount
+            conn.commit()
+        finally:
+            conn.close()
 
         if deletados > 0:
             logging.info(f"🗑️ LGPD: Removidos {deletados} registros diários antigos")
