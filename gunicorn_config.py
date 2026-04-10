@@ -29,7 +29,7 @@ proc_name = "entenda-aqui"
 # Server mechanics
 daemon = False
 pidfile = None
-umask = 0
+umask = 0o027  # Arquivos temporários não acessíveis a outros usuários
 user = None
 group = None
 tmp_upload_dir = None

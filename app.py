@@ -16,6 +16,7 @@ from reportlab.pdfbase import pdfmetrics
 from functools import wraps
 from datetime import datetime, timedelta
 import hashlib
+import hmac
 import tempfile
 import threading
 import queue
@@ -47,9 +48,23 @@ except ImportError:
     logging.warning("OpenCV não disponível - usando processamento básico")
 
 app = Flask(__name__)
-app.secret_key = os.getenv("SECRET_KEY", os.urandom(24))
+_default_secret = os.urandom(24)
+app.secret_key = os.getenv("SECRET_KEY", _default_secret)
+if not os.getenv("SECRET_KEY"):
+    logging.warning("⚠️ SECRET_KEY não definida - sessões serão invalidadas entre workers/restarts. Defina SECRET_KEY em produção!")
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=1)
 logging.basicConfig(level=logging.INFO)
+
+@app.after_request
+def add_security_headers(response):
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    response.headers['Permissions-Policy'] = 'camera=(), microphone=(), geolocation=()'
+    if request.is_secure:
+        response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+    return response
 
 # --- Configurações ---
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
@@ -996,7 +1011,7 @@ def analisar_documento_completo_gemini(texto, perspectiva="nao_informado"):
     """
 
     # Verificar cache antes de chamar Gemini
-    cache_key = hashlib.md5(f"{texto[:5000]}:{perspectiva}".encode()).hexdigest()
+    cache_key = hashlib.sha256(f"{texto}:{perspectiva}".encode()).hexdigest()
     with cleanup_lock:
         if cache_key in results_cache:
             cache_entry = results_cache[cache_key]
@@ -1009,7 +1024,8 @@ def analisar_documento_completo_gemini(texto, perspectiva="nao_informado"):
 
     # Truncar texto se necessário
     if len(texto) > 15000:
-        texto_analise = texto[:7500] + "\n\n[... TEXTO TRUNCADO ...]\n\n" + texto[-7500:]
+        texto_analise = texto[:7500] + "\n\n[... DOCUMENTO COM " + str(len(texto)) + " CARACTERES - SEÇÃO CENTRAL OMITIDA POR LIMITE. USE APENAS AS INFORMAÇÕES VISÍVEIS ACIMA E ABAIXO. NÃO INVENTE INFORMAÇÕES DA PARTE OMITIDA. ...]\n\n" + texto[-7500:]
+        logging.warning(f"⚠️ Documento truncado: {len(texto)} chars -> 15000 chars (perdidos {len(texto) - 15000} chars do meio)")
     else:
         texto_analise = texto
 
@@ -1374,7 +1390,7 @@ Responda EXATAMENTE neste formato:
             response = model.generate_content(
                 prompt,
                 generation_config={
-                    "temperature": 0.2,
+                    "temperature": 0,
                     "max_output_tokens": 3000
                 }
             )
@@ -1590,19 +1606,72 @@ def processar_imagem_para_texto(image_bytes, formato='PNG'):
         if img.mode not in ('RGB', 'L'):
             img = img.convert('RGB')
 
-        # Processamento básico
-        if img.width > 3000 or img.height > 3000:
-            ratio = min(3000/img.width, 3000/img.height)
+        # Upscale small images for better OCR (minimum 300 DPI equivalent)
+        min_dimension = 2000
+        if img.width < min_dimension or img.height < min_dimension:
+            scale = max(min_dimension / img.width, min_dimension / img.height)
+            if scale > 1:
+                new_size = (int(img.width * scale), int(img.height * scale))
+                img = img.resize(new_size, Image.Resampling.LANCZOS)
+                logging.info(f"📐 Imagem ampliada para {new_size[0]}x{new_size[1]} (escala {scale:.1f}x)")
+
+        # Limit maximum size
+        if img.width > 4000 or img.height > 4000:
+            ratio = min(4000/img.width, 4000/img.height)
             new_size = (int(img.width * ratio), int(img.height * ratio))
             img = img.resize(new_size, Image.Resampling.LANCZOS)
 
-        enhancer = ImageEnhance.Contrast(img)
-        img = enhancer.enhance(1.5)
-        img = img.convert('L')
+        if CV2_AVAILABLE:
+            # Advanced preprocessing with OpenCV
+            logging.info("🔬 Usando OpenCV para pré-processamento avançado")
+            img_array = np.array(img.convert('RGB'))
+            gray = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)
+
+            # Noise removal
+            denoised = cv2.fastNlMeansDenoising(gray, None, 10, 7, 21)
+
+            # Deskew detection and correction
+            try:
+                coords = np.column_stack(np.where(denoised < 200))
+                if len(coords) > 100:
+                    angle = cv2.minAreaRect(coords)[-1]
+                    if angle < -45:
+                        angle = -(90 + angle)
+                    else:
+                        angle = -angle
+                    if abs(angle) > 0.5 and abs(angle) < 15:
+                        (h, w) = denoised.shape[:2]
+                        center = (w // 2, h // 2)
+                        M = cv2.getRotationMatrix2D(center, angle, 1.0)
+                        denoised = cv2.warpAffine(denoised, M, (w, h), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
+                        logging.info(f"📐 Deskew aplicado: {angle:.1f}°")
+            except Exception as e:
+                logging.warning(f"⚠️ Erro no deskew: {e}")
+
+            # Adaptive thresholding (binarization)
+            binary = cv2.adaptiveThreshold(denoised, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 31, 10)
+
+            # Morphological operations to clean up
+            kernel = np.ones((1, 1), np.uint8)
+            binary = cv2.dilate(binary, kernel, iterations=1)
+            binary = cv2.erode(binary, kernel, iterations=1)
+
+            img = Image.fromarray(binary)
+        else:
+            # Basic preprocessing with PIL only
+            enhancer = ImageEnhance.Contrast(img)
+            img = enhancer.enhance(1.8)
+            enhancer = ImageEnhance.Sharpness(img)
+            img = enhancer.enhance(2.0)
+            img = img.convert('L')
+            # Simple thresholding
+            img = img.point(lambda x: 0 if x < 140 else 255, '1')
+            img = img.convert('L')
 
         # OCR
-        custom_config = r'--oem 3 --psm 6 -l por+eng' if 'por' in TESSERACT_LANGS else r'--oem 3 --psm 6 -l eng'
+        custom_config = r'--oem 3 --psm 3 -l por+eng' if 'por' in TESSERACT_LANGS else r'--oem 3 --psm 3 -l eng'
         texto = pytesseract.image_to_string(img, config=custom_config)
+        texto = pos_processar_texto_ocr(texto)
 
         if len(texto.strip()) < 50:
             metadados["qualidade_ocr"] = "baixa"
@@ -1618,6 +1687,30 @@ def processar_imagem_para_texto(image_bytes, formato='PNG'):
         raise
 
     return texto, metadados
+
+def pos_processar_texto_ocr(texto):
+    """Pós-processamento de texto OCR para corrigir erros comuns"""
+    if not texto:
+        return texto
+
+    # Remove non-printable characters except newlines and tabs
+    texto = re.sub(r'[^\x20-\x7E\xA0-\xFF\n\t]', '', texto)
+
+    # Fix common OCR artifacts
+    texto = re.sub(r'[|]{2,}', '', texto)  # Remove pipe sequences
+    texto = re.sub(r'[_]{3,}', '', texto)  # Remove underscore sequences
+    texto = re.sub(r'[\.]{4,}', '...', texto)  # Normalize dot sequences
+
+    # Fix broken hyphenation at end of lines (common in legal docs)
+    texto = re.sub(r'(\w)-\n(\w)', r'\1\2', texto)
+
+    # Normalize multiple spaces
+    texto = re.sub(r'[ \t]{2,}', ' ', texto)
+
+    # Normalize multiple blank lines
+    texto = re.sub(r'\n{3,}', '\n\n', texto)
+
+    return texto.strip()
 
 def extrair_texto_pdf(pdf_bytes):
     """Extrai texto de PDF"""
@@ -1651,7 +1744,7 @@ def extrair_texto_pdf(pdf_bytes):
                         metadados["usou_ocr"] = True
                         metadados["paginas_com_ocr"].append(i+1)
 
-                        pix = page.get_pixmap(dpi=150)
+                        pix = page.get_pixmap(dpi=300)
                         img_data = pix.tobytes()
                         conteudo_ocr, _ = processar_imagem_para_texto(img_data, 'PNG')
                         partes_texto.append(conteudo_ocr)
@@ -1661,6 +1754,7 @@ def extrair_texto_pdf(pdf_bytes):
 
             # Join é muito mais eficiente que concatenação repetida
             texto = "\n".join(partes_texto).strip()
+            texto = pos_processar_texto_ocr(texto)
             if not texto:
                 raise ValueError("Nenhum texto extraído do PDF")
 
@@ -1694,6 +1788,7 @@ def index():
 
 
 @app.route("/validar_cpf", methods=["POST"])
+@rate_limit
 def validar_cpf_endpoint():
     """
     Valida CPF e verifica rate limit antes do processamento.
@@ -1917,13 +2012,12 @@ def processar():
         file = request.files['file']
         perspectiva = request.form.get('perspectiva', 'nao_informado')
 
-        # 🔥 LOG PARA DEBUG DA PERSPECTIVA
-        logging.info(f"""
-╔════════════════════════════════════════════════╗
-║  📍 PERSPECTIVA CAPTURADA DO FORMULÁRIO       ║
-║  Valor: {perspectiva:^35} ║
-╚════════════════════════════════════════════════╝
-        """)
+        # Validar perspectiva contra whitelist (anti prompt injection)
+        PERSPECTIVAS_VALIDAS = {'autor', 'reu', 'nao_informado'}
+        if perspectiva not in PERSPECTIVAS_VALIDAS:
+            perspectiva = 'nao_informado'
+
+        logging.info(f"📍 Perspectiva capturada: {perspectiva}")
 
         if file.filename == '':
             return jsonify({"erro": "Nenhum arquivo selecionado"}), 400
@@ -1940,7 +2034,7 @@ def processar():
 
         file_bytes = file.read()
         file_extension = file.filename.rsplit('.', 1)[1].lower()
-        file_hash = hashlib.md5(file_bytes).hexdigest()
+        file_hash = hashlib.sha256(file_bytes).hexdigest()
 
         logging.info(f"📄 Processando: {secure_filename(file.filename)} ({size/1024:.1f}KB)")
 
@@ -1958,7 +2052,7 @@ def processar():
                 return jsonify({"erro": "Tipo não suportado"}), 400
         except Exception as e:
             logging.error(f"❌ Erro ao extrair texto do arquivo: {e}", exc_info=True)
-            return jsonify({"erro": f"Erro ao extrair texto: {str(e)}"}), 500
+            return jsonify({"erro": "Erro ao extrair texto do documento. Verifique se o arquivo não está corrompido."}), 500
 
         if len(texto_original) < 10:
             logging.warning(f"⚠️ Texto muito curto: {len(texto_original)} caracteres")
@@ -2013,7 +2107,7 @@ def processar():
                     "erro": "O serviço de IA está temporariamente indisponível devido ao limite de uso. "
                             "Por favor, aguarde alguns minutos e tente novamente."
                 }), 503
-            return jsonify({"erro": f"Erro ao analisar documento: {erro_msg}"}), 500
+            return jsonify({"erro": "Erro ao analisar documento. Tente novamente em alguns instantes."}), 500
 
         # 🔒 VERIFICAÇÃO DE SEGREDO DE JUSTIÇA
         segredo_justica = analise_completa.get("segredo_justica", {})
@@ -2198,9 +2292,7 @@ def processar():
         hash_curto = f"{hash_conteudo[:8]}...{hash_conteudo[-8:]}"
 
         # Hash do IP (LGPD: nunca armazena o IP real)
-        ip_address = request.headers.get('X-Forwarded-For', request.remote_addr)
-        if ip_address and ',' in ip_address:
-            ip_address = ip_address.split(',')[0].strip()
+        ip_address = request.remote_addr
         ip_hash = gerar_hash_ip(ip_address or '0.0.0.0')
 
         # URL de validação
@@ -2337,13 +2429,11 @@ def processar_texto():
         texto_original = data['texto'].strip()
         perspectiva = data.get('perspectiva', 'nao_informado')
 
-        logging.info(f"""
-╔════════════════════════════════════════════════╗
-║  📋 TEXTO COLADO RECEBIDO                     ║
-║  Perspectiva: {perspectiva:^30} ║
-║  Caracteres: {len(texto_original):^31} ║
-╚════════════════════════════════════════════════╝
-        """)
+        PERSPECTIVAS_VALIDAS = {'autor', 'reu', 'nao_informado'}
+        if perspectiva not in PERSPECTIVAS_VALIDAS:
+            perspectiva = 'nao_informado'
+
+        logging.info(f"📋 Texto colado recebido: perspectiva={perspectiva}, chars={len(texto_original)}")
 
         if len(texto_original) < 20:
             return jsonify({"erro": "Texto muito curto. Mínimo: 20 caracteres"}), 400
@@ -2368,7 +2458,7 @@ def processar_texto():
                     "erro": "O serviço de IA está temporariamente indisponível devido ao limite de uso. "
                             "Por favor, aguarde alguns minutos e tente novamente."
                 }), 503
-            return jsonify({"erro": f"Erro ao analisar documento: {erro_msg}"}), 500
+            return jsonify({"erro": "Erro ao analisar documento. Tente novamente em alguns instantes."}), 500
 
         # 🔒 VERIFICAÇÃO DE SEGREDO DE JUSTIÇA
         segredo_justica = analise_completa.get("segredo_justica", {})
@@ -2521,9 +2611,7 @@ def processar_texto():
         hash_curto = f"{hash_conteudo[:8]}...{hash_conteudo[-8:]}"
 
         # Hash do IP (LGPD: nunca armazena o IP real)
-        ip_address = request.headers.get('X-Forwarded-For', request.remote_addr)
-        if ip_address and ',' in ip_address:
-            ip_address = ip_address.split(',')[0].strip()
+        ip_address = request.remote_addr
         ip_hash = gerar_hash_ip(ip_address or '0.0.0.0')
 
         # URL de validação
@@ -2630,6 +2718,8 @@ def chat_contextual():
             return token_check
 
         data = request.get_json()
+        if not data:
+            return jsonify({"resposta": "Requisição inválida", "tipo": "erro"}), 400
         pergunta = data.get("pergunta", "").strip()
 
         if not pergunta:
@@ -2650,25 +2740,38 @@ def chat_contextual():
         dados = contexto.get("dados_extraidos", {})
         perspectiva = contexto.get("perspectiva", "nao_informado")
 
-        # Prompt simplificado para chat
+        # Truncar documento para o chat (máximo 10000 chars)
+        doc_para_chat = documento[:10000] if documento else ""
+
+        # Limitar tamanho da pergunta
+        if len(pergunta) > 2000:
+            pergunta = pergunta[:2000]
+
         prompt = f"""Você é um assistente que responde perguntas sobre documentos jurídicos.
 
-IMPORTANTE - PERSPECTIVA: {perspectiva}
+REGRAS ABSOLUTAS:
+- Use APENAS informações que estão no documento abaixo
+- NUNCA invente informações, valores, datas ou artigos
+- Se não encontrar a informação, diga: "Não encontrei essa informação no documento"
+
+PERSPECTIVA: {perspectiva}
 {f'- Use "você" para o AUTOR/REQUERENTE' if perspectiva == 'autor' else ''}
 {f'- Use "você" para o RÉU/REQUERIDO' if perspectiva == 'reu' else ''}
 {f'- Use nomes próprios (não use "você")' if perspectiva == 'nao_informado' else ''}
 
-DOCUMENTO (resumo):
+DADOS EXTRAÍDOS:
 - Tipo: {dados.get('tipo_documento')}
 - Partes: {dados.get('partes')}
 - Decisão: {dados.get('decisao')}
 - Valores: {dados.get('valores')}
 - Prazos: {dados.get('prazos')}
 
+TEXTO ORIGINAL DO DOCUMENTO:
+{doc_para_chat}
+
 PERGUNTA: {pergunta}
 
-Responda em NO MÁXIMO 2-3 frases curtas e simples, respeitando a perspectiva {perspectiva}. Se não souber, diga "Não encontrei essa informação".
-"""
+Responda em NO MÁXIMO 2-3 frases curtas e simples, baseando-se EXCLUSIVAMENTE no documento acima. Se não souber, diga "Não encontrei essa informação no documento"."""
 
         # Tentar modelos em ordem de prioridade (fallback)
         modelos_chat = sorted(GEMINI_MODELS, key=lambda x: x["priority"])
@@ -2676,7 +2779,13 @@ Responda em NO MÁXIMO 2-3 frases curtas e simples, respeitando a perspectiva {p
         for modelo_chat in modelos_chat:
             try:
                 model = genai.GenerativeModel(modelo_chat["name"])
-                response = model.generate_content(prompt)
+                response = model.generate_content(
+                    prompt,
+                    generation_config={
+                        "temperature": 0,
+                        "max_output_tokens": 1000
+                    }
+                )
                 texto_resposta = response.text
                 if not texto_resposta:
                     raise ValueError(f"Resposta vazia do modelo {modelo_chat['name']}")
@@ -2731,7 +2840,7 @@ def download_pdf():
         # Validar que o arquivo está dentro do TEMP_DIR (segurança adicional)
         pdf_path_real = os.path.realpath(pdf_path)
         temp_dir_real = os.path.realpath(TEMP_DIR)
-        if not pdf_path_real.startswith(temp_dir_real):
+        if not pdf_path_real.startswith(temp_dir_real + os.sep):
             logging.warning(f"⚠️ Tentativa de acesso fora do TEMP_DIR: {pdf_basename}")
             return jsonify({"erro": "Acesso não autorizado"}), 403
     else:
@@ -2815,6 +2924,8 @@ def feedback():
     """Registra feedback do usuário (LGPD compliant - só contador)"""
     try:
         data = request.get_json()
+        if not data:
+            return jsonify({"erro": "Dados não fornecidos"}), 400
         tipo = data.get("tipo", "").lower()
 
         if tipo not in ["positivo", "negativo"]:
@@ -2859,9 +2970,11 @@ def admin_auditoria():
     if not ADMIN_TOKEN:
         return jsonify({"erro": "Painel administrativo não configurado. Defina a variável ADMIN_TOKEN."}), 503
 
-    # Autenticação via query param ou header
-    token = request.args.get('token') or request.headers.get('Authorization', '').replace('Bearer ', '')
-    if token != ADMIN_TOKEN:
+    # Autenticação via header ou query param
+    token = request.headers.get('Authorization', '').replace('Bearer ', '')
+    if not token:
+        token = request.args.get('token', '')
+    if not hmac.compare_digest(token, ADMIN_TOKEN):
         return jsonify({"erro": "Acesso negado. Token inválido."}), 403
 
     # Parâmetros de consulta
@@ -2921,14 +3034,14 @@ def health():
         stats = database.get_estatisticas()
         total_docs = stats.get("total_documentos", 0)
         today_docs = stats.get("documentos_hoje", 0)
-    except:
+    except Exception:
         total_docs = 0
         today_docs = 0
 
     # Informações de uso de tokens
     try:
         token_info = get_uso_tokens_hoje()
-    except:
+    except Exception:
         token_info = {"tokens_total": 0, "limite_diario": DAILY_TOKEN_LIMIT, "percentual_uso": 0}
 
     return jsonify({
@@ -2980,9 +3093,10 @@ def cleanup_temp_files():
                     except Exception as e:
                         logging.warning(f"Erro ao remover {filename}: {e}")
 
-            to_remove = [k for k, v in results_cache.items() if time.time() - v["timestamp"] > CACHE_EXPIRATION]
-            for key in to_remove:
-                del results_cache[key]
+            with cleanup_lock:
+                to_remove = [k for k, v in results_cache.items() if time.time() - v["timestamp"] > CACHE_EXPIRATION]
+                for key in to_remove:
+                    del results_cache[key]
 
         except Exception as e:
             logging.error(f"Erro na limpeza: {e}")
