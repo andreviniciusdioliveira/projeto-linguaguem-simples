@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Entenda aqui - PDF e Imagens | Desenvolvido por INOVASSOL - Centro de Inovação AI</title>
     <meta name="description" content="Transforme documentos jurídicos complexos (PDF e imagens) em linguagem simples e acessível usando inteligência artificial">
+    <meta name="csrf-token" content="{{ csrf_token }}">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='50%' x='50%' text-anchor='middle' font-size='80'>⚖️</text></svg>">
     
     <style>
@@ -2709,6 +2710,26 @@
     </footer>
 
     <script>
+        // === CSRF: lê token da meta tag e injeta no header X-CSRF-Token em todo fetch() ===
+        (function wrapFetchWithCSRF() {
+            const meta = document.querySelector('meta[name="csrf-token"]');
+            const token = meta ? meta.getAttribute('content') : '';
+            const originalFetch = window.fetch.bind(window);
+            window.fetch = function(input, init) {
+                init = init || {};
+                const method = (init.method || (typeof input === 'object' && input.method) || 'GET').toUpperCase();
+                // Só injeta em requests de escrita; GET não precisa.
+                if (method !== 'GET' && method !== 'HEAD' && token) {
+                    const headers = new Headers(init.headers || {});
+                    if (!headers.has('X-CSRF-Token')) {
+                        headers.set('X-CSRF-Token', token);
+                    }
+                    init.headers = headers;
+                }
+                return originalFetch(input, init);
+            };
+        })();
+
         // AVATAR SYSTEM
         const avatarAudio = {
             start: new Audio('/static/vou-começar.mp3'),

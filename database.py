@@ -38,6 +38,10 @@ DAILY_TOKEN_LIMIT = 171_600_000
 CPF_VAULT_KEY = os.getenv("CPF_VAULT_KEY", "")
 # Limite de documentos por CPF por dia
 CPF_DAILY_LIMIT = 5
+# Sub-limite por combinação (CPF, IP) — dificulta uso do mesmo CPF via botnet
+CPF_IP_DAILY_LIMIT = 3
+# Sub-limite por IP único — dificulta abuso com muitos CPFs diferentes do mesmo IP
+IP_DAILY_LIMIT = 20
 
 # Salts para hashing (DEVEM ser definidos como variáveis de ambiente em produção)
 IP_HASH_SALT = os.getenv("IP_HASH_SALT", "entenda-aqui-tjto-2024-default")
@@ -177,6 +181,22 @@ def init_db():
                     contagem INTEGER DEFAULT 0,
                     PRIMARY KEY (cpf_hash, data)
                 )
+            ''')
+
+            # === RATE LIMIT COMBINADO CPF + IP ===
+            # Anti-abuso: mesmo CPF usado de múltiplos IPs (botnet) é bloqueado mais cedo.
+            # Cada par (CPF, IP) recebe um sub-limite diário.
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS cpf_ip_rate_limit (
+                    cpf_hash TEXT NOT NULL,
+                    ip_hash TEXT NOT NULL,
+                    data TEXT NOT NULL,
+                    contagem INTEGER DEFAULT 0,
+                    PRIMARY KEY (cpf_hash, ip_hash, data)
+                )
+            ''')
+            cursor.execute('''
+                CREATE INDEX IF NOT EXISTS idx_cpf_ip_data ON cpf_ip_rate_limit(data)
             ''')
 
             # Inserir registro inicial se não existir
@@ -932,6 +952,87 @@ def verificar_cpf_rate_limit(cpf):
         "limite_atingido": limite_atingido,
         "restantes": max(0, CPF_DAILY_LIMIT - contagem)
     }
+
+
+def verificar_e_incrementar_cpf_ip(cpf, ip_address):
+    """
+    Rate limit combinado: incrementa contagem do par (cpf_hash, ip_hash) e do ip_hash isolado.
+    Bloqueia se ultrapassar CPF_IP_DAILY_LIMIT ou IP_DAILY_LIMIT.
+    Retorna dict com limite_atingido (bool) e motivo.
+
+    Projetado para dificultar botnet: mesmo CPF usado de vários IPs é bloqueado mais cedo,
+    e mesmo IP tentando dezenas de CPFs também é bloqueado.
+    """
+    if not cpf or not ip_address:
+        return {"limite_atingido": False, "motivo": None}
+
+    cpf_hash = gerar_hash_cpf(cpf)
+    ip_hash = gerar_hash_ip(ip_address)
+    hoje = datetime.now().strftime('%Y-%m-%d')
+
+    with db_lock:
+        conn = sqlite3.connect(DB_PATH, timeout=30)
+        try:
+            cursor = conn.cursor()
+
+            # Contagem atual do par (CPF, IP)
+            cursor.execute('''
+                SELECT contagem FROM cpf_ip_rate_limit
+                WHERE cpf_hash = ? AND ip_hash = ? AND data = ?
+            ''', (cpf_hash, ip_hash, hoje))
+            row = cursor.fetchone()
+            contagem_par = row[0] if row else 0
+
+            if contagem_par >= CPF_IP_DAILY_LIMIT:
+                return {
+                    "limite_atingido": True,
+                    "motivo": f"Limite diário de {CPF_IP_DAILY_LIMIT} documentos para esta combinação de CPF e rede atingido.",
+                    "contagem_par": contagem_par,
+                    "limite_par": CPF_IP_DAILY_LIMIT
+                }
+
+            # Contagem total no IP (todos os CPFs vindos deste IP hoje)
+            cursor.execute('''
+                SELECT COALESCE(SUM(contagem), 0) FROM cpf_ip_rate_limit
+                WHERE ip_hash = ? AND data = ?
+            ''', (ip_hash, hoje))
+            total_ip = cursor.fetchone()[0] or 0
+
+            if total_ip >= IP_DAILY_LIMIT:
+                return {
+                    "limite_atingido": True,
+                    "motivo": f"Limite diário de {IP_DAILY_LIMIT} documentos para esta rede atingido.",
+                    "total_ip": total_ip,
+                    "limite_ip": IP_DAILY_LIMIT
+                }
+
+            # Incrementar o par
+            cursor.execute('''
+                INSERT INTO cpf_ip_rate_limit (cpf_hash, ip_hash, data, contagem)
+                VALUES (?, ?, ?, 1)
+                ON CONFLICT(cpf_hash, ip_hash, data) DO UPDATE SET contagem = contagem + 1
+            ''', (cpf_hash, ip_hash, hoje))
+
+            conn.commit()
+        finally:
+            conn.close()
+
+    return {"limite_atingido": False, "motivo": None}
+
+
+def limpar_cpf_ip_rate_limit_antigo():
+    """Remove registros cpf_ip_rate_limit anteriores a hoje (LGPD)."""
+    hoje = datetime.now().strftime('%Y-%m-%d')
+    with db_lock:
+        conn = sqlite3.connect(DB_PATH, timeout=30)
+        try:
+            cursor = conn.cursor()
+            cursor.execute('DELETE FROM cpf_ip_rate_limit WHERE data < ?', (hoje,))
+            deletados = cursor.rowcount
+            conn.commit()
+        finally:
+            conn.close()
+    return deletados
 
 
 def limpar_cpf_vault():
