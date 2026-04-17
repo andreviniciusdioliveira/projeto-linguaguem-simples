@@ -19,6 +19,8 @@ import math
 import logging
 from datetime import datetime
 
+_DEBUG_MODE = os.getenv('FLASK_ENV', 'production').lower() != 'production'
+
 # QR Code
 try:
     import qrcode
@@ -734,7 +736,7 @@ def gerar_pdf_simplificado(texto, metadados=None, output_path='documento_simplif
         return output_path
         
     except Exception as e:
-        logging.error(f"❌ Erro ao gerar PDF: {e}", exc_info=True)
+        logging.error(f"❌ Erro ao gerar PDF: {e}", exc_info=_DEBUG_MODE)
         raise
 
 # Teste standalone

@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Validar Documento | Entenda Aqui - TJTO</title>
+    <meta name="csrf-token" content="{{ csrf_token }}">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='50%' x='50%' text-anchor='middle' font-size='80'>&#9878;&#65039;</text></svg>">
     <style>
         :root {
@@ -360,9 +361,14 @@
             btn.textContent = 'Verificando...';
 
             try {
+                const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+                const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
                 const response = await fetch('/validar/' + encodeURIComponent({{ doc_id | tojson }}) + '/verificar', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': csrfToken
+                    },
                     body: JSON.stringify({ texto: texto })
                 });
 
