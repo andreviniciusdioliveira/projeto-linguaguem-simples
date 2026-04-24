@@ -78,9 +78,13 @@ O Entenda Aqui recebe o documento jurídico (PDF, imagem ou texto), processa com
 | **Validação de CPF** | Verificação algorítmica com check digits antes do processamento |
 | **Cofre Criptografado de CPF** | Armazenamento criptografado com Fernet, apagado diariamente (LGPD) |
 | **Rate Limiting por CPF** | Máximo de 5 documentos por CPF por dia |
-| **Rate Limiting por IP** | 10 requisições por minuto por IP |
+| **Rate Limiting por IP** | 10 requisições por minuto + 20 documentos/dia por IP |
+| **Rate Limiting CPF+IP (anti-botnet)** | Máximo de 3 documentos/dia por par (CPF, IP) |
 | **Limite Diário de Tokens** | 171,6 milhões de tokens/dia para controlar custos da API |
 | **Bloqueio de Documentos Não-Judiciais** | Pré-detecção de petições, reclamações trabalhistas e documentos advocatícios |
+| **Proteção CSRF** | Token por sessão para endpoints POST |
+| **Validação MIME por Magic Bytes** | Confirma tipo real do arquivo (previne upload de executáveis com extensão falsa) |
+| **Vínculo PDF↔Sessão** | PDFs só podem ser baixados na mesma sessão que os gerou (anti-enumeração) |
 
 ### Interface
 
@@ -89,8 +93,8 @@ O Entenda Aqui recebe o documento jurídico (PDF, imagem ou texto), processa com
 | **Drag & Drop** | Arraste e solte arquivos para upload |
 | **Modo Escuro/Claro** | Alternância de tema com preferência salva |
 | **Responsivo** | Interface mobile-first adaptável a qualquer tela |
-| **Avatar com Voz** | Assistente virtual com síntese de voz em português |
-| **Feedback Sonoro** | Áudio de confirmação ao iniciar e concluir a simplificação |
+| **Avatar Assistente** | Avatar flutuante "JUS Bot" com chat contextual sobre o documento |
+| **Feedback Sonoro** | Áudios pré-gravados de confirmação ao iniciar e concluir a simplificação |
 | **Download PDF** | Gera PDF simplificado com marca d'água anti-fraude e QR code |
 | **Compartilhamento** | Compartilhe via WhatsApp, Twitter, Facebook ou copie o link |
 
@@ -167,18 +171,19 @@ O sistema tenta os modelos Gemini em ordem de prioridade. Se um modelo falhar (c
 | 3 | `gemini-1.5-flash` | Modelo flash v1.5 (cota separada, boa disponibilidade) |
 | 4 | `gemini-2.5-flash-lite` | Modelo 2.5 flash lite (fallback final) |
 
-Todos os modelos usam **temperatura 0.2** (baixa aleatoriedade) e máximo de **8192 tokens** de output.
+Todos os modelos usam **temperatura 0** (saída determinística) e máximo de **8192 tokens** de output. Documentos com mais de ~60.000 caracteres são truncados inteligentemente (mantendo início e fim com aviso explícito) para caber na análise.
 
 ### Perspectivas do Usuário
 
-A simplificação é personalizada de acordo com a perspectiva selecionada:
+A simplificação é personalizada de acordo com a perspectiva selecionada no modal inicial:
 
 | Perspectiva | Comportamento |
 |-------------|---------------|
 | **Autor** (quem moveu a ação) | Usa "VOCÊ" para o autor, nome real do réu |
 | **Réu** (quem responde a ação) | Usa "VOCÊ" para o réu, nome real do autor |
-| **ECA** (Estatuto da Criança) | Usa nome completo do adolescente, linguagem neutra |
 | **Não Informado** | Linguagem neutra com nomes reais de todas as partes |
+
+**Detecção automática de ECA/Ato Infracional**: Quando o backend identifica que o documento trata de ato infracional (Estatuto da Criança e do Adolescente), aplica instrucional específico: usa o nome completo do adolescente (nunca "você"), adota linguagem neutra e respeita as regras de proteção do ECA. Isso ocorre independentemente da perspectiva escolhida.
 
 ### Indicadores de Resultado
 
@@ -200,7 +205,7 @@ A simplificação é personalizada de acordo com a perspectiva selecionada:
 ┌─────────────────────────────────────────────────────┐
 │                    FRONTEND                          │
 │  Vanilla JavaScript (ES6+) · HTML5/CSS3             │
-│  SPA · Responsivo · Modo Escuro · Web Speech API    │
+│  SPA · Responsivo · Modo Escuro · Chat Contextual   │
 ├─────────────────────────────────────────────────────┤
 │                    BACKEND                           │
 │  Python 3.11 · Flask 3.0.3 · Gunicorn 21.2.0       │
@@ -342,6 +347,8 @@ PORT=8080
 FLASK_ENV=production
 ADMIN_TOKEN=seu_token_admin_para_auditoria
 CPF_VAULT_KEY=sua_chave_fernet_para_criptografia_de_cpf
+IP_HASH_SALT=salt_aleatorio_para_hash_de_ip
+CPF_HASH_SALT=salt_aleatorio_para_hash_de_cpf
 ```
 
 ### 6. Obter a Chave da API Gemini
@@ -453,10 +460,12 @@ railway up
 | Método | Rota | Descrição |
 |--------|------|-----------|
 | `GET` | `/` | Interface principal da aplicação |
+| `GET` | `/csrf_token` | Retorna token CSRF para validação de sessão |
 | `POST` | `/validar_cpf` | Valida CPF e verifica rate limit por CPF |
 | `POST` | `/processar` | Processa documento enviado (PDF/imagem) |
 | `POST` | `/processar_texto` | Processa texto jurídico colado diretamente |
-| `GET` | `/download_pdf` | Baixa o PDF simplificado gerado |
+| `POST` | `/chat` | Chat contextual sobre o documento processado |
+| `GET` | `/download_pdf` | Baixa o PDF simplificado gerado (vínculo com sessão) |
 | `GET` | `/validar/<doc_id>` | Página de validação de integridade |
 | `POST` | `/validar/<doc_id>/verificar` | Verifica hash de integridade do documento |
 | `POST` | `/feedback` | Registra feedback (positivo/negativo) |
@@ -539,7 +548,26 @@ Processa texto jurídico colado diretamente pelo usuário.
 
 **Response:** Mesmo formato de `/processar`.
 
+### POST `/chat`
 
+Permite que o usuário faça perguntas sobre o documento já processado. O chat é contextual — responde apenas sobre o conteúdo simplificado da sessão atual.
+
+**Request:**
+```json
+{
+  "pergunta": "Quais são os prazos desse mandado?"
+}
+```
+
+**Response (200):**
+```json
+{
+  "sucesso": true,
+  "resposta": "Resposta em linguagem simples sobre o documento..."
+}
+```
+
+Requer sessão ativa com um documento já processado. O tamanho da pergunta é limitado para controlar custo de tokens.
 
 ### GET `/health`
 
@@ -622,10 +650,11 @@ O Entenda Aqui foi projetado desde a concepção para estar em total conformidad
 | Contagem diária | 30 dias | Tendência de uso |
 | Feedback (positivo/negativo) | Permanente | Taxa de satisfação |
 | Hashes de validação | 30 dias | Verificação de integridade |
-| Auditoria admin (IP + metadados) | 90 dias | Segurança operacional |
+| Auditoria admin (hash de IP + metadados) | 30 dias | Segurança operacional |
 | Uso de tokens da API | 7 dias | Controle de custos |
 | CPF criptografado (Fernet) | 1 dia | Rate limiting por CPF |
 | Contagem de uso por CPF | 1 dia | Limite diário |
+| Rate limit combinado CPF+IP | 1 dia | Proteção anti-botnet |
 
 ### Limpeza Automática
 
@@ -635,16 +664,17 @@ O Entenda Aqui foi projetado desde a concepção para estar em total conformidad
 | Cache de resultados | A cada 1 hora | Remove entradas > 1 hora |
 | Estatísticas diárias | A cada 24 horas | Remove registros > 30 dias |
 | Validações expiradas | A cada 24 horas | Remove registros > 30 dias |
-| Logs de auditoria | A cada 24 horas | Remove registros > 90 dias |
+| Logs de auditoria | A cada 24 horas | Remove registros > 30 dias |
 | Uso de tokens | A cada 24 horas | Remove registros > 7 dias |
 | Cofre de CPF | A cada 24 horas | Remove todos os registros do dia anterior |
 | Rate limit de CPF | A cada 24 horas | Remove contagens do dia anterior |
+| Rate limit CPF+IP | A cada 24 horas | Remove contagens do dia anterior |
 
 ---
 
 ## Banco de Dados
 
-O sistema utiliza **SQLite** com 9 tabelas, todas projetadas para armazenar apenas dados agregados ou temporários:
+O sistema utiliza **SQLite** com 10 tabelas, todas projetadas para armazenar apenas dados agregados ou temporários:
 
 | Tabela | Propósito | Dados Sensíveis | Retenção |
 |--------|-----------|:---------------:|----------|
@@ -653,12 +683,13 @@ O sistema utiliza **SQLite** com 9 tabelas, todas projetadas para armazenar apen
 | `stats_diarias` | Contagem diária | Nenhum | 30 dias |
 | `stats_feedback` | Contadores de feedback | Nenhum | Permanente |
 | `validacao_documentos` | Hashes SHA-256 (sem conteúdo) | Nenhum | 30 dias |
-| `audit_ip` | Auditoria admin (IP + metadados) | IP real | 90 dias |
+| `audit_ip` | Auditoria admin (hash de IP + metadados) | Hash de IP (com salt) | 30 dias |
 | `token_usage_diario` | Consumo de tokens por dia | Nenhum | 7 dias |
 | `cpf_vault` | CPFs criptografados (Fernet) | CPF criptografado | 1 dia |
 | `cpf_rate_limit` | Contadores de uso por CPF | Hash de CPF | 1 dia |
+| `cpf_ip_rate_limit` | Rate limiting combinado CPF+IP (anti-botnet) | Hash de CPF + hash de IP | 1 dia |
 
-Todas as operações de banco usam **lock de thread** para segurança em ambiente multi-worker.
+Todas as operações de banco usam **lock de thread** para segurança em ambiente multi-worker. IPs e CPFs nunca são armazenados em texto claro — apenas hashes SHA-256 com salt (irreversíveis) ou criptografia Fernet temporária.
 
 ---
 
@@ -667,17 +698,24 @@ Todas as operações de banco usam **lock de thread** para segurança em ambient
 ### Medidas Implementadas
 
 - **Validação de Upload**: Whitelist de extensões + limite de 10MB
+- **Validação de MIME por Magic Bytes**: Verifica tipo real do arquivo antes do processamento
 - **Sanitização de Nomes**: `werkzeug.secure_filename()` em todos os uploads
 - **Proteção Path Traversal**: Validação de caminho real vs diretório temporário
-- **Rate Limiting por IP**: 10 req/min por IP com limpeza automática
+- **Proteção CSRF**: Token por sessão em endpoints POST críticos (via `/csrf_token`)
+- **Rate Limiting por IP**: 10 req/min + 20 docs/dia por IP com limpeza automática
 - **Rate Limiting por CPF**: 5 documentos/dia por CPF
-- **Sessões Seguras**: Secret key com expiração de 1 hora
-- **Admin Protegido**: Endpoint de auditoria requer `ADMIN_TOKEN`
-- **Anti-Injeção de Prompt**: Validação e limpeza do output da IA
-- **Anti-Fraude em PDF**: Marca d'água diagonal + logotipos com rotação variável
-- **Cofre Criptografado**: CPFs armazenados com criptografia Fernet (apagados diariamente)
+- **Rate Limiting Combinado CPF+IP**: 3 documentos/dia por par (CPF, IP) — proteção anti-botnet
+- **Sessões Seguras**: Cookies `HttpOnly`, `SameSite=Lax`, `Secure` em HTTPS, expiração de 1 hora
+- **Security Headers**: CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy
+- **Admin Protegido**: Endpoint de auditoria requer `ADMIN_TOKEN` (Bearer ou query param)
+- **Vínculo PDF↔Sessão**: Apenas a sessão que gerou o PDF pode baixá-lo (anti-enumeração)
+- **Anti-Injeção de Prompt**: Validação e limpeza do output da IA (remove vazamentos de instruções)
+- **Anti-Fraude em PDF**: Marca d'água diagonal + logotipos com rotação variável + QR code + hash SHA-256
+- **Cofre Criptografado**: CPFs armazenados com criptografia Fernet (AES-128-CBC), apagados diariamente
+- **Hashes com Salt**: IPs e CPFs armazenados apenas como SHA-256 com salt (irreversíveis)
 - **Limite de Tokens**: 171,6M tokens/dia para prevenir abuso da API
-- **Validação Judicial**: Pré-detecção bloqueia documentos não emitidos pelo Poder Judiciário
+- **Validação Judicial**: Pré-detecção (regex) bloqueia documentos não emitidos pelo Poder Judiciário antes de enviar ao Gemini
+- **Detecção de Segredo de Justiça**: Bloqueia documentos sigilosos (art. 189 CPC, Lei Maria da Penha, ECA, crimes contra dignidade sexual, interceptação telefônica), exceto mandados/citações/intimações
 
 ### Variáveis Sensíveis
 
@@ -685,8 +723,12 @@ Todas as operações de banco usam **lock de thread** para segurança em ambient
 |----------|:-----------:|-----------|
 | `GEMINI_API_KEY` | Sim | Chave da API Google Gemini |
 | `SECRET_KEY` | Não | Chave de sessão Flask (auto-gerada se ausente) |
-| `ADMIN_TOKEN` | Não | Token de acesso ao painel de auditoria |
+| `ADMIN_TOKEN` | Não | Token de acesso ao painel de auditoria (painel desabilitado se ausente) |
 | `CPF_VAULT_KEY` | Não | Chave Fernet para criptografia de CPF (gerada temporariamente se ausente) |
+| `IP_HASH_SALT` | Não | Salt para hash SHA-256 de IPs (recomendado definir em produção) |
+| `CPF_HASH_SALT` | Não | Salt para hash SHA-256 de CPFs (recomendado definir em produção) |
+| `FLASK_ENV` | Não | `production` (padrão) ou `development` para modo debug |
+| `PORT` | Não | Porta de execução (padrão: 8080) |
 
 Nunca commite chaves de API. Use variáveis de ambiente ou arquivos `.env` (incluído no `.gitignore`).
 
@@ -713,11 +755,14 @@ O arquivo `gunicorn_config.py` está otimizado para o **Render Free Tier (512MB 
 |---------|--------|
 | Tamanho máximo de arquivo | 10 MB |
 | Requisições por minuto/IP | 10 |
+| Documentos por dia/IP | 20 |
 | Documentos por dia/CPF | 5 |
+| Documentos por dia por par (CPF, IP) | 3 (anti-botnet) |
 | Tokens diários da API | 171.600.000 |
 | Tempo máximo por requisição | 120 segundos |
 | Cache de resultados | 50 entradas, 1 hora |
 | Arquivos temporários | Removidos após 30 min |
+| Documentos máximos por análise | Truncado a ~60.000 caracteres (mantém início + fim) |
 | Workers simultâneos | 2 |
 
 ---
@@ -811,13 +856,17 @@ O projeto não possui testes automatizados. Ao fazer alterações, verifique:
 3. Upload de documento digitalizado (OCR)
 4. Upload de imagem (PNG/JPG)
 5. Entrada de texto colado via `/processar_texto`
-6. Rejeição de documentos não-judiciais (petições, reclamações trabalhistas)
-7. Rate limiting por IP (enviar 11 requisições em 1 minuto)
-8. Rate limiting por CPF (enviar 6 documentos com mesmo CPF)
-9. Download do PDF simplificado
-10. Alternância de tema escuro/claro
-11. Interface em dispositivo móvel
-12. Limpeza automática de arquivos temporários
+6. Chat contextual sobre documento via `/chat`
+7. Rejeição de documentos não-judiciais (petições, reclamações trabalhistas)
+8. Rejeição de documentos em segredo de justiça (exceto mandados/intimações)
+9. Rate limiting por IP (enviar 11 requisições em 1 minuto)
+10. Rate limiting por CPF (enviar 6 documentos com mesmo CPF)
+11. Rate limiting combinado CPF+IP (4 documentos com mesmo par CPF+IP)
+12. Download do PDF simplificado (marca d'água + QR code + hash)
+13. Validação de integridade via QR code em `/validar/<doc_id>`
+14. Alternância de tema escuro/claro
+15. Interface em dispositivo móvel
+16. Limpeza automática de arquivos temporários
 
 ---
 
