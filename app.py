@@ -3093,6 +3093,46 @@ def download_pdf():
 MAX_TTS_CHARS = 8000
 
 
+# Defesa em profundidade: o frontend já limpa, mas se /narrar for chamado direto
+# (ou via outra ferramenta), evitamos que o TTS leia "#" como "jogo da velha".
+_TTS_HEADERS_RE = re.compile(r'^[ \t]*#{1,6}[ \t]+', re.MULTILINE)
+_TTS_BOLD_RE = re.compile(r'\*\*([^*]+)\*\*')
+_TTS_ITALIC_RE = re.compile(r'(?<![\*_])[\*_]([^\*_\n]+)[\*_](?![\*_])')
+_TTS_BACKTICK_RE = re.compile(r'`([^`]+)`')
+_TTS_HRULE_RE = re.compile(r'^[ \t]*[-_=*]{3,}[ \t]*$', re.MULTILINE)
+_TTS_BLOCKQUOTE_RE = re.compile(r'^[ \t]*>[ \t]?', re.MULTILINE)
+_TTS_LIST_BULLET_RE = re.compile(r'^[ \t]*[-*+][ \t]+', re.MULTILINE)
+_TTS_LIST_NUMBER_RE = re.compile(r'^[ \t]*\d+\.[ \t]+', re.MULTILINE)
+_TTS_BOX_DRAWING_RE = re.compile(r'[■═║╔╗╚╝│─├┤┬┴┼█▀▄▌▐░▒▓●◆▪▫]')
+# Emojis: blocos comuns de Unicode (Misc Symbols, Pictographs, Dingbats, Flags)
+_TTS_EMOJI_RE = re.compile(
+    '[\U0001F300-\U0001FAFF☀-➿\U0001F1E6-\U0001F1FF]',
+    flags=re.UNICODE
+)
+_TTS_MULTI_NL_RE = re.compile(r'\n{3,}')
+_TTS_MULTI_SPACE_RE = re.compile(r'[ \t]+')
+
+
+def limpar_texto_para_narracao(texto):
+    """Remove markdown, emojis e símbolos antes do TTS para evitar leituras
+    estranhas (ex.: '#' lido como 'jogo da velha')."""
+    if not texto:
+        return ''
+    t = _TTS_HEADERS_RE.sub('', texto)
+    t = _TTS_BOLD_RE.sub(r'\1', t)
+    t = _TTS_ITALIC_RE.sub(r'\1', t)
+    t = _TTS_BACKTICK_RE.sub(r'\1', t)
+    t = _TTS_HRULE_RE.sub('', t)
+    t = _TTS_BLOCKQUOTE_RE.sub('', t)
+    t = _TTS_LIST_BULLET_RE.sub('', t)
+    t = _TTS_LIST_NUMBER_RE.sub('', t)
+    t = _TTS_BOX_DRAWING_RE.sub('', t)
+    t = _TTS_EMOJI_RE.sub('', t)
+    t = _TTS_MULTI_NL_RE.sub('\n\n', t)
+    t = _TTS_MULTI_SPACE_RE.sub(' ', t)
+    return t.strip()
+
+
 def _gerar_audio_edge_tts(texto, voz, output_path):
     """Wrapper síncrono ao redor da API async do edge-tts."""
     async def _save():
@@ -3120,10 +3160,16 @@ def narrar():
 
     try:
         data = request.get_json(silent=True) or {}
-        texto = (data.get('texto') or '').strip()
+        texto_bruto = (data.get('texto') or '').strip()
+
+        if not texto_bruto:
+            return jsonify({"erro": "Texto vazio"}), 400
+
+        # Defesa em profundidade: limpa markdown/emojis mesmo se o frontend não tiver limpado
+        texto = limpar_texto_para_narracao(texto_bruto)
 
         if not texto:
-            return jsonify({"erro": "Texto vazio"}), 400
+            return jsonify({"erro": "Texto vazio após limpeza"}), 400
 
         # Trunca textos muito longos — evita travar o worker e estourar timeout do Render
         if len(texto) > MAX_TTS_CHARS:
@@ -3138,9 +3184,10 @@ def narrar():
 
         # Reaproveita MP3 já gerado para o mesmo (sessão + texto) — economiza chamadas
         if not os.path.exists(audio_path):
+            logging.info(f"🔊 Gerando narração via edge-tts | voz={TTS_VOICE} | chars={len(texto)}")
             _gerar_audio_edge_tts(texto, TTS_VOICE, audio_path)
             registrar_arquivo_temporario(audio_path, session_id=sid)
-            logging.info(f"🔊 Narração gerada ({TTS_VOICE}): {audio_basename} ({len(texto)} chars)")
+            logging.info(f"✅ Narração pronta: {audio_basename}")
         else:
             logging.info(f"🔊 Narração reaproveitada do cache: {audio_basename}")
 

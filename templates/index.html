@@ -4377,6 +4377,40 @@
         let isSpeaking = false;
         let narracaoAudio = null;
 
+        // Limpa o texto antes de mandar para qualquer TTS — evita que o leitor
+        // pronuncie literalmente "#" como "jogo da velha", "*" como "asterisco",
+        // emojis com nomes esquisitos, e os caracteres de moldura do prompt.
+        function limparTextoParaNarracao(texto) {
+            if (!texto) return '';
+            return texto
+                // Headers markdown (# ## ###) no início de linha
+                .replace(/^[ \t]*#{1,6}[ \t]+/gm, '')
+                // Negrito **texto** e __texto__
+                .replace(/\*\*([^*]+)\*\*/g, '$1')
+                .replace(/__([^_]+)__/g, '$1')
+                // Itálico *texto* e _texto_ (sem comer asteriscos isolados)
+                .replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, '$1$2')
+                .replace(/(^|[^_])_([^_\n]+)_(?!_)/g, '$1$2')
+                // Código inline `texto`
+                .replace(/`([^`]+)`/g, '$1')
+                // Linhas horizontais (---  ___  ===  ***)
+                .replace(/^[ \t]*[-_=*]{3,}[ \t]*$/gm, '')
+                // Blockquotes (> no início de linha)
+                .replace(/^[ \t]*>[ \t]?/gm, '')
+                // Marcadores de lista (- * +) e numeração (1.) no início
+                .replace(/^[ \t]*[-*+][ \t]+/gm, '')
+                .replace(/^[ \t]*\d+\.[ \t]+/gm, '')
+                // Caracteres de moldura/diagrama que aparecem no prompt
+                .replace(/[■═║╔╗╚╝│─├┤┬┴┼█▀▄▌▐░▒▓●◆▪▫]/g, '')
+                // Emojis (TTS lê alguns como "emoji de carinha sorrindo" etc.)
+                .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{1F1E6}-\u{1F1FF}]/gu, '')
+                // Múltiplas quebras → no máximo duas
+                .replace(/\n{3,}/g, '\n\n')
+                // Múltiplos espaços/tabs → um espaço
+                .replace(/[ \t]+/g, ' ')
+                .trim();
+        }
+
         function pararNarracao() {
             if (narracaoAudio) {
                 narracaoAudio.pause();
@@ -4416,7 +4450,8 @@
         }
 
         async function speakText() {
-            const text = document.getElementById('simplifiedText').textContent;
+            const textoRaw = document.getElementById('simplifiedText').textContent;
+            const text = limparTextoParaNarracao(textoRaw);
             const btn = document.getElementById('speakBtn');
 
             if (!text) {
