@@ -4375,23 +4375,24 @@
         }
 
         let isSpeaking = false;
-        function speakText() {
-            const text = document.getElementById('simplifiedText').textContent;
-            const btn = document.getElementById('speakBtn');
+        let narracaoAudio = null;
 
-            if (!text) {
-                showToastNotification('⚠️ Nenhum texto para ler', 'warning');
-                return;
+        function pararNarracao() {
+            if (narracaoAudio) {
+                narracaoAudio.pause();
+                narracaoAudio.src = '';
+                narracaoAudio = null;
             }
-
-            if (isSpeaking) {
+            if (window.speechSynthesis) {
                 window.speechSynthesis.cancel();
-                btn.innerHTML = '<span>🔊</span> Ler em Voz Alta';
-                isSpeaking = false;
-                showToastNotification('⏸️ Leitura pausada', 'info');
-                return;
             }
+            const btn = document.getElementById('speakBtn');
+            if (btn) btn.innerHTML = '<span>🔊</span> Ler em Voz Alta';
+            isSpeaking = false;
+        }
 
+        function falarComWebSpeech(text, btn) {
+            // Fallback: Web Speech API do navegador
             const utterance = new SpeechSynthesisUtterance(text);
             utterance.lang = 'pt-BR';
             utterance.rate = 0.9;
@@ -4411,17 +4412,82 @@
             window.speechSynthesis.speak(utterance);
             btn.innerHTML = '<span>⏹️</span> Parar Leitura';
             isSpeaking = true;
-            showToastNotification('🔊 Iniciando leitura...', 'info');
+            showToastNotification('🔊 Iniciando leitura (navegador)...', 'info');
+        }
+
+        async function speakText() {
+            const text = document.getElementById('simplifiedText').textContent;
+            const btn = document.getElementById('speakBtn');
+
+            if (!text) {
+                showToastNotification('⚠️ Nenhum texto para ler', 'warning');
+                return;
+            }
+
+            // Toggle: se já está narrando, para tudo
+            if (isSpeaking) {
+                pararNarracao();
+                showToastNotification('⏸️ Leitura pausada', 'info');
+                return;
+            }
+
+            // Tenta primeiro o backend (gTTS — voz mais consistente em todos os dispositivos)
+            showToastNotification('🔊 Gerando narração...', 'info');
+            btn.innerHTML = '<span>⏳</span> Gerando áudio...';
+
+            try {
+                const resp = await fetch('/narrar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ texto: text })
+                });
+
+                if (!resp.ok) {
+                    throw new Error('backend_indisponivel');
+                }
+
+                const blob = await resp.blob();
+                if (!blob || blob.size === 0 || !blob.type.startsWith('audio/')) {
+                    throw new Error('resposta_invalida');
+                }
+
+                const url = URL.createObjectURL(blob);
+                narracaoAudio = new Audio(url);
+
+                narracaoAudio.onended = () => {
+                    URL.revokeObjectURL(url);
+                    btn.innerHTML = '<span>🔊</span> Ler em Voz Alta';
+                    isSpeaking = false;
+                    narracaoAudio = null;
+                    showToastNotification('✅ Leitura concluída', 'success');
+                };
+
+                narracaoAudio.onerror = () => {
+                    URL.revokeObjectURL(url);
+                    isSpeaking = false;
+                    narracaoAudio = null;
+                    // Cai no fallback se o áudio falhar ao tocar
+                    falarComWebSpeech(text, btn);
+                };
+
+                await narracaoAudio.play();
+                btn.innerHTML = '<span>⏹️</span> Parar Leitura';
+                isSpeaking = true;
+                showToastNotification('🔊 Narração iniciada', 'info');
+            } catch (err) {
+                // Backend indisponível ou erro — cai no Web Speech API
+                console.warn('Narração via backend falhou, usando Web Speech:', err);
+                falarComWebSpeech(text, btn);
+            }
         }
 
         // Nova Simplificação - Reseta a página para processar outro documento
         function novaDocumentacao() {
             // Confirmar ação
             if (confirm('Deseja processar um novo documento? O resultado atual será limpo.')) {
-                // Parar leitura se estiver ativa
-                if (window.speechSynthesis && isSpeaking) {
-                    window.speechSynthesis.cancel();
-                    isSpeaking = false;
+                // Parar leitura se estiver ativa (gTTS backend ou Web Speech)
+                if (isSpeaking) {
+                    pararNarracao();
                 }
 
                 // Resetar scroll detection
