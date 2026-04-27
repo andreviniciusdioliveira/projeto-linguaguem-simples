@@ -48,15 +48,20 @@ except ImportError:
     CV2_AVAILABLE = False
     logging.warning("OpenCV não disponível - usando processamento básico")
 
-# Tentativa de importar gTTS para narração em áudio do documento simplificado.
+# Tentativa de importar edge-tts (vozes neurais do Microsoft Edge, gratuitas).
 # Se indisponível, o frontend cai automaticamente no Web Speech API do navegador.
 try:
-    from gtts import gTTS
-    GTTS_AVAILABLE = True
-    logging.info("✅ gTTS disponível para narração de áudio")
+    import edge_tts
+    import asyncio
+    TTS_AVAILABLE = True
+    logging.info("✅ edge-tts disponível para narração com voz neural")
 except ImportError:
-    GTTS_AVAILABLE = False
-    logging.warning("⚠️ gTTS não disponível - narração usará Web Speech API do navegador")
+    TTS_AVAILABLE = False
+    logging.warning("⚠️ edge-tts não disponível - narração usará Web Speech API do navegador")
+
+# Voz pt-BR neural padrão. Outras opções: pt-BR-AntonioNeural (masculina),
+# pt-BR-ThalitaNeural (feminina casual), pt-BR-DonatoNeural (masculina casual).
+TTS_VOICE = "pt-BR-FranciscaNeural"
 
 app = Flask(__name__)
 _default_secret = os.urandom(24)
@@ -218,36 +223,38 @@ try:
 except Exception as e:
     logging.error(f"❌ Erro ao inicializar banco de dados: {e}")
 
-# Modelos Gemini com fallback otimizado (4 modelos Flash para economizar tokens)
-# Modelos Pro removidos: compartilham quota com Flash no plano gratuito, causando desperdício
+# Modelos Gemini com fallback otimizado.
+# Família 2.5 (Flash/Flash-Lite) tem cota SEPARADA da família 2.0 no plano gratuito,
+# então priorizamos 2.5 — se 2.5 esgotar, ainda há quota disponível em 2.0 como fallback.
+# gemini-1.5-flash foi removido: descontinuado na API v1beta (retorna 404).
 GEMINI_MODELS = [
+    {
+        "name": "gemini-2.5-flash-lite",
+        "max_tokens": 8192,
+        "max_input_tokens": 1000000,
+        "priority": 1,
+        "description": "Modelo 2.5 flash-lite (mais rápido, cota separada da 2.0)"
+    },
+    {
+        "name": "gemini-2.5-flash",
+        "max_tokens": 8192,
+        "max_input_tokens": 1000000,
+        "priority": 2,
+        "description": "Modelo 2.5 flash (qualidade superior, cota separada da 2.0)"
+    },
     {
         "name": "gemini-2.0-flash",
         "max_tokens": 8192,
         "max_input_tokens": 1000000,
-        "priority": 1,
-        "description": "Modelo flash estável versão 2.0 (melhor custo-benefício)"
+        "priority": 3,
+        "description": "Modelo flash estável 2.0 (fallback)"
     },
     {
         "name": "gemini-2.0-flash-lite",
         "max_tokens": 8192,
         "max_input_tokens": 1000000,
-        "priority": 2,
-        "description": "Modelo flash lite versão 2.0 (mais leve)"
-    },
-    {
-        "name": "gemini-1.5-flash",
-        "max_tokens": 8192,
-        "max_input_tokens": 1000000,
-        "priority": 3,
-        "description": "Modelo flash versão 1.5 (cota separada, boa disponibilidade)"
-    },
-    {
-        "name": "gemini-2.5-flash-lite",
-        "max_tokens": 8192,
-        "max_input_tokens": 1000000,
         "priority": 4,
-        "description": "Modelo 2.5 flash lite (fallback final)"
+        "description": "Modelo flash-lite 2.0 (último fallback)"
     }
 ]
 
@@ -3082,24 +3089,33 @@ def download_pdf():
 
 
 # Limite de caracteres para narração (protege contra abuso e timeouts no free tier).
-# gTTS divide internamente em chunks; valores acima disso fazem múltiplos requests ao Google.
+# edge-tts processa em streaming; textos muito longos travam o worker.
 MAX_TTS_CHARS = 8000
+
+
+def _gerar_audio_edge_tts(texto, voz, output_path):
+    """Wrapper síncrono ao redor da API async do edge-tts."""
+    async def _save():
+        communicate = edge_tts.Communicate(texto, voz)
+        await communicate.save(output_path)
+    asyncio.run(_save())
+
 
 @app.route("/narrar", methods=["POST"])
 @require_csrf
 @rate_limit
 def narrar():
-    """Gera MP3 do texto simplificado usando gTTS (Google Translate TTS).
+    """Gera MP3 do texto simplificado com voz neural via edge-tts.
 
     LGPD:
     - Áudio salvo em arquivo temporário, registrado para auto-deleção em 30min.
     - Nenhum texto é persistido em banco; apenas o MP3 transitório existe em disco.
 
     Fallback:
-    - Se gTTS estiver indisponível (import falhou) ou der erro, retorna 503 e o
-      frontend cai automaticamente no Web Speech API do navegador.
+    - Se edge-tts estiver indisponível (import falhou) ou der erro, retorna 502/503
+      e o frontend cai automaticamente no Web Speech API do navegador.
     """
-    if not GTTS_AVAILABLE:
+    if not TTS_AVAILABLE:
         return jsonify({"erro": "Narração via servidor indisponível", "fallback": "web_speech"}), 503
 
     try:
@@ -3115,24 +3131,23 @@ def narrar():
             texto = texto[:MAX_TTS_CHARS]
 
         sid = obter_session_id()
-        # Hash isolado por sessão evita colisão entre usuários no /tmp compartilhado
-        audio_hash = hashlib.sha256((sid + texto[:256]).encode()).hexdigest()[:16]
+        # Hash isolado por (sessão + voz + texto) evita colisão no /tmp compartilhado
+        audio_hash = hashlib.sha256((sid + TTS_VOICE + texto[:256]).encode()).hexdigest()[:16]
         audio_basename = f"narracao_{audio_hash}.mp3"
         audio_path = os.path.join(TEMP_DIR, audio_basename)
 
-        # Reaproveita o MP3 se já foi gerado para o mesmo (sessão + texto) — economiza chamadas ao Google
+        # Reaproveita MP3 já gerado para o mesmo (sessão + texto) — economiza chamadas
         if not os.path.exists(audio_path):
-            tts = gTTS(text=texto, lang='pt', tld='com.br', slow=False)
-            tts.save(audio_path)
+            _gerar_audio_edge_tts(texto, TTS_VOICE, audio_path)
             registrar_arquivo_temporario(audio_path, session_id=sid)
-            logging.info(f"🔊 Narração gerada: {audio_basename} ({len(texto)} chars)")
+            logging.info(f"🔊 Narração gerada ({TTS_VOICE}): {audio_basename} ({len(texto)} chars)")
         else:
             logging.info(f"🔊 Narração reaproveitada do cache: {audio_basename}")
 
         return send_file(audio_path, mimetype='audio/mpeg', max_age=0)
 
     except Exception as e:
-        # gTTS pode falhar por rate limit do Google ou problema de rede;
+        # edge-tts pode falhar por rede ou rate limit da Microsoft;
         # frontend deve cair no Web Speech API.
         logging.error(f"❌ Erro ao gerar narração: {e}")
         return jsonify({"erro": "Erro ao gerar narração", "fallback": "web_speech"}), 502
