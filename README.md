@@ -95,6 +95,7 @@ O Entenda Aqui recebe o documento jurídico (PDF, imagem ou texto), processa com
 | **Responsivo** | Interface mobile-first adaptável a qualquer tela |
 | **Avatar Assistente** | Avatar flutuante "JUS Bot" com chat contextual sobre o documento |
 | **Feedback Sonoro** | Áudios pré-gravados de confirmação ao iniciar e concluir a simplificação |
+| **Narração com Voz Neural** | Leitura em áudio do texto simplificado via `edge-tts` (voz `pt-BR-FranciscaNeural`) com fallback para Web Speech API |
 | **Download PDF** | Gera PDF simplificado com marca d'água anti-fraude e QR code |
 | **Compartilhamento** | Compartilhe via WhatsApp, Twitter, Facebook ou copie o link |
 
@@ -166,10 +167,12 @@ O sistema tenta os modelos Gemini em ordem de prioridade. Se um modelo falhar (c
 
 | Prioridade | Modelo | Descrição |
 |:----------:|--------|-----------|
-| 1 | `gemini-2.0-flash` | Modelo flash estável v2.0 (melhor custo-benefício) |
-| 2 | `gemini-2.0-flash-lite` | Modelo flash lite v2.0 (mais leve) |
-| 3 | `gemini-1.5-flash` | Modelo flash v1.5 (cota separada, boa disponibilidade) |
-| 4 | `gemini-2.5-flash-lite` | Modelo 2.5 flash lite (fallback final) |
+| 1 | `gemini-2.5-flash-lite` | Modelo 2.5 flash-lite (mais rápido, cota separada da 2.0) |
+| 2 | `gemini-2.5-flash` | Modelo 2.5 flash (qualidade superior, cota separada da 2.0) |
+| 3 | `gemini-2.0-flash` | Modelo flash estável v2.0 (fallback) |
+| 4 | `gemini-2.0-flash-lite` | Modelo flash-lite v2.0 (último fallback) |
+
+> O modelo `gemini-1.5-flash` foi removido — descontinuado na API v1beta (retornava 404). A família 2.5 é priorizada por possuir cota separada da 2.0 no plano gratuito.
 
 Todos os modelos usam **temperatura 0** (saída determinística) e máximo de **8192 tokens** de output. Documentos com mais de ~60.000 caracteres são truncados inteligentemente (mantendo início e fim com aviso explícito) para caber na análise.
 
@@ -465,6 +468,7 @@ railway up
 | `POST` | `/processar` | Processa documento enviado (PDF/imagem) |
 | `POST` | `/processar_texto` | Processa texto jurídico colado diretamente |
 | `POST` | `/chat` | Chat contextual sobre o documento processado |
+| `POST` | `/narrar` | Gera narração em MP3 do texto simplificado (voz neural via edge-tts) |
 | `GET` | `/download_pdf` | Baixa o PDF simplificado gerado (vínculo com sessão) |
 | `GET` | `/validar/<doc_id>` | Página de validação de integridade |
 | `POST` | `/validar/<doc_id>/verificar` | Verifica hash de integridade do documento |
@@ -569,6 +573,30 @@ Permite que o usuário faça perguntas sobre o documento já processado. O chat 
 
 Requer sessão ativa com um documento já processado. O tamanho da pergunta é limitado para controlar custo de tokens.
 
+### POST `/narrar`
+
+Gera um arquivo MP3 do texto simplificado utilizando a voz neural `pt-BR-FranciscaNeural` via [`edge-tts`](https://github.com/rany2/edge-tts) (vozes neurais da Microsoft, gratuitas, sem necessidade de API key).
+
+**Request:**
+```json
+{
+  "texto": "Texto simplificado a ser narrado..."
+}
+```
+
+**Response (200):** Arquivo `audio/mpeg` (MP3) gerado em streaming.
+
+**Response (503):** `edge-tts` indisponível no servidor — o frontend cai automaticamente no `Web Speech API` do navegador como fallback.
+
+**Características:**
+
+- **Voz padrão**: `pt-BR-FranciscaNeural` (timbre natural, sem sotaque robotizado)
+- **Limite de texto**: 8.000 caracteres (protege o worker contra timeout no Render free tier)
+- **Pré-processamento**: o backend remove markdown, emojis e caracteres de moldura antes do TTS — evita que o leitor pronuncie `"#"` como `"jogo da velha"`, `"*"`, `` "`" ``, `"■"`, `"═"` etc.
+- **Cache por sessão**: hash composto por `(session_id + voz + primeiros 256 chars do texto)` reaproveita MP3s já gerados na mesma sessão
+- **LGPD**: arquivo MP3 registrado para auto-deleção em **30 minutos**; nenhum texto é persistido em banco
+- **Fallback duplo**: se `edge-tts` falhar (rede, rate limit da Microsoft) ou estiver indisponível, o frontend usa `SpeechSynthesisUtterance` do navegador
+
 ### GET `/health`
 
 Verifica o status da aplicação.
@@ -639,6 +667,7 @@ O Entenda Aqui foi projetado desde a concepção para estar em total conformidad
 - Dados pessoais dos usuários
 - CPFs em texto claro (apenas hash irreversível ou criptografia temporária)
 - Texto original ou simplificado
+- Áudios de narração (MP3 transitório, auto-deletado em 30 min)
 - Cookies de rastreamento
 
 ### O que **É** armazenado (somente agregados)
@@ -762,6 +791,7 @@ O arquivo `gunicorn_config.py` está otimizado para o **Render Free Tier (512MB 
 | Tempo máximo por requisição | 120 segundos |
 | Cache de resultados | 50 entradas, 1 hora |
 | Arquivos temporários | Removidos após 30 min |
+| Tamanho máximo de texto para narração | 8.000 caracteres |
 | Documentos máximos por análise | Truncado a ~60.000 caracteres (mantém início + fim) |
 | Workers simultâneos | 2 |
 
@@ -790,6 +820,7 @@ O arquivo `gunicorn_config.py` está otimizado para o **Render Free Tier (512MB 
 | certifi | 2024.2.2 | Certificados SSL |
 | urllib3 | 2.2.1 | Cliente HTTP |
 | cryptography | 42.0.5 | Criptografia Fernet para cofre de CPF (LGPD) |
+| edge-tts | 6.1.18 | Narração com vozes neurais (TTS) — sem API key |
 
 ### Sistema
 
