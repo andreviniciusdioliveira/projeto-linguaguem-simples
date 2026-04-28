@@ -1,11 +1,17 @@
 :root {
-    /* Cores JUS - Baseadas no logo */
+    /* Cores JUS - mantidas como accent secundário */
     --jus-vinho: #6d2932;
     --jus-azul: #2c4f5e;
     --jus-dourado: #b8963c;
-    
-    --primary: #2c4f5e; /* Usando azul JUS como primário */
-    --primary-dark: #1a3540;
+
+    /* Paleta institucional TJTO - usada como identidade primária */
+    --tjto-azul: #1c4870;
+    --tjto-azul-dark: #0f2f4d;
+    --tjto-azul-light: #4a78a3;
+    --tjto-azul-soft: #e8eef5;
+
+    --primary: var(--tjto-azul); /* Azul institucional como primário */
+    --primary-dark: var(--tjto-azul-dark);
     --secondary: #34a853;
     --danger: #ea4335;
     --warning: #fbbc04;
@@ -67,15 +73,11 @@ body.dark-mode {
 
 .header h1 {
     font-size: 2.5rem;
-    /* Cor sólida de fallback para garantir contraste em forced-colors / navegadores
-       sem suporte a background-clip: text */
-    color: var(--jus-azul);
-    /* Gradiente com as três cores do JUS */
-    background: linear-gradient(135deg, var(--jus-vinho) 0%, var(--jus-azul) 50%, var(--jus-dourado) 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
+    /* Tom institucional TJTO: sólido, sóbrio, confiável */
+    color: var(--tjto-azul);
     margin-bottom: 0.5rem;
     font-weight: 700;
+    letter-spacing: -0.01em;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -84,21 +86,29 @@ body.dark-mode {
     padding: 0.5rem 0;
 }
 
-@supports ((-webkit-background-clip: text) or (background-clip: text)) {
-    .header h1 {
-        -webkit-text-fill-color: transparent;
-    }
+body.dark-mode .header h1 {
+    color: var(--tjto-azul-light);
 }
 
-@media (forced-colors: active) {
-    .header h1 {
-        -webkit-text-fill-color: currentColor;
-        background: none;
-        color: CanvasText;
-    }
+/* Subtítulo institucional - identifica o vínculo com o Poder Judiciário */
+.header-institutional {
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--tjto-azul);
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--tjto-azul);
+    display: inline-block;
 }
 
-/* Efeito de brilho animado nas cores JUS */
+body.dark-mode .header-institutional {
+    color: var(--tjto-azul-light);
+    border-bottom-color: var(--tjto-azul-light);
+}
+
+/* Efeito de brilho animado - desativado no visual institucional */
 .header h1::before {
     content: '';
     position: absolute;
@@ -106,13 +116,10 @@ body.dark-mode {
     left: -100%;
     width: 100%;
     height: 100%;
-    background: linear-gradient(90deg, 
-        transparent, 
-        rgba(184, 150, 60, 0.3), 
-        transparent
-    );
-    animation: shine 6s ease-in-out infinite;
+    background: none;
+    animation: none;
     pointer-events: none;
+    display: none;
 }
 
 @keyframes shine {
@@ -244,39 +251,30 @@ body.dark-mode {
 }
 
 .format-badge {
-    background: linear-gradient(135deg, 
-        rgba(109, 41, 50, 0.1) 0%, 
-        rgba(44, 79, 94, 0.1) 50%,
-        rgba(184, 150, 60, 0.1) 100%
-    );
-    color: var(--jus-azul);
-    border: 1px solid var(--jus-dourado);
-    padding: 0.25rem 0.75rem;
-    border-radius: 20px;
-    font-size: 0.875rem;
+    background: var(--tjto-azul-soft);
+    color: var(--tjto-azul);
+    border: 1px solid var(--tjto-azul-light);
+    padding: 0.3rem 0.85rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
     font-weight: 600;
+    letter-spacing: 0.02em;
     animation: fadeIn 0.5s ease;
-    transition: all 0.3s ease;
+    transition: all 0.2s ease;
 }
 
 .format-badge:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(184, 150, 60, 0.3);
-    background: linear-gradient(135deg, 
-        rgba(109, 41, 50, 0.2) 0%, 
-        rgba(44, 79, 94, 0.2) 50%,
-        rgba(184, 150, 60, 0.2) 100%
-    );
+    transform: translateY(-1px);
+    background: var(--tjto-azul);
+    color: #fff;
+    border-color: var(--tjto-azul);
+    box-shadow: 0 2px 6px rgba(28, 72, 112, 0.25);
 }
 
 body.dark-mode .format-badge {
-    background: linear-gradient(135deg, 
-        rgba(109, 41, 50, 0.2) 0%, 
-        rgba(44, 79, 94, 0.2) 50%,
-        rgba(184, 150, 60, 0.2) 100%
-    );
-    color: #d4b35c;
-    border-color: #d4b35c;
+    background: rgba(74, 120, 163, 0.15);
+    color: var(--tjto-azul-light);
+    border-color: var(--tjto-azul-light);
 }
 
 /* Cards com glassmorphism */
@@ -2244,6 +2242,131 @@ body.dark-mode .scroll-container::-webkit-scrollbar-track {
     .logo-inovassol {
         width: 80px;
         height: 80px;
+    }
+}
+
+/* =========================================================================
+   Footer institucional - identidade Poder Judiciário do Tocantins
+   Replica o padrão visual do site institucional (azul TJTO, tipografia
+   sóbria, blocos de informação organizados em colunas).
+   ========================================================================= */
+.institutional-footer {
+    margin-top: 4rem;
+    background: var(--tjto-azul);
+    color: #ffffff;
+    padding: 2.5rem 1.5rem 1.5rem;
+    border-top: 4px solid var(--tjto-azul-dark);
+}
+
+.institutional-footer-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1.6fr 1fr;
+    gap: 3rem;
+}
+
+.institutional-footer h2 {
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.85);
+    margin-bottom: 0.6rem;
+    border: 0;
+    padding: 0;
+    display: block;
+}
+
+.institutional-footer p,
+.institutional-footer address {
+    font-size: 0.92rem;
+    line-height: 1.55;
+    color: rgba(255, 255, 255, 0.92);
+    font-style: normal;
+    margin-bottom: 1.25rem;
+}
+
+.institutional-footer .footer-contact-line {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-bottom: 0.55rem;
+    font-size: 0.92rem;
+    color: rgba(255, 255, 255, 0.92);
+}
+
+.institutional-footer .footer-contact-line svg {
+    flex-shrink: 0;
+    width: 18px;
+    height: 18px;
+    fill: var(--tjto-azul-light);
+}
+
+.institutional-footer .footer-brand {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    margin-bottom: 0.75rem;
+}
+
+.institutional-footer .footer-brand-mark {
+    width: 44px;
+    height: 44px;
+    border-right: 2px solid rgba(255, 255, 255, 0.6);
+    padding-right: 0.85rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.institutional-footer .footer-brand-mark svg {
+    width: 100%;
+    height: 100%;
+    fill: #ffffff;
+}
+
+.institutional-footer .footer-brand-text {
+    font-size: 0.95rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    line-height: 1.2;
+    color: #ffffff;
+}
+
+.institutional-footer .footer-brand-text small {
+    display: block;
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.85);
+    margin-top: 0.2rem;
+}
+
+.institutional-footer-bottom {
+    max-width: 1200px;
+    margin: 1.75rem auto 0;
+    padding-top: 1.25rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.18);
+    font-size: 0.78rem;
+    color: rgba(255, 255, 255, 0.7);
+    text-align: center;
+    line-height: 1.5;
+}
+
+.institutional-footer-bottom a {
+    color: #ffffff;
+    text-decoration: underline;
+}
+
+@media (max-width: 768px) {
+    .institutional-footer-inner {
+        grid-template-columns: 1fr;
+        gap: 2rem;
+    }
+    .institutional-footer {
+        padding: 2rem 1.25rem 1.25rem;
     }
 }
 

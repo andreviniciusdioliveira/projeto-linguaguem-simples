@@ -37,6 +37,7 @@
     <main class="container">
         <!-- Header -->
         <header class="header">
+            <span class="header-institutional">Poder Judiciário do Tocantins</span>
             <h1>
                 Entenda Aqui
                 <div class="header-avatar">
@@ -44,12 +45,12 @@
                 </div>
             </h1>
             <p>Transforme documentos complexos em linguagem clara com IA</p>
-            <div class="format-badges">
-                <span class="format-badge">📄 PDF</span>
-                <span class="format-badge">🖼️ Imagens</span>
-                <span class="format-badge">📸 Fotos</span>
-                <span class="format-badge">📱 Screenshots</span>
-                <span class="format-badge">🔍 OCR Automático</span>
+            <div class="format-badges" aria-label="Formatos suportados">
+                <span class="format-badge">PDF</span>
+                <span class="format-badge">Imagens</span>
+                <span class="format-badge">Fotos</span>
+                <span class="format-badge">Screenshots</span>
+                <span class="format-badge">OCR Automático</span>
             </div>
             <div style="text-align: center; margin-top: 1.5rem;">
                 <p style="color: var(--text-muted); font-size: 0.9rem; max-width: 600px; margin: 0 auto; line-height: 1.5;">
@@ -459,27 +460,66 @@
         </div>
     </div>
 
-    <!-- Footer INOVASSOL -->
-    <footer class="footer-inovassol">
-        <div class="footer-content">
-            <h3>Desenvolvido pelo INOVASSOL</h3>
-            <p><strong>Centro de Inovação do Tribunal de Justiça do Estado do Tocantins</strong></p>
+    <!-- Footer institucional - Poder Judiciário do Tocantins -->
+    <footer class="institutional-footer" role="contentinfo">
+        <div class="institutional-footer-inner">
+            <div>
+                <div class="footer-brand">
+                    <div class="footer-brand-mark" aria-hidden="true">
+                        <!-- Marca estilizada do Poder Judiciário (colunas) -->
+                        <svg viewBox="0 0 60 60" focusable="false">
+                            <rect x="6" y="14" width="4" height="36"/>
+                            <rect x="16" y="10" width="4" height="40"/>
+                            <rect x="26" y="6" width="4" height="44"/>
+                            <rect x="36" y="10" width="4" height="40"/>
+                            <rect x="46" y="14" width="4" height="36"/>
+                            <rect x="2" y="50" width="52" height="4"/>
+                        </svg>
+                    </div>
+                    <div class="footer-brand-text">
+                        Poder Judiciário
+                        <small>Estado do Tocantins</small>
+                    </div>
+                </div>
 
-            <div class="footer-divider"></div>
+                <h2>Sede</h2>
+                <address>
+                    Palácio da Justiça Rio Tocantins, Praça dos Girassóis,<br>
+                    s/nº Centro – Palmas / Tocantins · CEP: 77015-007
+                </address>
 
-            <p>
-                <strong>SEDE:</strong> Palácio da Justiça Rio Tocantins, Praça dos Girassóis, s/nº Centro<br>
-                Palmas - Tocantins / CEP: 77015-007
-            </p>
-
-            <div class="footer-contact">
-                <span>📞 (63) 3142-2200 / (63) 3142-2201</span>
-                <span>🕐 Atendimento: 12:00 às 18:00</span>
+                <h2>Anexo I</h2>
+                <address>
+                    Edifício Amaro Empresarial, quadra 103 Norte Rua NO-11<br>
+                    com Avenida NS 01 LT 02 · CEP: 77001-036
+                </address>
             </div>
 
-            <p style="margin-top: 1rem;">
-                🌐 <a href="https://www.tjto.jus.br" target="_blank" class="footer-link">www.tjto.jus.br</a>
-            </p>
+            <div>
+                <h2>Contato</h2>
+                <div class="footer-contact-line">
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                        <path d="M6.62 10.79a15.05 15.05 0 0 0 6.59 6.59l2.2-2.2a1 1 0 0 1 1.05-.24c1.12.37 2.33.57 3.54.57a1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.21.2 2.42.57 3.54a1 1 0 0 1-.24 1.05l-2.21 2.2z"/>
+                    </svg>
+                    <span>(63) 3142-2200 / (63) 3142-2201</span>
+                </div>
+                <div class="footer-contact-line">
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                        <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/>
+                    </svg>
+                    <span>Atendimento ao público: 12:00 às 18:00</span>
+                </div>
+                <div class="footer-contact-line">
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                        <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm6.93 9h-3.05a15.36 15.36 0 0 0-1.39-5.34A8 8 0 0 1 18.93 11zM12 4a13.55 13.55 0 0 1 1.93 7H10.07A13.55 13.55 0 0 1 12 4zM5.07 11A8 8 0 0 1 9.5 5.66 15.36 15.36 0 0 0 8.12 11zM5.07 13h3.05a15.36 15.36 0 0 0 1.39 5.34A8 8 0 0 1 5.07 13zM12 20a13.55 13.55 0 0 1-1.93-7h3.86A13.55 13.55 0 0 1 12 20zm2.5-1.66A15.36 15.36 0 0 0 15.88 13h3.05a8 8 0 0 1-4.43 5.34z"/>
+                    </svg>
+                    <a href="https://www.tjto.jus.br" target="_blank" rel="noopener noreferrer" style="color: #fff; text-decoration: underline;">www.tjto.jus.br</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="institutional-footer-bottom">
+            Desenvolvido pelo <strong>INOVASSOL</strong> — Centro de Inovação do Tribunal de Justiça do Estado do Tocantins
         </div>
     </footer>
 
