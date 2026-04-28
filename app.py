@@ -25,7 +25,8 @@ import re
 import base64
 import subprocess
 import numpy as np
-import google.generativeai as genai
+from google import genai
+from google.genai import types as genai_types
 import database
 from database import (
     gerar_doc_id, gerar_hash_conteudo, gerar_hash_ip,
@@ -209,9 +210,10 @@ def validar_mime_arquivo(file_bytes, extension):
 # --- Configurações ---
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-# CONFIGURAR GEMINI
+# CONFIGURAR GEMINI (google-genai SDK)
+gemini_client = None
 if GEMINI_API_KEY:
-    genai.configure(api_key=GEMINI_API_KEY)
+    gemini_client = genai.Client(api_key=GEMINI_API_KEY)
     logging.info("✅ Gemini configurado com API Key")
 else:
     logging.error("❌ GEMINI_API_KEY não configurada!")
@@ -1559,18 +1561,16 @@ Responda EXATAMENTE neste formato:
         try:
             logging.info(f"🤖 [{idx}/{total_modelos}] Tentando modelo: {modelo_nome} - {modelo_config.get('description', '')}")
 
-            # Criar modelo
-            model = genai.GenerativeModel(modelo_nome)
-
             # Chamada com timeout implícito
             # max_output_tokens aumentado para 8192 (máximo dos Flash) — evita truncamento
             # da análise em documentos complexos com muitas seções e valores discriminados.
-            response = model.generate_content(
-                prompt,
-                generation_config={
-                    "temperature": 0,
-                    "max_output_tokens": 8192
-                }
+            response = gemini_client.models.generate_content(
+                model=modelo_nome,
+                contents=prompt,
+                config=genai_types.GenerateContentConfig(
+                    temperature=0,
+                    max_output_tokens=8192,
+                ),
             )
 
             # Verificar se a resposta contém texto válido
@@ -2991,13 +2991,13 @@ Responda em NO MÁXIMO 2-3 frases curtas e simples, baseando-se EXCLUSIVAMENTE n
         ultimo_erro_chat = None
         for modelo_chat in modelos_chat:
             try:
-                model = genai.GenerativeModel(modelo_chat["name"])
-                response = model.generate_content(
-                    prompt,
-                    generation_config={
-                        "temperature": 0,
-                        "max_output_tokens": 1000
-                    }
+                response = gemini_client.models.generate_content(
+                    model=modelo_chat["name"],
+                    contents=prompt,
+                    config=genai_types.GenerateContentConfig(
+                        temperature=0,
+                        max_output_tokens=1000,
+                    ),
                 )
                 texto_resposta = response.text
                 if not texto_resposta:
