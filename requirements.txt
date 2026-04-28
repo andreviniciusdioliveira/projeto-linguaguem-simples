@@ -28,8 +28,8 @@ python-dotenv==1.0.1
 # Processamento de texto
 regex==2023.12.25
 
-# Google Generative AI (Gemini)
-google-generativeai>=0.8.0
+# Google Gen AI SDK (Gemini) - sucessor de google-generativeai
+google-genai>=1.0.0
 
 # Criptografia para cofre de CPF (LGPD)
 cryptography==42.0.5
