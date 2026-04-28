@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, send_file, jsonify, session, send_from_directory
+from flask import Flask, render_template, request, send_file, jsonify, session, send_from_directory, redirect, url_for, flash
 from werkzeug.utils import secure_filename
 import fitz
 import pytesseract
@@ -152,6 +152,23 @@ def require_csrf(f):
         esperado = session.get('csrf_token', '')
         if not esperado or not enviado or not hmac.compare_digest(enviado, esperado):
             return jsonify({"erro": "Token de segurança inválido ou ausente. Recarregue a página."}), 403
+        return f(*args, **kwargs)
+    return decorated
+
+
+def require_csrf_form(f):
+    """Variante de require_csrf para forms HTML clássicos (token no campo csrf_token).
+    Usado no painel admin que faz POST direto sem JS."""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        enviado = request.form.get('csrf_token', '')
+        esperado = session.get('csrf_token', '')
+        if not esperado or not enviado or not hmac.compare_digest(enviado, esperado):
+            return render_template(
+                "admin/login.html",
+                erro="Sessão expirada. Recarregue a página e tente novamente.",
+                bloqueado=False,
+            ), 403
         return f(*args, **kwargs)
     return decorated
 
@@ -1619,6 +1636,7 @@ Responda EXATAMENTE neste formato:
             # Adicionar texto simplificado
             analise["texto_simplificado"] = texto_simplificado
             analise["modelo_usado"] = modelo_nome
+            analise["tentativa_numero"] = idx  # 1=primário, 2=fallback1, etc (métricas admin)
             analise["perspectiva_aplicada"] = perspectiva  # 🔥 NOVO - registrar perspectiva
             analise["teve_vazamentos"] = teve_vazamentos  # 🔥 NOVO - flag de vazamentos
             analise["documento_truncado"] = texto_truncado  # aviso de truncamento para o frontend
@@ -2188,6 +2206,7 @@ def detectar_documento_advocaticio(texto):
 def processar():
     """Processa upload com análise 100% Gemini - VERSÃO CORRIGIDA"""
     cpf_limpo = None
+    inicio_processamento = time.monotonic()  # métricas admin: tempo total
     try:
         session.permanent = True
         session.modified = True
@@ -2544,12 +2563,16 @@ def processar():
 
         # 📋 Auditoria de IP (registra IP real + metadados, SEM conteúdo do documento)
         try:
+            tempo_total_ms = int((time.monotonic() - inicio_processamento) * 1000)
             registrar_auditoria_ip(
                 ip_address=ip_address or '0.0.0.0',
                 tipo_documento=tipo_doc,
                 nome_arquivo=secure_filename(file.filename),
                 tamanho_bytes=size,
-                modelo_usado=modelo_usado
+                modelo_usado=modelo_usado,
+                tempo_ms=tempo_total_ms,
+                tentativa_numero=analise_completa.get("tentativa_numero", 1),
+                sucesso=True,
             )
         except Exception as e:
             logging.error(f"❌ Erro ao registrar auditoria: {e}")
@@ -2600,6 +2623,7 @@ def processar():
 def processar_texto():
     """Processa texto colado diretamente pelo usuário"""
     cpf_limpo = None
+    inicio_processamento = time.monotonic()  # métricas admin: tempo total
     try:
         session.permanent = True
         session.modified = True
@@ -2869,12 +2893,16 @@ def processar_texto():
 
         # 📋 Auditoria de IP (registra IP real + metadados, SEM conteúdo do documento)
         try:
+            tempo_total_ms = int((time.monotonic() - inicio_processamento) * 1000)
             registrar_auditoria_ip(
                 ip_address=ip_address or '0.0.0.0',
                 tipo_documento=tipo_doc,
                 nome_arquivo="texto_colado",
                 tamanho_bytes=len(texto_original.encode('utf-8')),
-                modelo_usado=modelo_usado
+                modelo_usado=modelo_usado,
+                tempo_ms=tempo_total_ms,
+                tentativa_numero=analise_completa.get("tentativa_numero", 1),
+                sucesso=True,
             )
         except Exception as e:
             logging.error(f"❌ Erro ao registrar auditoria: {e}")
@@ -3450,6 +3478,112 @@ def cleanup_temp_files():
 
 cleanup_thread = threading.Thread(target=cleanup_temp_files, daemon=True)
 cleanup_thread.start()
+
+
+# ============================================================================
+# PAINEL ADMINISTRATIVO (Fase 1)
+# ============================================================================
+# Login único protegido por hash da senha em ADMIN_PASSWORD_HASH (env var).
+# Dashboard read-only com agregados LGPD-compliant.
+# Proteção brute-force via tabela admin_login_attempts (5 falhas / 15 min).
+# Sessão expira por inatividade (30 min) — ver auth.py.
+
+import auth  # noqa: E402
+
+
+@app.route("/admin/login", methods=["GET"])
+def admin_login_page():
+    """Tela de login do painel administrativo."""
+    if auth.sessao_admin_valida():
+        return redirect(url_for("admin_dashboard"))
+    session.permanent = True
+    csrf_token = gerar_csrf_token()
+    if not auth.admin_configurado():
+        return render_template(
+            "admin/login.html",
+            csrf_token=csrf_token,
+            erro="O painel administrativo ainda não foi configurado neste servidor. "
+                 "Defina ADMIN_PASSWORD_HASH nas variáveis de ambiente.",
+            bloqueado=False,
+        )
+    return render_template("admin/login.html", csrf_token=csrf_token, erro=None, bloqueado=False)
+
+
+@app.route("/admin/login", methods=["POST"])
+@require_csrf_form
+def admin_login_submit():
+    """Recebe credencial de admin, valida e abre sessão."""
+    ip_address = request.remote_addr or "0.0.0.0"
+    csrf_token = gerar_csrf_token()
+
+    if auth.ip_bloqueado(ip_address):
+        logging.warning(f"🚫 IP bloqueado por tentativas excessivas no login admin: {ip_address[:10]}…")
+        return render_template(
+            "admin/login.html",
+            csrf_token=csrf_token,
+            erro=f"Muitas tentativas falhas. Tente novamente em {auth.JANELA_BLOQUEIO_MIN} minutos.",
+            bloqueado=True,
+        ), 429
+
+    senha = request.form.get("senha", "")
+
+    if auth.verificar_senha_admin(senha):
+        database.registrar_tentativa_login_admin(ip_address, sucesso=True)
+        auth.autenticar_admin()
+        next_path = request.args.get("next", "")
+        if next_path.startswith("/admin"):
+            return redirect(next_path)
+        return redirect(url_for("admin_dashboard"))
+
+    database.registrar_tentativa_login_admin(ip_address, sucesso=False)
+    falhas = database.contar_tentativas_login_admin_falhas(ip_address, auth.JANELA_BLOQUEIO_MIN)
+    restantes = max(0, auth.MAX_TENTATIVAS_FALHAS - falhas)
+    msg = "Senha incorreta."
+    if restantes <= 2:
+        msg += f" Você ainda pode tentar {restantes} vez(es) nos próximos {auth.JANELA_BLOQUEIO_MIN} min."
+    return render_template("admin/login.html", csrf_token=csrf_token, erro=msg, bloqueado=False), 401
+
+
+@app.route("/admin/logout", methods=["POST"])
+@require_csrf_form
+def admin_logout():
+    """Encerra a sessão do admin."""
+    auth.desautenticar_admin()
+    return redirect(url_for("admin_login_page"))
+
+
+@app.route("/admin", methods=["GET"])
+@auth.admin_required
+def admin_dashboard():
+    """Dashboard com métricas agregadas do app."""
+    return render_template("admin/dashboard.html", csrf_token=gerar_csrf_token())
+
+
+@app.route("/admin/api/stats", methods=["GET"])
+@auth.admin_required
+def admin_api_stats():
+    """API JSON com todas as métricas — alimenta os gráficos do dashboard."""
+    try:
+        return jsonify(database.get_admin_dashboard_stats())
+    except Exception as e:
+        logging.error(f"❌ Erro em /admin/api/stats: {e}")
+        return jsonify({"erro": str(e)}), 500
+
+
+# Limpeza periódica das tentativas de login admin (LGPD: dados temporários)
+def _admin_cleanup_loop():
+    while True:
+        try:
+            time.sleep(60 * 60)  # 1 hora
+            removidos = database.limpar_tentativas_login_admin_antigas(horas=24)
+            if removidos:
+                logging.info(f"🗑️ Admin login cleanup: {removidos} tentativas antigas removidas")
+        except Exception as e:
+            logging.error(f"Erro no cleanup admin: {e}")
+
+
+threading.Thread(target=_admin_cleanup_loop, daemon=True).start()
+
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8080))
