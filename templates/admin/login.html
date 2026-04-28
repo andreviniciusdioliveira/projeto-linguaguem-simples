@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel Administrativo · Entenda Aqui</title>
+    <meta name="robots" content="noindex, nofollow">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='50%' x='50%' text-anchor='middle' font-size='80'>⚖️</text></svg>">
+    <link rel="stylesheet" href="/static/admin.css">
+</head>
+<body class="admin-login-page">
+    <div class="tjto-bar" role="banner">
+        <div class="tjto-bar-inner">
+            <img src="/static/logojto.png" alt="Poder Judiciário do Estado do Tocantins">
+        </div>
+    </div>
+
+    <main class="admin-login-shell">
+        <section class="admin-login-card" aria-labelledby="login-title">
+            <header>
+                <h1 id="login-title">Painel Administrativo</h1>
+                <p class="admin-login-sub">Acesso restrito · Entenda Aqui</p>
+            </header>
+
+            {% if erro %}
+            <div class="admin-alert {% if bloqueado %}admin-alert--block{% endif %}" role="alert">
+                {{ erro }}
+            </div>
+            {% endif %}
+
+            <form method="POST" action="/admin/login" autocomplete="off" novalidate>
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+                <label for="senha" class="admin-label">Senha de administrador</label>
+                <input type="password"
+                       id="senha"
+                       name="senha"
+                       class="admin-input"
+                       autocomplete="current-password"
+                       required
+                       autofocus
+                       {% if bloqueado %}disabled{% endif %}>
+
+                <button type="submit" class="admin-button admin-button--primary" {% if bloqueado %}disabled{% endif %}>
+                    Entrar
+                </button>
+            </form>
+
+            <p class="admin-login-help">
+                Esqueceu a senha? Peça ao administrador do servidor para regenerar
+                <code>ADMIN_PASSWORD_HASH</code> nas variáveis de ambiente.
+            </p>
+
+            <p class="admin-login-back">
+                <a href="/">← Voltar ao app público</a>
+            </p>
+        </section>
+    </main>
+
+    <footer class="admin-footer-mini">
+        Tribunal de Justiça do Estado do Tocantins · INOVASSOL
+    </footer>
+</body>
+</html>

@@ -146,6 +146,36 @@ def init_db():
                 )
             ''')
 
+            # Migração aditiva: campos para o painel de admin (tempo, tentativa, sucesso, hora)
+            # Adicionados via ALTER TABLE para preservar dados de instalações antigas
+            cursor.execute('PRAGMA table_info(audit_ip)')
+            colunas_audit = {col[1] for col in cursor.fetchall()}
+            if 'tempo_ms' not in colunas_audit:
+                cursor.execute('ALTER TABLE audit_ip ADD COLUMN tempo_ms INTEGER')
+            if 'tentativa_numero' not in colunas_audit:
+                cursor.execute('ALTER TABLE audit_ip ADD COLUMN tentativa_numero INTEGER DEFAULT 1')
+            if 'sucesso' not in colunas_audit:
+                cursor.execute('ALTER TABLE audit_ip ADD COLUMN sucesso INTEGER DEFAULT 1')
+            if 'hora_dia' not in colunas_audit:
+                cursor.execute('ALTER TABLE audit_ip ADD COLUMN hora_dia INTEGER')
+
+            # Índices para acelerar consultas do painel de admin
+            cursor.execute('CREATE INDEX IF NOT EXISTS idx_audit_data ON audit_ip(data_processamento)')
+            cursor.execute('CREATE INDEX IF NOT EXISTS idx_audit_modelo ON audit_ip(modelo_usado)')
+            cursor.execute('CREATE INDEX IF NOT EXISTS idx_audit_hora ON audit_ip(hora_dia)')
+
+            # === TABELA DE TENTATIVAS DE LOGIN DO ADMIN (proteção brute-force) ===
+            # Mantém apenas hash do IP (LGPD) e timestamp; limpa após 24h
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS admin_login_attempts (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    ip_hash TEXT NOT NULL,
+                    timestamp TEXT NOT NULL,
+                    sucesso INTEGER NOT NULL DEFAULT 0
+                )
+            ''')
+            cursor.execute('CREATE INDEX IF NOT EXISTS idx_login_ip_ts ON admin_login_attempts(ip_hash, timestamp)')
+
             # === TABELA DE USO DIÁRIO DE TOKENS ===
             # Controla o consumo de tokens da API Gemini por dia
             cursor.execute('''
@@ -502,13 +532,23 @@ def limpar_validacoes_expiradas():
         return deletados
 
 
-def registrar_auditoria_ip(ip_address, tipo_documento, nome_arquivo=None, tamanho_bytes=None, modelo_usado=None):
+def registrar_auditoria_ip(ip_address, tipo_documento, nome_arquivo=None, tamanho_bytes=None,
+                           modelo_usado=None, tempo_ms=None, tentativa_numero=1, sucesso=True):
     """
     Registra auditoria de processamento (LGPD compliant).
     Armazena APENAS hashes - NUNCA dados identificáveis.
+
+    Args:
+        tempo_ms: Tempo total de processamento em milissegundos (para métricas).
+        tentativa_numero: Posição do modelo Gemini na cadeia de fallback que respondeu
+                         (1=primário, 2=primeiro fallback, etc). Útil pra detectar
+                         degradação do modelo principal.
+        sucesso: Se o processamento terminou com sucesso (False conta como erro nas
+                métricas do dashboard).
     """
     ip_hash = gerar_hash_ip(ip_address) if ip_address else "unknown"
     nome_hash = hashlib.sha256(nome_arquivo.encode('utf-8')).hexdigest()[:16] if nome_arquivo else None
+    agora = datetime.now()
 
     with db_lock:
         try:
@@ -516,15 +556,21 @@ def registrar_auditoria_ip(ip_address, tipo_documento, nome_arquivo=None, tamanh
             cursor = conn.cursor()
 
             cursor.execute('''
-                INSERT INTO audit_ip (ip_hash, tipo_documento, nome_arquivo_hash, tamanho_bytes, modelo_usado, data_processamento)
-                VALUES (?, ?, ?, ?, ?, ?)
+                INSERT INTO audit_ip (ip_hash, tipo_documento, nome_arquivo_hash, tamanho_bytes,
+                                      modelo_usado, data_processamento, tempo_ms,
+                                      tentativa_numero, sucesso, hora_dia)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 ip_hash,
                 tipo_documento,
                 nome_hash,
                 tamanho_bytes,
                 modelo_usado,
-                datetime.now().isoformat()
+                agora.isoformat(),
+                tempo_ms,
+                tentativa_numero,
+                1 if sucesso else 0,
+                agora.hour
             ))
 
             conn.commit()
@@ -533,7 +579,272 @@ def registrar_auditoria_ip(ip_address, tipo_documento, nome_arquivo=None, tamanh
         finally:
             conn.close()
 
-    logging.info(f"📋 Auditoria registrada: tipo={tipo_documento}")
+    logging.info(f"📋 Auditoria registrada: tipo={tipo_documento} tempo_ms={tempo_ms} tentativa={tentativa_numero}")
+
+
+# ============================================================================
+# FUNÇÕES DE SUPORTE AO PAINEL ADMINISTRATIVO
+# ============================================================================
+# LGPD: todos os dados retornados são agregações estatísticas, sem identificação
+# individual. IPs aparecem apenas como hashes contados.
+
+def registrar_tentativa_login_admin(ip_address, sucesso):
+    """Registra tentativa de login no painel admin (proteção brute-force)."""
+    ip_hash = gerar_hash_ip(ip_address) if ip_address else "unknown"
+    with db_lock:
+        try:
+            conn = sqlite3.connect(DB_PATH, timeout=30)
+            cursor = conn.cursor()
+            cursor.execute(
+                'INSERT INTO admin_login_attempts (ip_hash, timestamp, sucesso) VALUES (?, ?, ?)',
+                (ip_hash, datetime.now().isoformat(), 1 if sucesso else 0)
+            )
+            conn.commit()
+        except Exception as e:
+            logging.error(f"❌ Erro ao registrar tentativa de login admin: {e}")
+        finally:
+            conn.close()
+
+
+def contar_tentativas_login_admin_falhas(ip_address, janela_minutos=15):
+    """Conta tentativas de login que falharam nos últimos N minutos para um IP."""
+    ip_hash = gerar_hash_ip(ip_address) if ip_address else "unknown"
+    limite = (datetime.now() - timedelta(minutes=janela_minutos)).isoformat()
+    with db_lock:
+        try:
+            conn = sqlite3.connect(DB_PATH, timeout=30)
+            cursor = conn.cursor()
+            cursor.execute(
+                'SELECT COUNT(*) FROM admin_login_attempts WHERE ip_hash = ? AND timestamp >= ? AND sucesso = 0',
+                (ip_hash, limite)
+            )
+            return cursor.fetchone()[0] or 0
+        except Exception as e:
+            logging.error(f"❌ Erro ao contar tentativas admin: {e}")
+            return 0
+        finally:
+            conn.close()
+
+
+def limpar_tentativas_login_admin_antigas(horas=24):
+    """Remove tentativas de login admin com mais de N horas (rotina LGPD)."""
+    limite = (datetime.now() - timedelta(hours=horas)).isoformat()
+    with db_lock:
+        try:
+            conn = sqlite3.connect(DB_PATH, timeout=30)
+            cursor = conn.cursor()
+            cursor.execute('DELETE FROM admin_login_attempts WHERE timestamp < ?', (limite,))
+            conn.commit()
+            return cursor.rowcount
+        except Exception as e:
+            logging.error(f"❌ Erro ao limpar tentativas admin: {e}")
+            return 0
+        finally:
+            conn.close()
+
+
+def get_admin_dashboard_stats():
+    """
+    Retorna métricas agregadas para o painel administrativo.
+
+    Tudo aqui é LGPD-compliant: apenas contagens, médias e distribuições.
+    Nenhum dado identificável é retornado.
+    """
+    hoje = datetime.now().strftime('%Y-%m-%d')
+    inicio_mes = datetime.now().strftime('%Y-%m-01')
+    sete_dias_atras = (datetime.now() - timedelta(days=7)).isoformat()
+    trinta_dias_atras = (datetime.now() - timedelta(days=30)).isoformat()
+
+    with db_lock:
+        try:
+            conn = sqlite3.connect(DB_PATH, timeout=30)
+            cursor = conn.cursor()
+
+            # === Documentos: total, hoje, 7 dias, 30 dias ===
+            cursor.execute('SELECT total_documentos FROM stats_geral WHERE id = 1')
+            row = cursor.fetchone()
+            total_documentos = row[0] if row else 0
+
+            cursor.execute('SELECT quantidade FROM stats_diarias WHERE data = ?', (hoje,))
+            row = cursor.fetchone()
+            docs_hoje = row[0] if row else 0
+
+            cursor.execute('SELECT COUNT(*) FROM audit_ip WHERE data_processamento >= ?', (sete_dias_atras,))
+            docs_7d = cursor.fetchone()[0] or 0
+
+            cursor.execute('SELECT COUNT(*) FROM audit_ip WHERE data_processamento >= ?', (trinta_dias_atras,))
+            docs_30d = cursor.fetchone()[0] or 0
+
+            # === Tipos de documento mais comuns (últimos 30 dias) ===
+            cursor.execute('''
+                SELECT tipo_documento, COUNT(*) as qtd
+                FROM audit_ip
+                WHERE data_processamento >= ?
+                GROUP BY tipo_documento
+                ORDER BY qtd DESC
+                LIMIT 10
+            ''', (trinta_dias_atras,))
+            tipos_documento = [{'tipo': r[0], 'quantidade': r[1]} for r in cursor.fetchall()]
+
+            # === Feedback agregado (tabela stats_feedback: tipo, quantidade) ===
+            cursor.execute("SELECT tipo, quantidade FROM stats_feedback")
+            fb_rows = dict(cursor.fetchall())
+            fb_pos = fb_rows.get('positivo', 0)
+            fb_neg = fb_rows.get('negativo', 0)
+            fb_total = fb_pos + fb_neg
+            fb_satisfacao = round((fb_pos / fb_total) * 100, 1) if fb_total else 0
+
+            # === Tokens: hoje, mês, 30 dias ===
+            cursor.execute(
+                'SELECT tokens_input, tokens_output, tokens_total, requisicoes FROM token_usage_diario WHERE data = ?',
+                (hoje,)
+            )
+            row = cursor.fetchone()
+            tokens_hoje = {
+                'input': row[0] if row else 0,
+                'output': row[1] if row else 0,
+                'total': row[2] if row else 0,
+                'requisicoes': row[3] if row else 0,
+            }
+
+            cursor.execute('''
+                SELECT COALESCE(SUM(tokens_input), 0), COALESCE(SUM(tokens_output), 0),
+                       COALESCE(SUM(tokens_total), 0), COALESCE(SUM(requisicoes), 0)
+                FROM token_usage_diario WHERE data >= ?
+            ''', (inicio_mes,))
+            row = cursor.fetchone()
+            tokens_mes = {
+                'input': row[0], 'output': row[1], 'total': row[2], 'requisicoes': row[3]
+            }
+
+            # Série temporal de tokens nos últimos 30 dias
+            cursor.execute('''
+                SELECT data, tokens_total, requisicoes
+                FROM token_usage_diario
+                WHERE data >= ?
+                ORDER BY data ASC
+            ''', ((datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d'),))
+            serie_tokens = [{'data': r[0], 'tokens': r[1], 'requisicoes': r[2]} for r in cursor.fetchall()]
+
+            # === Tempo médio de processamento (últimos 7 dias) ===
+            cursor.execute('''
+                SELECT AVG(tempo_ms), MIN(tempo_ms), MAX(tempo_ms), COUNT(tempo_ms)
+                FROM audit_ip
+                WHERE data_processamento >= ? AND tempo_ms IS NOT NULL
+            ''', (sete_dias_atras,))
+            row = cursor.fetchone()
+            tempo_medio_ms = int(row[0]) if row[0] else 0
+            tempo_min_ms = int(row[1]) if row[1] else 0
+            tempo_max_ms = int(row[2]) if row[2] else 0
+            tempo_amostras = row[3] or 0
+
+            # === Taxa de erro/fallback por modelo Gemini ===
+            cursor.execute('''
+                SELECT modelo_usado, tentativa_numero, COUNT(*)
+                FROM audit_ip
+                WHERE data_processamento >= ? AND modelo_usado IS NOT NULL
+                GROUP BY modelo_usado, tentativa_numero
+                ORDER BY modelo_usado, tentativa_numero
+            ''', (trinta_dias_atras,))
+            uso_por_modelo = {}
+            for modelo, tentativa, qtd in cursor.fetchall():
+                uso_por_modelo.setdefault(modelo, {})
+                uso_por_modelo[modelo][f'tentativa_{tentativa}'] = qtd
+            modelos = []
+            for modelo, tentativas in uso_por_modelo.items():
+                total = sum(tentativas.values())
+                primarios = tentativas.get('tentativa_1', 0)
+                fallbacks = total - primarios
+                modelos.append({
+                    'modelo': modelo,
+                    'total': total,
+                    'primario': primarios,
+                    'fallback': fallbacks,
+                    'taxa_fallback': round((fallbacks / total) * 100, 1) if total else 0,
+                })
+            modelos.sort(key=lambda m: m['total'], reverse=True)
+
+            # === Heatmap por hora do dia (últimos 7 dias) ===
+            cursor.execute('''
+                SELECT hora_dia, COUNT(*)
+                FROM audit_ip
+                WHERE data_processamento >= ? AND hora_dia IS NOT NULL
+                GROUP BY hora_dia
+            ''', (sete_dias_atras,))
+            heatmap_horas = [0] * 24
+            for hora, qtd in cursor.fetchall():
+                if 0 <= hora <= 23:
+                    heatmap_horas[hora] = qtd
+
+            # === Distribuição de IPs únicos (LGPD-safe: só hash) ===
+            cursor.execute('''
+                SELECT DATE(data_processamento) as dia, COUNT(DISTINCT ip_hash) as ips_unicos
+                FROM audit_ip
+                WHERE data_processamento >= ?
+                GROUP BY dia
+                ORDER BY dia ASC
+            ''', (trinta_dias_atras,))
+            ips_unicos_por_dia = [{'data': r[0], 'ips': r[1]} for r in cursor.fetchall()]
+
+            cursor.execute('SELECT COUNT(DISTINCT ip_hash) FROM audit_ip WHERE data_processamento >= ?',
+                          (trinta_dias_atras,))
+            total_ips_unicos_30d = cursor.fetchone()[0] or 0
+
+            # === Tentativas de login admin recentes (últimas 24h) ===
+            cursor.execute('''
+                SELECT
+                    SUM(CASE WHEN sucesso = 1 THEN 1 ELSE 0 END) as ok,
+                    SUM(CASE WHEN sucesso = 0 THEN 1 ELSE 0 END) as falha,
+                    COUNT(DISTINCT ip_hash) as ips
+                FROM admin_login_attempts
+                WHERE timestamp >= ?
+            ''', ((datetime.now() - timedelta(hours=24)).isoformat(),))
+            row = cursor.fetchone()
+            login_admin_24h = {
+                'sucesso': row[0] or 0,
+                'falha': row[1] or 0,
+                'ips_distintos': row[2] or 0,
+            }
+
+            return {
+                'gerado_em': datetime.now().isoformat(),
+                'documentos': {
+                    'total': total_documentos,
+                    'hoje': docs_hoje,
+                    'sete_dias': docs_7d,
+                    'trinta_dias': docs_30d,
+                    'tipos': tipos_documento,
+                },
+                'feedback': {
+                    'positivo': fb_pos,
+                    'negativo': fb_neg,
+                    'total': fb_total,
+                    'satisfacao_pct': fb_satisfacao,
+                },
+                'tokens': {
+                    'hoje': tokens_hoje,
+                    'mes_atual': tokens_mes,
+                    'serie_30d': serie_tokens,
+                },
+                'tempo_processamento': {
+                    'media_ms': tempo_medio_ms,
+                    'min_ms': tempo_min_ms,
+                    'max_ms': tempo_max_ms,
+                    'amostras_7d': tempo_amostras,
+                },
+                'modelos_gemini': modelos,
+                'heatmap_horas_7d': heatmap_horas,
+                'alcance': {
+                    'ips_unicos_30d': total_ips_unicos_30d,
+                    'serie_diaria': ips_unicos_por_dia,
+                },
+                'admin_login_24h': login_admin_24h,
+            }
+        except Exception as e:
+            logging.error(f"❌ Erro ao montar dashboard admin: {e}")
+            return {'erro': str(e)}
+        finally:
+            conn.close()
 
 
 def get_auditoria_ip(limite=100, pagina=1, filtro_ip=None, filtro_tipo=None, filtro_data=None):

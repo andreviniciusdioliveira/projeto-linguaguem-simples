@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard · Entenda Aqui</title>
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='50%' x='50%' text-anchor='middle' font-size='80'>⚖️</text></svg>">
+    <link rel="stylesheet" href="/static/admin.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
+    <script src="/static/admin.js" defer></script>
+</head>
+<body>
+    <div class="tjto-bar" role="banner">
+        <div class="tjto-bar-inner admin-bar-inner">
+            <img src="/static/logojto.png" alt="Poder Judiciário do Estado do Tocantins">
+            <div class="admin-bar-actions">
+                <span class="admin-bar-label">Painel Administrativo</span>
+                <form method="POST" action="/admin/logout" class="admin-logout-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <button type="submit" class="admin-button admin-button--ghost">Sair</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <main class="admin-shell">
+        <header class="admin-header">
+            <h1>Métricas do Entenda Aqui</h1>
+            <p class="admin-subtitle">
+                Dados agregados em conformidade com a LGPD ·
+                <span id="lastUpdate" aria-live="polite">atualizando…</span>
+            </p>
+        </header>
+
+        <!-- KPIs principais -->
+        <section class="admin-kpis" aria-label="Indicadores principais">
+            <article class="admin-kpi">
+                <span class="admin-kpi-label">Documentos hoje</span>
+                <strong class="admin-kpi-value" id="kpiDocsHoje">—</strong>
+                <span class="admin-kpi-foot" id="kpiDocsHojeFoot">total: —</span>
+            </article>
+            <article class="admin-kpi">
+                <span class="admin-kpi-label">Últimos 7 dias</span>
+                <strong class="admin-kpi-value" id="kpiDocs7d">—</strong>
+                <span class="admin-kpi-foot" id="kpiDocs30d">30d: —</span>
+            </article>
+            <article class="admin-kpi">
+                <span class="admin-kpi-label">Tokens hoje</span>
+                <strong class="admin-kpi-value" id="kpiTokensHoje">—</strong>
+                <span class="admin-kpi-foot" id="kpiTokensMes">mês: —</span>
+            </article>
+            <article class="admin-kpi">
+                <span class="admin-kpi-label">Satisfação</span>
+                <strong class="admin-kpi-value" id="kpiSatisfacao">—</strong>
+                <span class="admin-kpi-foot" id="kpiFeedbackTotal">amostras: —</span>
+            </article>
+            <article class="admin-kpi">
+                <span class="admin-kpi-label">Tempo médio</span>
+                <strong class="admin-kpi-value" id="kpiTempoMedio">—</strong>
+                <span class="admin-kpi-foot" id="kpiTempoFoot">7d</span>
+            </article>
+            <article class="admin-kpi">
+                <span class="admin-kpi-label">IPs únicos (30d)</span>
+                <strong class="admin-kpi-value" id="kpiIpsUnicos">—</strong>
+                <span class="admin-kpi-foot">hash SHA-256 (LGPD)</span>
+            </article>
+        </section>
+
+        <!-- Gráficos: tokens e feedback -->
+        <section class="admin-grid" aria-label="Gráficos de uso">
+            <div class="admin-card">
+                <h2>Tokens consumidos · últimos 30 dias</h2>
+                <canvas id="chartTokens" height="220"></canvas>
+            </div>
+            <div class="admin-card">
+                <h2>Feedback dos usuários</h2>
+                <canvas id="chartFeedback" height="220"></canvas>
+            </div>
+        </section>
+
+        <!-- Heatmap de horas + IPs únicos por dia -->
+        <section class="admin-grid" aria-label="Distribuição de uso">
+            <div class="admin-card">
+                <h2>Picos por hora do dia · últimos 7 dias</h2>
+                <canvas id="chartHeatmap" height="220"></canvas>
+            </div>
+            <div class="admin-card">
+                <h2>Alcance: IPs únicos por dia · 30 dias</h2>
+                <canvas id="chartIps" height="220"></canvas>
+            </div>
+        </section>
+
+        <!-- Modelos Gemini -->
+        <section class="admin-card admin-card--full" aria-label="Modelos Gemini">
+            <h2>Uso e fallback dos modelos Gemini · últimos 30 dias</h2>
+            <p class="admin-card-help">
+                <strong>Tentativa 1</strong> = modelo primário respondeu de primeira.
+                <strong>Fallback</strong> = primário falhou e cadeia escalou para o próximo modelo.
+                Taxa alta de fallback indica problema no modelo primário.
+            </p>
+            <div class="admin-table-wrap">
+                <table class="admin-table" id="tabelaModelos">
+                    <thead>
+                        <tr>
+                            <th>Modelo</th>
+                            <th class="num">Total</th>
+                            <th class="num">Primário</th>
+                            <th class="num">Fallback</th>
+                            <th class="num">Taxa fallback</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabelaModelosBody">
+                        <tr><td colspan="5" class="admin-empty">Carregando…</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Tipos de documento -->
+        <section class="admin-card admin-card--full" aria-label="Tipos de documento">
+            <h2>Tipos de documento mais simplificados · últimos 30 dias</h2>
+            <div class="admin-table-wrap">
+                <table class="admin-table" id="tabelaTipos">
+                    <thead>
+                        <tr>
+                            <th>Tipo</th>
+                            <th class="num">Quantidade</th>
+                            <th class="num">% do total</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabelaTiposBody">
+                        <tr><td colspan="3" class="admin-empty">Carregando…</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Segurança: tentativas de login admin -->
+        <section class="admin-card admin-card--full" aria-label="Segurança do painel">
+            <h2>Tentativas de login no painel · últimas 24h</h2>
+            <div class="admin-security">
+                <div>
+                    <span class="admin-sec-label">Sucessos</span>
+                    <strong id="loginSucesso">—</strong>
+                </div>
+                <div>
+                    <span class="admin-sec-label">Falhas</span>
+                    <strong id="loginFalha">—</strong>
+                </div>
+                <div>
+                    <span class="admin-sec-label">IPs distintos</span>
+                    <strong id="loginIps">—</strong>
+                </div>
+            </div>
+            <p class="admin-card-help">
+                Bloqueio automático após 5 falhas em 15 min por IP. Dados retidos por 24h (LGPD).
+            </p>
+        </section>
+    </main>
+
+    <footer class="admin-footer-mini">
+        Tribunal de Justiça do Estado do Tocantins · INOVASSOL ·
+        <a href="/">App público</a>
+    </footer>
+</body>
+</html>
