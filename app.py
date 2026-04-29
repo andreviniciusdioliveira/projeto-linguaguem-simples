@@ -235,12 +235,9 @@ if GEMINI_API_KEY:
 else:
     logging.error("❌ GEMINI_API_KEY não configurada!")
 
-# INICIALIZAR BANCO DE DADOS
-try:
-    database.init_db()
-    logging.info("✅ Banco de dados de estatísticas inicializado")
-except Exception as e:
-    logging.error(f"❌ Erro ao inicializar banco de dados: {e}")
+# O database é inicializado automaticamente quando o módulo `database` é
+# importado (ver database.py:1500+). Não chamamos init_db() de novo aqui
+# pra evitar contenção de lock em deploys do Render.
 
 # Modelos Gemini com fallback otimizado.
 # Família 2.5 (Flash/Flash-Lite) tem cota SEPARADA da família 2.0 no plano gratuito,
