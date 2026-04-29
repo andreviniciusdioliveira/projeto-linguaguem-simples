@@ -67,11 +67,40 @@ elif CRYPTO_AVAILABLE and not CPF_VAULT_KEY:
     logging.warning("⚠️ CPF_VAULT_KEY não configurada - usando chave temporária (dados perdidos ao reiniciar)")
 
 def init_db():
-    """Inicializa banco de dados com tabelas de estatísticas"""
+    """Inicializa banco de dados com tabelas de estatísticas.
+
+    Usa retry com backoff exponencial para sobreviver a "database is locked"
+    durante deploys do Render (container antigo ainda segura o lock por
+    alguns segundos enquanto o novo sobe).
+    """
+    tentativas_max = 5
+    for tentativa in range(1, tentativas_max + 1):
+        try:
+            _init_db_inner()
+            return
+        except sqlite3.OperationalError as e:
+            msg = str(e).lower()
+            if 'locked' in msg and tentativa < tentativas_max:
+                espera_s = 2 ** (tentativa - 1)  # 1, 2, 4, 8s
+                logging.warning(
+                    f"⏳ init_db: tentativa {tentativa}/{tentativas_max} falhou "
+                    f"(database is locked) — aguardando {espera_s}s..."
+                )
+                time.sleep(espera_s)
+                continue
+            raise
+
+
+def _init_db_inner():
+    """Implementação real de init_db. Chamada com retry pelo wrapper."""
     with db_lock:
         conn = sqlite3.connect(DB_PATH, timeout=30)
         try:
             cursor = conn.cursor()
+
+            # busy_timeout = 30s: SQLite faz polling interno em vez
+            # de retornar "database is locked" imediatamente
+            cursor.execute('PRAGMA busy_timeout = 30000')
 
             # Ativar WAL mode para melhor concorrência entre processos
             cursor.execute('PRAGMA journal_mode=WAL')
