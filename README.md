@@ -17,13 +17,14 @@
 </p>
 
 <p align="center">
-  <a href="#-sobre-o-projeto">Sobre</a> •
-  <a href="#-funcionalidades">Funcionalidades</a> •
-  <a href="#-como-funciona">Como Funciona</a> •
-  <a href="#-instalação">Instalação</a> •
-  <a href="#-deploy">Deploy</a> •
-  <a href="#-api-endpoints">API</a> •
-  <a href="#-lgpd--privacidade">LGPD</a>
+  <a href="#sobre-o-projeto">Sobre</a> •
+  <a href="#funcionalidades">Funcionalidades</a> •
+  <a href="#painel-administrativo">Painel Admin</a> •
+  <a href="#como-funciona">Como Funciona</a> •
+  <a href="#instalação">Instalação</a> •
+  <a href="#deploy">Deploy</a> •
+  <a href="#api-endpoints">API</a> •
+  <a href="#lgpd--privacidade">LGPD</a>
 </p>
 
 ---
@@ -90,9 +91,11 @@ O Entenda Aqui recebe o documento jurídico (PDF, imagem ou texto), processa com
 
 | Recurso | Descrição |
 |---------|-----------|
+| **Identidade Institucional** | Barra superior em azul TJTO com logo oficial do Poder Judiciário; footer com endereço da Sede e do Anexo I, telefones e horário de atendimento |
 | **Drag & Drop** | Arraste e solte arquivos para upload |
 | **Modo Escuro/Claro** | Alternância de tema com preferência salva |
 | **Responsivo** | Interface mobile-first adaptável a qualquer tela |
+| **Acessibilidade** | ARIA labels nos botões, `<main>` landmark, `aria-live` no resultado, suporte a `prefers-reduced-motion` |
 | **Avatar Assistente** | Avatar flutuante "JUS Bot" com chat contextual sobre o documento |
 | **Feedback Sonoro** | Áudios pré-gravados de confirmação ao iniciar e concluir a simplificação |
 | **Narração com Voz Neural** | Leitura em áudio do texto simplificado via `edge-tts` (voz `pt-BR-FranciscaNeural`) com fallback para Web Speech API |
@@ -107,6 +110,26 @@ O Entenda Aqui recebe o documento jurídico (PDF, imagem ou texto), processa com
 | **Limpeza Automática** | Arquivos temporários removidos em 30 minutos |
 | **Validação de Integridade** | QR code e hash SHA-256 para verificar autenticidade do PDF gerado |
 | **Anti-Fraude** | Marca d'água diagonal + logotipos variados no PDF |
+
+### Painel Administrativo
+
+Dashboard interno em `/admin` para o time visualizar uso, custos e auditoria. **Tudo agregado e LGPD-compliant** — não exibe nenhum dado pessoal identificável.
+
+| Recurso | Descrição |
+|---------|-----------|
+| **Multi-usuário com Papéis** | `superadmin` (gerencia contas) e `viewer` (só dashboard) |
+| **Bootstrap Automático** | 1º usuário criado a partir de `ADMIN_PASSWORD_HASH` no primeiro init |
+| **Reset de Senha por Token** | Link one-time-use com validade de 24h, sem precisar de SMTP |
+| **Brute-Force Protection** | 5 falhas em 15 min bloqueiam o IP; tentativas retidas por 24h |
+| **Sessão com Timeout** | Logout automático após 30 min de inatividade |
+| **KPIs em Tempo Real** | Documentos hoje/7d/30d, satisfação, tempo médio, IPs únicos |
+| **Custos em BRL** | Cálculo automático do gasto Gemini (hoje, mês, 30d) com câmbio configurável |
+| **Tokens por Simplificação** | Média de tokens entrada/saída por documento, breakdown por modelo |
+| **Gráficos** | Tokens 30d, Feedback, Heatmap por hora, IPs únicos por dia (Chart.js) |
+| **Tabelas** | Uso e taxa de fallback dos modelos Gemini, custo por modelo, tipos de documento |
+| **Audit Log Completo** | login/logout, criação/desativação de usuários, reset de senha, com retenção de 180 dias |
+| **Debounce no Audit** | `dashboard_view` e `api_stats` deduplicados em janela de 5 min (evita inflar log com polling) |
+| **Identidade Institucional** | Visual alinhado ao Poder Judiciário do Tocantins (paleta TJTO + logo oficial) |
 
 ---
 
@@ -236,40 +259,68 @@ A simplificação é personalizada de acordo com a perspectiva selecionada no mo
 ```
 projeto-linguaguem-simples/
 │
-├── app.py                          # Aplicação Flask principal (~125KB)
-│                                   #   - Rotas e endpoints
-│                                   #   - Integração com Gemini AI
+├── app.py                          # Aplicação Flask principal
+│                                   #   - Rotas do app público (/processar, /chat, /narrar)
+│                                   #   - Rotas do painel admin (/admin/login, /admin, /admin/usuarios...)
+│                                   #   - Integração com Gemini AI (google-genai SDK)
 │                                   #   - Processamento de PDF/imagem
 │                                   #   - Rate limiting, cache e tokens
 │                                   #   - Validação de CPF e documentos judiciais
 │                                   #   - Limpeza automática LGPD
 │
-├── database.py                     # Sistema de estatísticas e segurança (~35KB)
-│                                   #   - Schema SQLite (9 tabelas)
-│                                   #   - Contadores agregados
+├── database.py                     # Sistema de estatísticas e segurança
+│                                   #   - Schema SQLite (14 tabelas)
+│                                   #   - Contadores agregados (LGPD)
 │                                   #   - Cofre criptografado de CPF
 │                                   #   - Controle de tokens diários
+│                                   #   - Auditoria de IP do app público
+│                                   #   - Gestão de usuários do painel admin (Fase 2)
+│                                   #   - Tokens de reset de senha (one-time)
+│                                   #   - Audit log do painel admin
+│                                   #   - init_db com retry/backoff para deploys
 │                                   #   - Limpeza automática
-│                                   #   - Validação de documentos (hash)
-│                                   #   - Auditoria administrativa
 │
-├── gerador_pdf.py                  # Geração de PDF simplificado (~29KB)
+├── auth.py                         # Autenticação multi-usuário do painel admin
+│                                   #   - autenticar(username, senha)
+│                                   #   - admin_required / superadmin_required
+│                                   #   - Sessão com timeout de 30 min
+│                                   #   - Bootstrap automático do 1º admin
+│                                   #   - audit_action() com debounce
+│
+├── pricing.py                      # Preços oficiais Gemini + conversão USD→BRL
+│                                   #   - Tabela de preços por 1M tokens (8 modelos)
+│                                   #   - custo_brl(modelo, tokens_in, tokens_out)
+│                                   #   - Câmbio configurável via USD_TO_BRL
+│
+├── gerador_pdf.py                  # Geração de PDF simplificado
 │                                   #   - Layout com header/footer
 │                                   #   - Marca d'água anti-fraude
 │                                   #   - QR code de validação
 │                                   #   - Fontes personalizadas
 │
 ├── templates/
-│   ├── index.html                  # Interface principal SPA (~195KB)
-│   └── validar.html                # Página de validação de documentos
+│   ├── index.html                  # Interface principal SPA (com identidade TJTO)
+│   ├── validar.html                # Página de validação de documentos
+│   └── admin/                      # Painel administrativo
+│       ├── _nav.html               # Componente: barra com logo, nav, papel
+│       ├── login.html              # Tela de login (username + senha)
+│       ├── dashboard.html          # Dashboard com KPIs, gráficos, custos
+│       ├── usuarios.html           # CRUD de usuários (só superadmin)
+│       ├── reset.html              # Reset de senha via token one-time
+│       ├── conta.html              # Trocar a própria senha
+│       └── audit.html              # Audit log paginado (só superadmin)
 │
 ├── static/
-│   ├── style.css                   # Estilos CSS adicionais
+│   ├── style.css                   # Estilos do app público
+│   ├── admin.css                   # Estilos do painel administrativo
+│   ├── admin.js                    # Lógica do dashboard (Chart.js, polling 30s)
+│   ├── chart.umd.min.js            # Chart.js 4.4.1 (servido localmente, sem CDN)
 │   ├── avatar.js                   # Interações do avatar com voz
 │   ├── logo.png                    # Logo do projeto
-│   ├── avatar.png                  # Imagem do avatar assistente
+│   ├── avatar.png                  # Imagem do avatar JUS Bot
 │   ├── inovassol.png               # Logo da INOVASSOL
-│   ├── logotjto.png                # Logo TJTO (marca d'água)
+│   ├── logojto.png                 # Logo Poder Judiciário do Tocantins (header/footer)
+│   ├── logotjto.png                # Logo TJTO (marca d'água do PDF)
 │   ├── vou-começar.mp3             # Áudio: "Vou começar"
 │   └── prontinho-simplifiquei.mp3  # Áudio: "Prontinho, simplifiquei"
 │
@@ -280,7 +331,7 @@ projeto-linguaguem-simples/
 ├── requirements.txt                # Dependências Python
 ├── SECURITY_REQUIREMENTS.md        # Documentação de requisitos de segurança
 ├── CLAUDE.md                       # Guia para assistentes AI
-├── stats.db                        # Banco SQLite (contadores LGPD)
+├── stats.db                        # Banco SQLite (contadores LGPD + admin)
 ├── .gitignore                      # Regras de exclusão Git
 └── .dockerignore                   # Regras de exclusão Docker
 ```
@@ -344,11 +395,20 @@ Crie um arquivo `.env` na raiz do projeto:
 # Obrigatório
 GEMINI_API_KEY=sua_chave_api_gemini_aqui
 
-# Opcionais
+# Recomendado em produção (evita que sessões caiam a cada restart)
 SECRET_KEY=sua_chave_secreta_flask
+
+# Painel administrativo (Fase 2)
+# Hash da senha do 1º superadmin. Gere com:
+#   python -c "from werkzeug.security import generate_password_hash; print(generate_password_hash('SUA_SENHA'))"
+ADMIN_PASSWORD_HASH=pbkdf2:sha256:600000$...
+# Câmbio USD→BRL para o cálculo de custos no dashboard (default: 5.0)
+USD_TO_BRL=5.0
+
+# Opcionais
 PORT=8080
 FLASK_ENV=production
-ADMIN_TOKEN=seu_token_admin_para_auditoria
+ADMIN_TOKEN=seu_token_legacy_para_admin_auditoria
 CPF_VAULT_KEY=sua_chave_fernet_para_criptografia_de_cpf
 IP_HASH_SALT=salt_aleatorio_para_hash_de_ip
 CPF_HASH_SALT=salt_aleatorio_para_hash_de_cpf
@@ -386,8 +446,10 @@ O projeto já inclui o arquivo `render.yaml` configurado para deploy automático
 4. Clique em **"New" > "Blueprint"** e selecione o repositório
 5. Configure as variáveis de ambiente no dashboard:
    - `GEMINI_API_KEY` (obrigatório)
-   - `ADMIN_TOKEN` (recomendado)
-   - `CPF_VAULT_KEY` (recomendado para persistência entre deploys)
+   - `SECRET_KEY` (recomendado — sem isso a sessão admin cai a cada restart)
+   - `ADMIN_PASSWORD_HASH` (recomendado — habilita o painel `/admin`)
+   - `USD_TO_BRL` (opcional — câmbio para custos Gemini, default 5.0)
+   - `CPF_VAULT_KEY` (recomendado — persistência do cofre de CPFs entre deploys)
 6. O deploy será automático a cada push na branch `main`
 
 **Configuração do Render:**
@@ -458,7 +520,7 @@ railway up
 
 ## API Endpoints
 
-### Endpoints Principais
+### Endpoints do App Público
 
 | Método | Rota | Descrição |
 |--------|------|-----------|
@@ -474,8 +536,29 @@ railway up
 | `POST` | `/validar/<doc_id>/verificar` | Verifica hash de integridade do documento |
 | `POST` | `/feedback` | Registra feedback (positivo/negativo) |
 | `GET` | `/api/stats` | Estatísticas agregadas (LGPD) |
-| `GET` | `/admin/auditoria` | Painel de auditoria (requer ADMIN_TOKEN) |
+| `GET` | `/admin/auditoria` | Painel legacy de auditoria de IPs (requer ADMIN_TOKEN) |
 | `GET` | `/health` | Health check da aplicação |
+
+### Endpoints do Painel Administrativo
+
+Todas as rotas abaixo (exceto `/admin/login` e `/admin/reset/<token>`) exigem sessão autenticada. Rotas marcadas com 🔒 exigem papel `superadmin`.
+
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| `GET` | `/admin/login` | Tela de login (username + senha) |
+| `POST` | `/admin/login` | Autentica e abre sessão |
+| `POST` | `/admin/logout` | Encerra sessão |
+| `GET` | `/admin` | Dashboard com KPIs, custos e gráficos |
+| `GET` | `/admin/api/stats` | JSON com todas as métricas (alimenta gráficos) |
+| `GET` | `/admin/usuarios` 🔒 | Lista usuários do painel |
+| `POST` | `/admin/usuarios/criar` 🔒 | Cria novo usuário |
+| `POST` | `/admin/usuarios/<id>/ativar` 🔒 | Toggle de ativo/desativado |
+| `POST` | `/admin/usuarios/<id>/reset` 🔒 | Gera token one-time de reset (24h) |
+| `GET` | `/admin/reset/<token>` | Tela de redefinição de senha (sem auth, com token válido) |
+| `POST` | `/admin/reset/<token>` | Aplica nova senha e consome token |
+| `GET` | `/admin/conta` | Info da conta + form de troca de senha |
+| `POST` | `/admin/conta/senha` | Troca a própria senha |
+| `GET` | `/admin/audit` 🔒 | Audit log paginado com filtros |
 
 ### POST `/validar_cpf`
 
@@ -703,7 +786,9 @@ O Entenda Aqui foi projetado desde a concepção para estar em total conformidad
 
 ## Banco de Dados
 
-O sistema utiliza **SQLite** com 10 tabelas, todas projetadas para armazenar apenas dados agregados ou temporários:
+O sistema utiliza **SQLite** com 14 tabelas, todas projetadas para armazenar apenas dados agregados ou temporários:
+
+### Tabelas do app público
 
 | Tabela | Propósito | Dados Sensíveis | Retenção |
 |--------|-----------|:---------------:|----------|
@@ -712,13 +797,26 @@ O sistema utiliza **SQLite** com 10 tabelas, todas projetadas para armazenar ape
 | `stats_diarias` | Contagem diária | Nenhum | 30 dias |
 | `stats_feedback` | Contadores de feedback | Nenhum | Permanente |
 | `validacao_documentos` | Hashes SHA-256 (sem conteúdo) | Nenhum | 30 dias |
-| `audit_ip` | Auditoria admin (hash de IP + metadados) | Hash de IP (com salt) | 30 dias |
+| `audit_ip` | Auditoria por requisição (hash IP + metadados + tokens + tempo) | Hash de IP (com salt) | 30 dias |
 | `token_usage_diario` | Consumo de tokens por dia | Nenhum | 7 dias |
 | `cpf_vault` | CPFs criptografados (Fernet) | CPF criptografado | 1 dia |
 | `cpf_rate_limit` | Contadores de uso por CPF | Hash de CPF | 1 dia |
 | `cpf_ip_rate_limit` | Rate limiting combinado CPF+IP (anti-botnet) | Hash de CPF + hash de IP | 1 dia |
 
-Todas as operações de banco usam **lock de thread** para segurança em ambiente multi-worker. IPs e CPFs nunca são armazenados em texto claro — apenas hashes SHA-256 com salt (irreversíveis) ou criptografia Fernet temporária.
+### Tabelas do painel administrativo
+
+| Tabela | Propósito | Dados Sensíveis | Retenção |
+|--------|-----------|:---------------:|----------|
+| `admin_users` | Usuários do painel (id, username, password_hash, role, ativo) | Hash de senha (scrypt) | Permanente até desativação |
+| `admin_password_reset_tokens` | Tokens one-time de reset de senha | Token aleatório | 24h ou até uso (limpeza após 7d) |
+| `admin_audit` | Eventos de auditoria do painel | Hash de IP (com salt) | 180 dias |
+| `admin_login_attempts` | Tentativas de login (brute-force protection) | Hash de IP | 24h |
+
+Todas as operações de banco usam **lock de thread** para segurança em ambiente multi-worker. IPs e CPFs nunca são armazenados em texto claro — apenas hashes SHA-256 com salt (irreversíveis) ou criptografia Fernet temporária. Senhas do painel admin usam **scrypt** via `werkzeug.security`.
+
+### Resiliência em deploys
+
+O `init_db()` faz **retry com backoff exponencial** (1s, 2s, 4s, 8s) e configura `PRAGMA busy_timeout = 30000` antes de qualquer DDL. Isso evita o erro `database is locked` durante deploys do Render (estilo blue/green), em que o container antigo segura o lock por alguns segundos enquanto o novo sobe. Janela total tolerada: ~46s. Migrações de coluna são **aditivas** via `ALTER TABLE ADD COLUMN` — nunca destrutivas.
 
 ---
 
@@ -751,15 +849,30 @@ Todas as operações de banco usam **lock de thread** para segurança em ambient
 | Variável | Obrigatória | Descrição |
 |----------|:-----------:|-----------|
 | `GEMINI_API_KEY` | Sim | Chave da API Google Gemini |
-| `SECRET_KEY` | Não | Chave de sessão Flask (auto-gerada se ausente) |
-| `ADMIN_TOKEN` | Não | Token de acesso ao painel de auditoria (painel desabilitado se ausente) |
-| `CPF_VAULT_KEY` | Não | Chave Fernet para criptografia de CPF (gerada temporariamente se ausente) |
+| `SECRET_KEY` | **Recomendada em prod** | Chave de sessão Flask. Se ausente, é auto-gerada — mas isso faz com que **as sessões caiam a cada restart** (incluindo o login admin). Configure um valor estável em produção. |
+| `ADMIN_PASSWORD_HASH` | **Recomendada em prod** | Hash da senha do 1º superadmin do painel. Gere localmente: `python -c "from werkzeug.security import generate_password_hash; print(generate_password_hash('SUA_SENHA'))"`. Usado só no bootstrap (após o 1º init, a senha vive na tabela `admin_users` e pode ser trocada via UI). |
+| `USD_TO_BRL` | Não | Câmbio para cálculo de custos Gemini em reais no painel admin (default: `5.0`). Editável sem redeploy. |
+| `ADMIN_TOKEN` | Não | Token do painel **legacy** `/admin/auditoria` (auditoria de IPs do app público). Diferente do `ADMIN_PASSWORD_HASH`, que protege o novo painel `/admin`. |
+| `CPF_VAULT_KEY` | Não | Chave Fernet para criptografia de CPF. Se ausente, é gerada temporariamente — CPFs criptografados são perdidos a cada restart. |
 | `IP_HASH_SALT` | Não | Salt para hash SHA-256 de IPs (recomendado definir em produção) |
 | `CPF_HASH_SALT` | Não | Salt para hash SHA-256 de CPFs (recomendado definir em produção) |
 | `FLASK_ENV` | Não | `production` (padrão) ou `development` para modo debug |
 | `PORT` | Não | Porta de execução (padrão: 8080) |
 
 Nunca commite chaves de API. Use variáveis de ambiente ou arquivos `.env` (incluído no `.gitignore`).
+
+**Geração rápida das chaves recomendadas:**
+
+```bash
+# SECRET_KEY (sessões Flask)
+python3 -c "import secrets; print(secrets.token_urlsafe(48))"
+
+# ADMIN_PASSWORD_HASH (senha do superadmin)
+python3 -c "from werkzeug.security import generate_password_hash; print(generate_password_hash('SUA_SENHA_FORTE'))"
+
+# CPF_VAULT_KEY (qualquer string ≥ 32 chars; é hashada com SHA-256 internamente)
+python3 -c "import secrets; print(secrets.token_urlsafe(48))"
+```
 
 ---
 
@@ -804,9 +917,9 @@ O arquivo `gunicorn_config.py` está otimizado para o **Render Free Tier (512MB 
 | Pacote | Versão | Propósito |
 |--------|--------|-----------|
 | Flask | 3.0.3 | Framework web |
-| Werkzeug | 3.0.3 | Utilitários WSGI |
+| Werkzeug | 3.0.3 | Utilitários WSGI + hash de senha (scrypt) do painel admin |
 | gunicorn | 21.2.0 | Servidor de produção |
-| google-generativeai | 0.3.2 | API do Google Gemini |
+| google-genai | ≥1.0 | API do Google Gemini (sucessor do `google-generativeai`, descontinuado) |
 | pymupdf | 1.24.2 | Extração de texto de PDF |
 | pytesseract | 0.3.10 | Interface para Tesseract OCR |
 | Pillow | 10.4.0 | Processamento de imagens |
