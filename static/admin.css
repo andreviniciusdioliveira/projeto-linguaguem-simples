@@ -288,6 +288,16 @@ body {
     gap: 0.25rem;
 }
 
+/* KPI de destaque (custo financeiro) - usa o dourado institucional */
+.admin-kpi--accent {
+    border-left-color: var(--tjto-dourado);
+    background: linear-gradient(135deg, #ffffff 0%, #fdf6e3 100%);
+}
+
+.admin-kpi--accent .admin-kpi-value {
+    color: var(--tjto-dourado);
+}
+
 .admin-kpi-label {
     font-size: 0.75rem;
     font-weight: 600;

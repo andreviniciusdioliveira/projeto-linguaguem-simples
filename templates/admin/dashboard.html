@@ -66,6 +66,26 @@
                 <strong class="admin-kpi-value" id="kpiIpsUnicos">—</strong>
                 <span class="admin-kpi-foot">hash SHA-256 (LGPD)</span>
             </article>
+            <article class="admin-kpi admin-kpi--accent">
+                <span class="admin-kpi-label">Custo Gemini · hoje</span>
+                <strong class="admin-kpi-value" id="kpiCustoHoje">—</strong>
+                <span class="admin-kpi-foot" id="kpiCustoHojeFoot">— docs · — tokens</span>
+            </article>
+            <article class="admin-kpi admin-kpi--accent">
+                <span class="admin-kpi-label">Custo Gemini · mês</span>
+                <strong class="admin-kpi-value" id="kpiCustoMes">—</strong>
+                <span class="admin-kpi-foot" id="kpiCustoMesFoot">— docs · — tokens</span>
+            </article>
+            <article class="admin-kpi">
+                <span class="admin-kpi-label">Tokens / simplificação</span>
+                <strong class="admin-kpi-value" id="kpiTokensPorDoc">—</strong>
+                <span class="admin-kpi-foot" id="kpiTokensPorDocFoot">in: — · out: —</span>
+            </article>
+            <article class="admin-kpi">
+                <span class="admin-kpi-label">Custo médio / simplificação</span>
+                <strong class="admin-kpi-value" id="kpiCustoPorDoc">—</strong>
+                <span class="admin-kpi-foot" id="kpiCustoPorDocFoot">média 30d</span>
+            </article>
         </section>
 
         <!-- Gráficos: tokens e feedback -->
@@ -114,6 +134,46 @@
                     <tbody id="tabelaModelosBody">
                         <tr><td colspan="5" class="admin-empty">Carregando…</td></tr>
                     </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Custo por modelo Gemini -->
+        <section class="admin-card admin-card--full" aria-label="Custo Gemini por modelo">
+            <h2>Custo Gemini por modelo · últimos 30 dias</h2>
+            <p class="admin-card-help">
+                Cálculo: tokens reais consumidos × tabela de preços oficial Google ×
+                câmbio USD→BRL <strong id="custoCambio">—</strong>.
+                Configure <code>USD_TO_BRL</code> no Render se quiser ajustar.
+                Modelos experimentais (gemini-2.0-flash-exp) têm custo zero.
+            </p>
+            <div class="admin-table-wrap">
+                <table class="admin-table" id="tabelaCustoModelos">
+                    <thead>
+                        <tr>
+                            <th>Modelo</th>
+                            <th class="num">Documentos</th>
+                            <th class="num">Tokens entrada</th>
+                            <th class="num">Tokens saída</th>
+                            <th class="num">Tokens médio/doc</th>
+                            <th class="num">Custo total</th>
+                            <th class="num">Custo/doc</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabelaCustoModelosBody">
+                        <tr><td colspan="7" class="admin-empty">Carregando…</td></tr>
+                    </tbody>
+                    <tfoot id="tabelaCustoModelosFoot" hidden>
+                        <tr>
+                            <th>Total</th>
+                            <th class="num" id="custoFootDocs">—</th>
+                            <th class="num" id="custoFootIn">—</th>
+                            <th class="num" id="custoFootOut">—</th>
+                            <th class="num" id="custoFootMedio">—</th>
+                            <th class="num" id="custoFootTotal">—</th>
+                            <th class="num" id="custoFootPorDoc">—</th>
+                        </tr>
+                    </tfoot>
                 </table>
             </div>
         </section>

@@ -2561,6 +2561,7 @@ def processar():
         # 📋 Auditoria de IP (registra IP real + metadados, SEM conteúdo do documento)
         try:
             tempo_total_ms = int((time.monotonic() - inicio_processamento) * 1000)
+            tokens_usados = analise_completa.get("tokens_usados") or {}
             registrar_auditoria_ip(
                 ip_address=ip_address or '0.0.0.0',
                 tipo_documento=tipo_doc,
@@ -2570,6 +2571,8 @@ def processar():
                 tempo_ms=tempo_total_ms,
                 tentativa_numero=analise_completa.get("tentativa_numero", 1),
                 sucesso=True,
+                tokens_input=tokens_usados.get("input", 0),
+                tokens_output=tokens_usados.get("output", 0),
             )
         except Exception as e:
             logging.error(f"❌ Erro ao registrar auditoria: {e}")
@@ -2891,6 +2894,7 @@ def processar_texto():
         # 📋 Auditoria de IP (registra IP real + metadados, SEM conteúdo do documento)
         try:
             tempo_total_ms = int((time.monotonic() - inicio_processamento) * 1000)
+            tokens_usados = analise_completa.get("tokens_usados") or {}
             registrar_auditoria_ip(
                 ip_address=ip_address or '0.0.0.0',
                 tipo_documento=tipo_doc,
@@ -2900,6 +2904,8 @@ def processar_texto():
                 tempo_ms=tempo_total_ms,
                 tentativa_numero=analise_completa.get("tentativa_numero", 1),
                 sucesso=True,
+                tokens_input=tokens_usados.get("input", 0),
+                tokens_output=tokens_usados.get("output", 0),
             )
         except Exception as e:
             logging.error(f"❌ Erro ao registrar auditoria: {e}")

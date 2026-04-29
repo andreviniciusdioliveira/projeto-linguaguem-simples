@@ -175,7 +175,7 @@ def _init_db_inner():
                 )
             ''')
 
-            # Migração aditiva: campos para o painel de admin (tempo, tentativa, sucesso, hora)
+            # Migração aditiva: campos para o painel de admin (tempo, tentativa, sucesso, hora, tokens)
             # Adicionados via ALTER TABLE para preservar dados de instalações antigas
             cursor.execute('PRAGMA table_info(audit_ip)')
             colunas_audit = {col[1] for col in cursor.fetchall()}
@@ -187,6 +187,10 @@ def _init_db_inner():
                 cursor.execute('ALTER TABLE audit_ip ADD COLUMN sucesso INTEGER DEFAULT 1')
             if 'hora_dia' not in colunas_audit:
                 cursor.execute('ALTER TABLE audit_ip ADD COLUMN hora_dia INTEGER')
+            if 'tokens_input' not in colunas_audit:
+                cursor.execute('ALTER TABLE audit_ip ADD COLUMN tokens_input INTEGER DEFAULT 0')
+            if 'tokens_output' not in colunas_audit:
+                cursor.execute('ALTER TABLE audit_ip ADD COLUMN tokens_output INTEGER DEFAULT 0')
 
             # Índices para acelerar consultas do painel de admin
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_audit_data ON audit_ip(data_processamento)')
@@ -562,7 +566,8 @@ def limpar_validacoes_expiradas():
 
 
 def registrar_auditoria_ip(ip_address, tipo_documento, nome_arquivo=None, tamanho_bytes=None,
-                           modelo_usado=None, tempo_ms=None, tentativa_numero=1, sucesso=True):
+                           modelo_usado=None, tempo_ms=None, tentativa_numero=1, sucesso=True,
+                           tokens_input=0, tokens_output=0):
     """
     Registra auditoria de processamento (LGPD compliant).
     Armazena APENAS hashes - NUNCA dados identificáveis.
@@ -574,6 +579,8 @@ def registrar_auditoria_ip(ip_address, tipo_documento, nome_arquivo=None, tamanh
                          degradação do modelo principal.
         sucesso: Se o processamento terminou com sucesso (False conta como erro nas
                 métricas do dashboard).
+        tokens_input/tokens_output: Tokens de entrada/saída desta simplificação.
+                                    Usados para cálculo de custo no painel admin.
     """
     ip_hash = gerar_hash_ip(ip_address) if ip_address else "unknown"
     nome_hash = hashlib.sha256(nome_arquivo.encode('utf-8')).hexdigest()[:16] if nome_arquivo else None
@@ -587,8 +594,9 @@ def registrar_auditoria_ip(ip_address, tipo_documento, nome_arquivo=None, tamanh
             cursor.execute('''
                 INSERT INTO audit_ip (ip_hash, tipo_documento, nome_arquivo_hash, tamanho_bytes,
                                       modelo_usado, data_processamento, tempo_ms,
-                                      tentativa_numero, sucesso, hora_dia)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                      tentativa_numero, sucesso, hora_dia,
+                                      tokens_input, tokens_output)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 ip_hash,
                 tipo_documento,
@@ -599,7 +607,9 @@ def registrar_auditoria_ip(ip_address, tipo_documento, nome_arquivo=None, tamanh
                 tempo_ms,
                 tentativa_numero,
                 1 if sucesso else 0,
-                agora.hour
+                agora.hour,
+                tokens_input or 0,
+                tokens_output or 0,
             ))
 
             conn.commit()
@@ -608,7 +618,10 @@ def registrar_auditoria_ip(ip_address, tipo_documento, nome_arquivo=None, tamanh
         finally:
             conn.close()
 
-    logging.info(f"📋 Auditoria registrada: tipo={tipo_documento} tempo_ms={tempo_ms} tentativa={tentativa_numero}")
+    logging.info(
+        f"📋 Auditoria registrada: tipo={tipo_documento} tempo_ms={tempo_ms} "
+        f"tentativa={tentativa_numero} tokens_in={tokens_input} tokens_out={tokens_output}"
+    )
 
 
 # ============================================================================
@@ -793,6 +806,72 @@ def get_admin_dashboard_stats():
                 })
             modelos.sort(key=lambda m: m['total'], reverse=True)
 
+            # === Custo em BRL por simplificação (por modelo) ===
+            # Agrega tokens reais por modelo nos últimos 30 dias e aplica
+            # tabela de preços oficial Gemini (ver pricing.py).
+            import pricing as _pricing
+            cambio = _pricing.get_usd_to_brl()
+
+            def _consulta_custo(corte_iso):
+                cursor.execute('''
+                    SELECT modelo_usado,
+                           COALESCE(SUM(tokens_input), 0)  AS tin,
+                           COALESCE(SUM(tokens_output), 0) AS tout,
+                           COUNT(*)                        AS docs
+                    FROM audit_ip
+                    WHERE data_processamento >= ?
+                      AND modelo_usado IS NOT NULL
+                      AND sucesso = 1
+                    GROUP BY modelo_usado
+                ''', (corte_iso,))
+                rows = cursor.fetchall()
+                resultado = []
+                total_brl = 0.0
+                total_in = 0
+                total_out = 0
+                total_docs = 0
+                for modelo, tin, tout, docs in rows:
+                    custo = _pricing.custo_brl(modelo, tin, tout)
+                    total_brl += custo
+                    total_in += tin
+                    total_out += tout
+                    total_docs += docs
+                    resultado.append({
+                        'modelo': modelo,
+                        'tokens_input': tin,
+                        'tokens_output': tout,
+                        'tokens_total': tin + tout,
+                        'documentos': docs,
+                        'custo_brl': round(custo, 4),
+                        'custo_brl_por_doc': round(custo / docs, 4) if docs else 0,
+                        'tokens_medio_por_doc': round((tin + tout) / docs, 0) if docs else 0,
+                    })
+                resultado.sort(key=lambda r: r['custo_brl'], reverse=True)
+                return {
+                    'por_modelo': resultado,
+                    'total_brl': round(total_brl, 2),
+                    'total_tokens_input': total_in,
+                    'total_tokens_output': total_out,
+                    'total_documentos': total_docs,
+                    'custo_medio_por_doc_brl': round(total_brl / total_docs, 4) if total_docs else 0,
+                    'tokens_medio_por_doc': round((total_in + total_out) / total_docs, 0) if total_docs else 0,
+                    'tokens_input_medio_por_doc': round(total_in / total_docs, 0) if total_docs else 0,
+                    'tokens_output_medio_por_doc': round(total_out / total_docs, 0) if total_docs else 0,
+                }
+
+            custo_30d = _consulta_custo(trinta_dias_atras)
+            custo_7d = _consulta_custo(sete_dias_atras)
+            custo_hoje = _consulta_custo(hoje)
+            custo_mes = _consulta_custo(inicio_mes + 'T00:00:00')
+
+            custos = {
+                'cambio_usd_brl': cambio,
+                'hoje': custo_hoje,
+                'sete_dias': custo_7d,
+                'mes_atual': custo_mes,
+                'trinta_dias': custo_30d,
+            }
+
             # === Heatmap por hora do dia (últimos 7 dias) ===
             cursor.execute('''
                 SELECT hora_dia, COUNT(*)
@@ -862,6 +941,7 @@ def get_admin_dashboard_stats():
                     'amostras_7d': tempo_amostras,
                 },
                 'modelos_gemini': modelos,
+                'custos': custos,
                 'heatmap_horas_7d': heatmap_horas,
                 'alcance': {
                     'ips_unicos_30d': total_ips_unicos_30d,
