@@ -29,6 +29,16 @@
         return `${(ms / 1000).toFixed(1)} s`;
     }
 
+    function fmtBRL(valor) {
+        if (valor == null || isNaN(valor)) return '—';
+        return new Intl.NumberFormat('pt-BR', {
+            style: 'currency',
+            currency: 'BRL',
+            minimumFractionDigits: 2,
+            maximumFractionDigits: valor < 1 ? 4 : 2
+        }).format(valor);
+    }
+
     function fmtHora() {
         return new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     }
@@ -68,6 +78,27 @@
         setText('kpiTempoFoot', tp.amostras_7d ? `7d · ${fmtNumero(tp.amostras_7d)} amostras` : '7d · sem dados');
 
         setText('kpiIpsUnicos', fmtNumero(al.ips_unicos_30d));
+
+        // KPIs de custo (Gemini · BRL)
+        const custos = data.custos || {};
+        const ch = custos.hoje || {};
+        const cm = custos.mes_atual || {};
+        const c30 = custos.trinta_dias || {};
+
+        setText('kpiCustoHoje', fmtBRL(ch.total_brl));
+        setText('kpiCustoHojeFoot',
+            `${fmtNumero(ch.total_documentos || 0)} docs · ${fmtNumero((ch.total_tokens_input || 0) + (ch.total_tokens_output || 0))} tokens`);
+
+        setText('kpiCustoMes', fmtBRL(cm.total_brl));
+        setText('kpiCustoMesFoot',
+            `${fmtNumero(cm.total_documentos || 0)} docs · ${fmtNumero((cm.total_tokens_input || 0) + (cm.total_tokens_output || 0))} tokens`);
+
+        // Médias por simplificação (baseadas em 30 dias)
+        setText('kpiTokensPorDoc', fmtNumero(c30.tokens_medio_por_doc || 0));
+        setText('kpiTokensPorDocFoot',
+            `in: ${fmtNumero(c30.tokens_input_medio_por_doc || 0)} · out: ${fmtNumero(c30.tokens_output_medio_por_doc || 0)}`);
+
+        setText('kpiCustoPorDoc', fmtBRL(c30.custo_medio_por_doc_brl));
     }
 
     function preencherSeguranca(data) {
@@ -223,6 +254,47 @@
         `).join('');
     }
 
+    function renderTabelaCustoModelos(data) {
+        const tbody = document.getElementById('tabelaCustoModelosBody');
+        const tfoot = document.getElementById('tabelaCustoModelosFoot');
+        if (!tbody) return;
+        const c30 = (data.custos && data.custos.trinta_dias) || {};
+        const linhas = c30.por_modelo || [];
+
+        // Atualiza o câmbio mostrado no help text
+        if (data.custos && data.custos.cambio_usd_brl) {
+            setText('custoCambio', `R$ ${data.custos.cambio_usd_brl.toFixed(2)}/USD`);
+        }
+
+        if (linhas.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="admin-empty">Sem tokens registrados ainda. Aguardando processar 1ª simplificação após o deploy.</td></tr>';
+            if (tfoot) tfoot.hidden = true;
+            return;
+        }
+
+        tbody.innerHTML = linhas.map(r => `
+            <tr>
+                <td><code>${escapeHtml(r.modelo)}</code></td>
+                <td class="num">${fmtNumero(r.documentos)}</td>
+                <td class="num">${fmtNumero(r.tokens_input)}</td>
+                <td class="num">${fmtNumero(r.tokens_output)}</td>
+                <td class="num">${fmtNumero(r.tokens_medio_por_doc)}</td>
+                <td class="num"><strong>${fmtBRL(r.custo_brl)}</strong></td>
+                <td class="num">${fmtBRL(r.custo_brl_por_doc)}</td>
+            </tr>
+        `).join('');
+
+        if (tfoot) {
+            tfoot.hidden = false;
+            setText('custoFootDocs', fmtNumero(c30.total_documentos));
+            setText('custoFootIn', fmtNumero(c30.total_tokens_input));
+            setText('custoFootOut', fmtNumero(c30.total_tokens_output));
+            setText('custoFootMedio', fmtNumero(c30.tokens_medio_por_doc));
+            setText('custoFootTotal', fmtBRL(c30.total_brl));
+            setText('custoFootPorDoc', fmtBRL(c30.custo_medio_por_doc_brl));
+        }
+    }
+
     function renderTabelaTipos(data) {
         const tbody = document.getElementById('tabelaTiposBody');
         if (!tbody) return;
@@ -279,6 +351,7 @@
             renderHeatmapChart(data);
             renderIpsChart(data);
             renderTabelaModelos(data);
+            renderTabelaCustoModelos(data);
             renderTabelaTipos(data);
             setLastUpdate(`atualizado ${fmtHora()}`);
         } catch (err) {
