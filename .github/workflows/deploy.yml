@@ -1,0 +1,32 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script_stop: true
+          script: |
+            set -e
+            cd /opt/projeto-linguaguem-simples
+            echo "Pulling latest code..."
+            git pull origin main
+            echo "Building and restarting containers..."
+            docker compose up -d --build
+            echo "Cleaning old images..."
+            docker image prune -f
+            echo "Waiting for app to be ready..."
+            sleep 15
+            echo "Checking health..."
+            curl -fsS http://localhost:8080/health || (echo "Health check failed!" && docker compose logs --tail=50 && exit 1)
+            echo "Deploy successful"
