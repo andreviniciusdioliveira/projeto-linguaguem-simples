@@ -288,10 +288,23 @@
     }
 
     function start() {
-        // Garante que Chart.js carregou (script tag tem defer)
+        // Garante que Chart.js carregou (script tag tem defer).
+        // Se passar de 5s sem aparecer, provavelmente foi bloqueado (CSP, ad-blocker
+        // ou erro 404 no asset). Avisa o usuário em vez de esperar pra sempre.
+        const PRAZO_CHART_MS = 5000;
         if (typeof Chart === 'undefined') {
+            if (!start._chartTimeout) {
+                start._chartTimeout = setTimeout(() => {
+                    setLastUpdate('falha ao carregar Chart.js — verifique /static/chart.umd.min.js');
+                    console.error('Chart.js não carregou em ' + PRAZO_CHART_MS + 'ms — abortando renderização de gráficos');
+                }, PRAZO_CHART_MS);
+            }
             setTimeout(start, 100);
             return;
+        }
+        if (start._chartTimeout) {
+            clearTimeout(start._chartTimeout);
+            start._chartTimeout = null;
         }
         Chart.defaults.font.family = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
         Chart.defaults.color = '#5b6776';
