@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auditoria · Painel Administrativo</title>
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='50%' x='50%' text-anchor='middle' font-size='80'>⚖️</text></svg>">
+    <link rel="stylesheet" href="/static/admin.css">
+</head>
+<body>
+    {% include 'admin/_nav.html' %}
+
+    <main class="admin-shell">
+        <header class="admin-header">
+            <h1>Auditoria do painel</h1>
+            <p class="admin-subtitle">
+                Eventos críticos sempre registrados.
+                Eventos repetitivos (dashboard_view, api_stats) deduplicados em janela de 5 min.
+                Retenção: 180 dias (LGPD).
+            </p>
+        </header>
+
+        <section class="admin-card admin-card--full">
+            <form method="GET" action="/admin/audit" class="admin-form-grid">
+                <div>
+                    <label class="admin-label" for="filtro-user">Filtrar por usuário</label>
+                    <input type="text" id="filtro-user" name="user" class="admin-input"
+                           value="{{ filtro_user }}" placeholder="ex: admin">
+                </div>
+                <div>
+                    <label class="admin-label" for="filtro-action">Filtrar por ação</label>
+                    <input type="text" id="filtro-action" name="action" class="admin-input"
+                           value="{{ filtro_action }}" placeholder="ex: login, user_create">
+                </div>
+                <div class="admin-form-submit">
+                    <button type="submit" class="admin-button admin-button--primary">Filtrar</button>
+                    {% if filtro_user or filtro_action %}
+                    <a href="/admin/audit" class="admin-button admin-button--ghost"
+                       style="margin-left: 0.5rem; color: var(--tjto-azul); border-color: var(--tjto-azul);">Limpar</a>
+                    {% endif %}
+                </div>
+            </form>
+        </section>
+
+        <section class="admin-card admin-card--full">
+            <h2>Eventos · {{ dados.total }} total · página {{ dados.pagina }}</h2>
+            <div class="admin-table-wrap">
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>Quando</th>
+                            <th>Usuário</th>
+                            <th>Ação</th>
+                            <th>Alvo</th>
+                            <th>Detalhes</th>
+                            <th>IP (hash)</th>
+                            <th>Resultado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for e in dados.eventos %}
+                        <tr>
+                            <td><small>{{ e.timestamp[:19].replace('T', ' ') }}</small></td>
+                            <td>{{ e.username or '—' }}</td>
+                            <td><code>{{ e.action }}</code></td>
+                            <td>{{ e.target or '—' }}</td>
+                            <td><small>{{ e.detalhes or '' }}</small></td>
+                            <td><small style="font-family: monospace;">{{ (e.ip_hash or '—')[:12] }}…</small></td>
+                            <td>
+                                {% if e.sucesso %}
+                                <span class="admin-pill admin-pill--ok">ok</span>
+                                {% else %}
+                                <span class="admin-pill admin-pill--danger">falha</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="7" class="admin-empty">Nenhum evento encontrado.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="admin-paginacao">
+                {% if dados.pagina > 1 %}
+                <a href="?pagina={{ dados.pagina - 1 }}{% if filtro_user %}&user={{ filtro_user }}{% endif %}{% if filtro_action %}&action={{ filtro_action }}{% endif %}"
+                   class="admin-button admin-button--small">← Página anterior</a>
+                {% endif %}
+                {% if dados.eventos|length == dados.limite %}
+                <a href="?pagina={{ dados.pagina + 1 }}{% if filtro_user %}&user={{ filtro_user }}{% endif %}{% if filtro_action %}&action={{ filtro_action }}{% endif %}"
+                   class="admin-button admin-button--small">Próxima página →</a>
+                {% endif %}
+            </div>
+        </section>
+    </main>
+
+    <footer class="admin-footer-mini">
+        Tribunal de Justiça do Estado do Tocantins · INOVASSOL ·
+        <a href="/">App público</a>
+    </footer>
+</body>
+</html>

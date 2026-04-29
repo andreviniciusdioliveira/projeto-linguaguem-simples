@@ -209,6 +209,53 @@ def _init_db_inner():
             ''')
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_login_ip_ts ON admin_login_attempts(ip_hash, timestamp)')
 
+            # === TABELAS DA FASE 2 DO PAINEL ADMIN (multi-usuário) ===
+            # Usuários com papel (superadmin/viewer), criação/desativação,
+            # tokens de reset de senha (one-time, 24h) e log de auditoria.
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS admin_users (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    username TEXT NOT NULL UNIQUE,
+                    password_hash TEXT NOT NULL,
+                    role TEXT NOT NULL DEFAULT 'viewer',
+                    ativo INTEGER NOT NULL DEFAULT 1,
+                    criado_em TEXT NOT NULL,
+                    criado_por TEXT,
+                    ultimo_login TEXT,
+                    senha_alterada_em TEXT
+                )
+            ''')
+            cursor.execute('CREATE INDEX IF NOT EXISTS idx_admin_users_username ON admin_users(username)')
+
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS admin_password_reset_tokens (
+                    token TEXT PRIMARY KEY,
+                    user_id INTEGER NOT NULL,
+                    criado_em TEXT NOT NULL,
+                    criado_por TEXT,
+                    expira_em TEXT NOT NULL,
+                    usado_em TEXT,
+                    FOREIGN KEY (user_id) REFERENCES admin_users(id)
+                )
+            ''')
+            cursor.execute('CREATE INDEX IF NOT EXISTS idx_admin_reset_user ON admin_password_reset_tokens(user_id)')
+
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS admin_audit (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    timestamp TEXT NOT NULL,
+                    username TEXT,
+                    action TEXT NOT NULL,
+                    target TEXT,
+                    detalhes TEXT,
+                    ip_hash TEXT,
+                    sucesso INTEGER NOT NULL DEFAULT 1
+                )
+            ''')
+            cursor.execute('CREATE INDEX IF NOT EXISTS idx_admin_audit_ts ON admin_audit(timestamp)')
+            cursor.execute('CREATE INDEX IF NOT EXISTS idx_admin_audit_user ON admin_audit(username, timestamp)')
+            cursor.execute('CREATE INDEX IF NOT EXISTS idx_admin_audit_action ON admin_audit(action, timestamp)')
+
             # === TABELA DE USO DIÁRIO DE TOKENS ===
             # Controla o consumo de tokens da API Gemini por dia
             cursor.execute('''
@@ -680,6 +727,390 @@ def limpar_tentativas_login_admin_antigas(horas=24):
             return cursor.rowcount
         except Exception as e:
             logging.error(f"❌ Erro ao limpar tentativas admin: {e}")
+            return 0
+        finally:
+            conn.close()
+
+
+# ============================================================================
+# FASE 2: GESTÃO DE USUÁRIOS DO PAINEL ADMIN
+# ============================================================================
+# Multi-usuário com papéis (superadmin/viewer), reset de senha por token
+# one-time e auditoria. Bootstrap automático: na primeira inicialização,
+# se admin_users estiver vazia e ADMIN_PASSWORD_HASH estiver definida no
+# ambiente, cria o usuário "admin" como superadmin com aquele hash.
+
+ROLE_SUPERADMIN = 'superadmin'
+ROLE_VIEWER = 'viewer'
+ROLES_VALIDOS = (ROLE_SUPERADMIN, ROLE_VIEWER)
+
+
+def _row_admin_user(row):
+    """Converte uma row da tabela admin_users em dict (mais ergonômico)."""
+    if not row:
+        return None
+    return {
+        'id': row[0],
+        'username': row[1],
+        'password_hash': row[2],
+        'role': row[3],
+        'ativo': bool(row[4]),
+        'criado_em': row[5],
+        'criado_por': row[6],
+        'ultimo_login': row[7],
+        'senha_alterada_em': row[8],
+    }
+
+
+def admin_users_count():
+    """Retorna quantos usuários admin existem (qualquer role, ativos ou não)."""
+    with db_lock:
+        try:
+            conn = sqlite3.connect(DB_PATH, timeout=30)
+            cursor = conn.cursor()
+            cursor.execute('SELECT COUNT(*) FROM admin_users')
+            return cursor.fetchone()[0] or 0
+        except Exception as e:
+            logging.error(f"❌ Erro ao contar admin_users: {e}")
+            return 0
+        finally:
+            conn.close()
+
+
+def bootstrap_admin_user_se_vazio(password_hash_env):
+    """
+    Se a tabela admin_users estiver vazia e existir uma senha em
+    ADMIN_PASSWORD_HASH, cria o usuário "admin" como superadmin.
+    Idempotente: roda toda vez que init_db é chamado, mas só insere uma vez.
+    """
+    if not password_hash_env:
+        return False
+    if admin_users_count() > 0:
+        return False
+    try:
+        criar_admin_user(
+            username='admin',
+            password_hash=password_hash_env,
+            role=ROLE_SUPERADMIN,
+            criado_por='bootstrap',
+        )
+        logging.info('🔐 Bootstrap: usuário "admin" superadmin criado a partir de ADMIN_PASSWORD_HASH')
+        return True
+    except Exception as e:
+        logging.error(f'❌ Erro no bootstrap do admin: {e}')
+        return False
+
+
+def criar_admin_user(username, password_hash, role=ROLE_VIEWER, criado_por=None):
+    """Insere um novo usuário admin. Levanta ValueError em duplicidade ou role inválido."""
+    username = (username or '').strip().lower()
+    if not username:
+        raise ValueError('username obrigatório')
+    if not password_hash:
+        raise ValueError('password_hash obrigatório')
+    if role not in ROLES_VALIDOS:
+        raise ValueError(f'role inválido: {role}')
+
+    agora = datetime.now().isoformat()
+    with db_lock:
+        try:
+            conn = sqlite3.connect(DB_PATH, timeout=30)
+            cursor = conn.cursor()
+            cursor.execute('''
+                INSERT INTO admin_users
+                    (username, password_hash, role, ativo, criado_em, criado_por, senha_alterada_em)
+                VALUES (?, ?, ?, 1, ?, ?, ?)
+            ''', (username, password_hash, role, agora, criado_por, agora))
+            conn.commit()
+            return cursor.lastrowid
+        except sqlite3.IntegrityError:
+            raise ValueError(f'usuário "{username}" já existe')
+        finally:
+            conn.close()
+
+
+def obter_admin_user_por_username(username):
+    username = (username or '').strip().lower()
+    if not username:
+        return None
+    with db_lock:
+        try:
+            conn = sqlite3.connect(DB_PATH, timeout=30)
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT id, username, password_hash, role, ativo, criado_em, criado_por,
+                       ultimo_login, senha_alterada_em
+                FROM admin_users WHERE username = ?
+            ''', (username,))
+            return _row_admin_user(cursor.fetchone())
+        finally:
+            conn.close()
+
+
+def obter_admin_user_por_id(user_id):
+    with db_lock:
+        try:
+            conn = sqlite3.connect(DB_PATH, timeout=30)
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT id, username, password_hash, role, ativo, criado_em, criado_por,
+                       ultimo_login, senha_alterada_em
+                FROM admin_users WHERE id = ?
+            ''', (user_id,))
+            return _row_admin_user(cursor.fetchone())
+        finally:
+            conn.close()
+
+
+def listar_admin_users():
+    """Lista todos os usuários (sem o hash da senha — não é exposto)."""
+    with db_lock:
+        try:
+            conn = sqlite3.connect(DB_PATH, timeout=30)
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT id, username, role, ativo, criado_em, criado_por, ultimo_login, senha_alterada_em
+                FROM admin_users ORDER BY criado_em DESC
+            ''')
+            return [{
+                'id': r[0], 'username': r[1], 'role': r[2], 'ativo': bool(r[3]),
+                'criado_em': r[4], 'criado_por': r[5],
+                'ultimo_login': r[6], 'senha_alterada_em': r[7]
+            } for r in cursor.fetchall()]
+        finally:
+            conn.close()
+
+
+def atualizar_senha_admin_user(user_id, novo_hash):
+    agora = datetime.now().isoformat()
+    with db_lock:
+        try:
+            conn = sqlite3.connect(DB_PATH, timeout=30)
+            cursor = conn.cursor()
+            cursor.execute('''
+                UPDATE admin_users
+                SET password_hash = ?, senha_alterada_em = ?
+                WHERE id = ?
+            ''', (novo_hash, agora, user_id))
+            conn.commit()
+            return cursor.rowcount > 0
+        finally:
+            conn.close()
+
+
+def definir_admin_user_ativo(user_id, ativo):
+    with db_lock:
+        try:
+            conn = sqlite3.connect(DB_PATH, timeout=30)
+            cursor = conn.cursor()
+            cursor.execute('UPDATE admin_users SET ativo = ? WHERE id = ?',
+                          (1 if ativo else 0, user_id))
+            conn.commit()
+            return cursor.rowcount > 0
+        finally:
+            conn.close()
+
+
+def registrar_ultimo_login_admin(user_id):
+    with db_lock:
+        try:
+            conn = sqlite3.connect(DB_PATH, timeout=30)
+            cursor = conn.cursor()
+            cursor.execute('UPDATE admin_users SET ultimo_login = ? WHERE id = ?',
+                          (datetime.now().isoformat(), user_id))
+            conn.commit()
+        except Exception as e:
+            logging.error(f"❌ Erro ao registrar ultimo_login: {e}")
+        finally:
+            conn.close()
+
+
+# --- Tokens de reset de senha (one-time, 24h) ---
+
+def criar_token_reset_admin(user_id, criado_por, validade_horas=24):
+    """Cria um token URL-safe de reset, retorna a string."""
+    token = secrets.token_urlsafe(32)
+    agora = datetime.now()
+    expira = agora + timedelta(hours=validade_horas)
+    with db_lock:
+        try:
+            conn = sqlite3.connect(DB_PATH, timeout=30)
+            cursor = conn.cursor()
+            cursor.execute('''
+                INSERT INTO admin_password_reset_tokens
+                    (token, user_id, criado_em, criado_por, expira_em)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (token, user_id, agora.isoformat(), criado_por, expira.isoformat()))
+            conn.commit()
+            return token
+        finally:
+            conn.close()
+
+
+def validar_token_reset_admin(token):
+    """Retorna user_id se o token for válido (não usado, não expirado), senão None."""
+    if not token:
+        return None
+    with db_lock:
+        try:
+            conn = sqlite3.connect(DB_PATH, timeout=30)
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT user_id, expira_em, usado_em
+                FROM admin_password_reset_tokens
+                WHERE token = ?
+            ''', (token,))
+            row = cursor.fetchone()
+            if not row:
+                return None
+            user_id, expira_em, usado_em = row
+            if usado_em:
+                return None  # já consumido
+            try:
+                if datetime.fromisoformat(expira_em) < datetime.now():
+                    return None  # expirado
+            except ValueError:
+                return None
+            return user_id
+        finally:
+            conn.close()
+
+
+def consumir_token_reset_admin(token):
+    """Marca o token como usado. Idempotente: se já estava usado, retorna False."""
+    with db_lock:
+        try:
+            conn = sqlite3.connect(DB_PATH, timeout=30)
+            cursor = conn.cursor()
+            cursor.execute('''
+                UPDATE admin_password_reset_tokens
+                SET usado_em = ?
+                WHERE token = ? AND usado_em IS NULL
+            ''', (datetime.now().isoformat(), token))
+            conn.commit()
+            return cursor.rowcount > 0
+        finally:
+            conn.close()
+
+
+def limpar_tokens_reset_expirados():
+    """Remove tokens expirados ou usados há mais de 7 dias (rotina LGPD)."""
+    corte = (datetime.now() - timedelta(days=7)).isoformat()
+    with db_lock:
+        try:
+            conn = sqlite3.connect(DB_PATH, timeout=30)
+            cursor = conn.cursor()
+            cursor.execute('''
+                DELETE FROM admin_password_reset_tokens
+                WHERE expira_em < ? OR (usado_em IS NOT NULL AND usado_em < ?)
+            ''', (datetime.now().isoformat(), corte))
+            conn.commit()
+            return cursor.rowcount
+        except Exception as e:
+            logging.error(f"❌ Erro ao limpar tokens reset: {e}")
+            return 0
+        finally:
+            conn.close()
+
+
+# --- Auditoria ---
+
+def registrar_audit_admin(username, action, target=None, detalhes=None, ip_address=None, sucesso=True):
+    """
+    Registra evento na auditoria do painel admin.
+
+    Para eventos repetitivos (dashboard_view, api_stats), use
+    registrar_audit_admin_debounced que evita duplicar entradas em janelas curtas.
+    """
+    ip_hash = gerar_hash_ip(ip_address) if ip_address else None
+    with db_lock:
+        try:
+            conn = sqlite3.connect(DB_PATH, timeout=30)
+            cursor = conn.cursor()
+            cursor.execute('''
+                INSERT INTO admin_audit (timestamp, username, action, target, detalhes, ip_hash, sucesso)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            ''', (datetime.now().isoformat(), username, action, target, detalhes,
+                  ip_hash, 1 if sucesso else 0))
+            conn.commit()
+        except Exception as e:
+            logging.error(f"❌ Erro ao registrar audit admin: {e}")
+        finally:
+            conn.close()
+
+
+def registrar_audit_admin_debounced(username, action, janela_minutos=5, **kwargs):
+    """
+    Versão "debounced": só registra se já não houver um evento idêntico
+    (mesmo username + action) na janela informada. Usado pra dashboard_view
+    e api_stats que ocorrem com polling de 30s.
+    """
+    if not username or not action:
+        return
+    corte = (datetime.now() - timedelta(minutes=janela_minutos)).isoformat()
+    with db_lock:
+        try:
+            conn = sqlite3.connect(DB_PATH, timeout=30)
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT 1 FROM admin_audit
+                WHERE username = ? AND action = ? AND timestamp >= ?
+                LIMIT 1
+            ''', (username, action, corte))
+            if cursor.fetchone():
+                return  # já temos um recente; pula
+        finally:
+            conn.close()
+    registrar_audit_admin(username=username, action=action, **kwargs)
+
+
+def listar_audit_admin(limite=200, pagina=1, filtro_username=None, filtro_action=None):
+    """Lista eventos de auditoria com paginação simples."""
+    offset = max(0, (pagina - 1) * limite)
+    where = []
+    params = []
+    if filtro_username:
+        where.append('username = ?')
+        params.append(filtro_username.strip().lower())
+    if filtro_action:
+        where.append('action = ?')
+        params.append(filtro_action)
+    where_sql = ('WHERE ' + ' AND '.join(where)) if where else ''
+    with db_lock:
+        try:
+            conn = sqlite3.connect(DB_PATH, timeout=30)
+            cursor = conn.cursor()
+            cursor.execute(f'SELECT COUNT(*) FROM admin_audit {where_sql}', params)
+            total = cursor.fetchone()[0] or 0
+            cursor.execute(f'''
+                SELECT id, timestamp, username, action, target, detalhes, ip_hash, sucesso
+                FROM admin_audit
+                {where_sql}
+                ORDER BY timestamp DESC
+                LIMIT ? OFFSET ?
+            ''', params + [limite, offset])
+            eventos = [{
+                'id': r[0], 'timestamp': r[1], 'username': r[2], 'action': r[3],
+                'target': r[4], 'detalhes': r[5], 'ip_hash': r[6],
+                'sucesso': bool(r[7])
+            } for r in cursor.fetchall()]
+            return {'total': total, 'pagina': pagina, 'limite': limite, 'eventos': eventos}
+        finally:
+            conn.close()
+
+
+def limpar_audit_admin_antigo(dias=180):
+    """Mantém auditoria por 180 dias (LGPD: tempo proporcional à finalidade)."""
+    corte = (datetime.now() - timedelta(days=dias)).isoformat()
+    with db_lock:
+        try:
+            conn = sqlite3.connect(DB_PATH, timeout=30)
+            cursor = conn.cursor()
+            cursor.execute('DELETE FROM admin_audit WHERE timestamp < ?', (corte,))
+            conn.commit()
+            return cursor.rowcount
+        except Exception as e:
+            logging.error(f"❌ Erro ao limpar audit admin: {e}")
             return 0
         finally:
             conn.close()

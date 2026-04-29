@@ -12,18 +12,7 @@
     <script src="/static/admin.js" defer></script>
 </head>
 <body>
-    <div class="tjto-bar" role="banner">
-        <div class="tjto-bar-inner admin-bar-inner">
-            <img src="/static/logojto.png" alt="Poder Judiciário do Estado do Tocantins">
-            <div class="admin-bar-actions">
-                <span class="admin-bar-label">Painel Administrativo</span>
-                <form method="POST" action="/admin/logout" class="admin-logout-form">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                    <button type="submit" class="admin-button admin-button--ghost">Sair</button>
-                </form>
-            </div>
-        </div>
-    </div>
+    {% include 'admin/_nav.html' %}
 
     <main class="admin-shell">
         <header class="admin-header">

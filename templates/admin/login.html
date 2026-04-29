@@ -31,14 +31,27 @@
             <form method="POST" action="/admin/login" autocomplete="off" novalidate>
                 <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
 
-                <label for="senha" class="admin-label">Senha de administrador</label>
+                <label for="username" class="admin-label">Usuário</label>
+                <input type="text"
+                       id="username"
+                       name="username"
+                       class="admin-input"
+                       autocomplete="username"
+                       required
+                       autofocus
+                       autocapitalize="none"
+                       spellcheck="false"
+                       {% if bloqueado %}disabled{% endif %}>
+
+                <div style="height: 0.75rem;"></div>
+
+                <label for="senha" class="admin-label">Senha</label>
                 <input type="password"
                        id="senha"
                        name="senha"
                        class="admin-input"
                        autocomplete="current-password"
                        required
-                       autofocus
                        {% if bloqueado %}disabled{% endif %}>
 
                 <button type="submit" class="admin-button admin-button--primary" {% if bloqueado %}disabled{% endif %}>
@@ -47,7 +60,7 @@
             </form>
 
             <p class="admin-login-help">
-                Esqueceu a senha? Peça ao administrador do servidor para regenerar
+                Esqueceu a senha? Peça ao superadmin para gerar um link de reset, ou regenere
                 <code>ADMIN_PASSWORD_HASH</code> nas variáveis de ambiente.
             </p>
 
