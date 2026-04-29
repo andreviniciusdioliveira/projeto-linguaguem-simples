@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Redefinir senha · Painel Administrativo</title>
+    <meta name="robots" content="noindex, nofollow">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='50%' x='50%' text-anchor='middle' font-size='80'>⚖️</text></svg>">
+    <link rel="stylesheet" href="/static/admin.css">
+</head>
+<body class="admin-login-page">
+    <div class="tjto-bar" role="banner">
+        <div class="tjto-bar-inner">
+            <img src="/static/logojto.png" alt="Poder Judiciário do Estado do Tocantins">
+        </div>
+    </div>
+
+    <main class="admin-login-shell">
+        <section class="admin-login-card" aria-labelledby="reset-title">
+            <header>
+                <h1 id="reset-title">Redefinir senha</h1>
+                {% if user %}
+                <p class="admin-login-sub">Definindo nova senha para <strong>{{ user.username }}</strong></p>
+                {% endif %}
+            </header>
+
+            {% if sucesso %}
+            <div class="admin-alert admin-flash--ok" role="status">
+                Senha alterada com sucesso. <a href="/admin/login">Entrar agora</a>.
+            </div>
+            {% elif erro %}
+            <div class="admin-alert" role="alert">{{ erro }}</div>
+            {% endif %}
+
+            {% if token and user %}
+            <form method="POST" action="/admin/reset/{{ token }}" autocomplete="off">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+                <label class="admin-label" for="senha">Nova senha (mín 10 caracteres)</label>
+                <input type="password" id="senha" name="senha" class="admin-input"
+                       minlength="10" required autofocus autocomplete="new-password">
+
+                <div style="height: 0.75rem;"></div>
+
+                <label class="admin-label" for="senha_conf">Confirme a nova senha</label>
+                <input type="password" id="senha_conf" name="senha_conf" class="admin-input"
+                       minlength="10" required autocomplete="new-password">
+
+                <button type="submit" class="admin-button admin-button--primary">Redefinir senha</button>
+            </form>
+
+            <p class="admin-login-help">
+                Este link é de uso único e expira em 24 horas.
+                Após redefinir, você poderá entrar em <code>/admin/login</code>.
+            </p>
+            {% endif %}
+
+            <p class="admin-login-back">
+                <a href="/">← Voltar ao app público</a>
+            </p>
+        </section>
+    </main>
+
+    <footer class="admin-footer-mini">
+        Tribunal de Justiça do Estado do Tocantins · INOVASSOL
+    </footer>
+</body>
+</html>

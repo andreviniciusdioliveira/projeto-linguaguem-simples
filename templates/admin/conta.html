@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minha conta · Painel Administrativo</title>
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='50%' x='50%' text-anchor='middle' font-size='80'>⚖️</text></svg>">
+    <link rel="stylesheet" href="/static/admin.css">
+</head>
+<body>
+    {% include 'admin/_nav.html' %}
+
+    <main class="admin-shell">
+        <header class="admin-header">
+            <h1>Minha conta</h1>
+            <p class="admin-subtitle">Logado como <strong>{{ usuario.username }}</strong> ({{ usuario.role }})</p>
+        </header>
+
+        {% if msg %}<div class="admin-flash admin-flash--ok" role="status">{{ msg }}</div>{% endif %}
+        {% if erro %}<div class="admin-flash admin-flash--erro" role="alert">{{ erro }}</div>{% endif %}
+
+        <section class="admin-card admin-card--full" aria-label="Informações da conta">
+            <h2>Informações</h2>
+            <dl class="admin-dl">
+                <dt>Usuário</dt><dd>{{ usuario.username }}</dd>
+                <dt>Papel</dt><dd>{{ usuario.role }}</dd>
+                <dt>Conta criada em</dt><dd>{{ usuario.criado_em[:16].replace('T', ' ') }}</dd>
+                <dt>Senha alterada em</dt><dd>{{ (usuario.senha_alterada_em or usuario.criado_em)[:16].replace('T', ' ') }}</dd>
+                <dt>Último login</dt><dd>{{ (usuario.ultimo_login or 'nunca')[:16].replace('T', ' ') if usuario.ultimo_login else 'nunca' }}</dd>
+            </dl>
+        </section>
+
+        <section class="admin-card admin-card--full" aria-label="Trocar senha">
+            <h2>Trocar senha</h2>
+            <form method="POST" action="/admin/conta/senha" autocomplete="off" class="admin-form-grid">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <div>
+                    <label class="admin-label" for="senha-atual">Senha atual</label>
+                    <input type="password" id="senha-atual" name="senha_atual"
+                           class="admin-input" required autocomplete="current-password">
+                </div>
+                <div>
+                    <label class="admin-label" for="senha-nova">Nova senha (mín 10 caracteres)</label>
+                    <input type="password" id="senha-nova" name="senha_nova"
+                           class="admin-input" minlength="10" required autocomplete="new-password">
+                </div>
+                <div>
+                    <label class="admin-label" for="senha-conf">Confirme a nova senha</label>
+                    <input type="password" id="senha-conf" name="senha_conf"
+                           class="admin-input" minlength="10" required autocomplete="new-password">
+                </div>
+                <div class="admin-form-submit">
+                    <button type="submit" class="admin-button admin-button--primary">Alterar senha</button>
+                </div>
+            </form>
+        </section>
+    </main>
+
+    <footer class="admin-footer-mini">
+        Tribunal de Justiça do Estado do Tocantins · INOVASSOL ·
+        <a href="/">App público</a>
+    </footer>
+</body>
+</html>

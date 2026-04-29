@@ -3492,6 +3492,10 @@ cleanup_thread.start()
 # Sessão expira por inatividade (30 min) — ver auth.py.
 
 import auth  # noqa: E402
+from werkzeug.security import generate_password_hash  # noqa: E402
+
+# Bootstrap: cria usuário "admin" superadmin se admin_users estiver vazia
+auth.bootstrap_se_necessario()
 
 
 @app.route("/admin/login", methods=["GET"])
@@ -3506,7 +3510,8 @@ def admin_login_page():
             "admin/login.html",
             csrf_token=csrf_token,
             erro="O painel administrativo ainda não foi configurado neste servidor. "
-                 "Defina ADMIN_PASSWORD_HASH nas variáveis de ambiente.",
+                 "Defina ADMIN_PASSWORD_HASH nas variáveis de ambiente para criar o "
+                 "primeiro usuário automaticamente.",
             bloqueado=False,
         )
     return render_template("admin/login.html", csrf_token=csrf_token, erro=None, bloqueado=False)
@@ -3521,6 +3526,7 @@ def admin_login_submit():
 
     if auth.ip_bloqueado(ip_address):
         logging.warning(f"🚫 IP bloqueado por tentativas excessivas no login admin: {ip_address[:10]}…")
+        auth.audit_action('login_bloqueado', detalhes='ip_bloqueado', sucesso=False, username='-')
         return render_template(
             "admin/login.html",
             csrf_token=csrf_token,
@@ -3528,20 +3534,26 @@ def admin_login_submit():
             bloqueado=True,
         ), 429
 
-    senha = request.form.get("senha", "")
+    username = (request.form.get("username") or "").strip().lower()
+    senha = request.form.get("senha") or ""
 
-    if auth.verificar_senha_admin(senha):
+    user = auth.autenticar(username, senha)
+    if user:
         database.registrar_tentativa_login_admin(ip_address, sucesso=True)
-        auth.autenticar_admin()
+        database.registrar_ultimo_login_admin(user['id'])
+        auth.autenticar_sessao(user)
+        auth.audit_action('login', username=user['username'], sucesso=True)
         next_path = request.args.get("next", "")
         if next_path.startswith("/admin"):
             return redirect(next_path)
         return redirect(url_for("admin_dashboard"))
 
     database.registrar_tentativa_login_admin(ip_address, sucesso=False)
+    auth.audit_action('login_falha', username=username or '-',
+                      detalhes='credencial inválida', sucesso=False)
     falhas = database.contar_tentativas_login_admin_falhas(ip_address, auth.JANELA_BLOQUEIO_MIN)
     restantes = max(0, auth.MAX_TENTATIVAS_FALHAS - falhas)
-    msg = "Senha incorreta."
+    msg = "Usuário ou senha incorretos."
     if restantes <= 2:
         msg += f" Você ainda pode tentar {restantes} vez(es) nos próximos {auth.JANELA_BLOQUEIO_MIN} min."
     return render_template("admin/login.html", csrf_token=csrf_token, erro=msg, bloqueado=False), 401
@@ -3551,6 +3563,7 @@ def admin_login_submit():
 @require_csrf_form
 def admin_logout():
     """Encerra a sessão do admin."""
+    auth.audit_action('logout', sucesso=True)
     auth.desautenticar_admin()
     return redirect(url_for("admin_login_page"))
 
@@ -3559,13 +3572,20 @@ def admin_logout():
 @auth.admin_required
 def admin_dashboard():
     """Dashboard com métricas agregadas do app."""
-    return render_template("admin/dashboard.html", csrf_token=gerar_csrf_token())
+    auth.audit_action('dashboard_view')
+    return render_template(
+        "admin/dashboard.html",
+        csrf_token=gerar_csrf_token(),
+        usuario=auth.current_admin_user(),
+        is_superadmin=auth.is_superadmin(),
+    )
 
 
 @app.route("/admin/api/stats", methods=["GET"])
 @auth.admin_required
 def admin_api_stats():
     """API JSON com todas as métricas — alimenta os gráficos do dashboard."""
+    auth.audit_action('api_stats')
     try:
         return jsonify(database.get_admin_dashboard_stats())
     except Exception as e:
@@ -3573,14 +3593,255 @@ def admin_api_stats():
         return jsonify({"erro": str(e)}), 500
 
 
-# Limpeza periódica das tentativas de login admin (LGPD: dados temporários)
+# ----------------------------------------------------------------------------
+# Gestão de usuários (só superadmin)
+# ----------------------------------------------------------------------------
+
+@app.route("/admin/usuarios", methods=["GET"])
+@auth.superadmin_required
+def admin_usuarios_listar():
+    """Lista todos os usuários admin."""
+    return render_template(
+        "admin/usuarios.html",
+        csrf_token=gerar_csrf_token(),
+        usuario=auth.current_admin_user(),
+        is_superadmin=True,
+        usuarios=database.listar_admin_users(),
+        roles=database.ROLES_VALIDOS,
+        msg=request.args.get('msg'),
+        erro=request.args.get('erro'),
+        reset_link=request.args.get('reset_link'),
+        reset_username=request.args.get('reset_username'),
+    )
+
+
+@app.route("/admin/usuarios/criar", methods=["POST"])
+@auth.superadmin_required
+@require_csrf_form
+def admin_usuarios_criar():
+    """Cria um novo usuário admin."""
+    me = auth.current_admin_user()
+    username = (request.form.get('username') or '').strip().lower()
+    senha = request.form.get('senha') or ''
+    role = request.form.get('role') or database.ROLE_VIEWER
+
+    if len(senha) < 10:
+        auth.audit_action('user_create', target=username,
+                          detalhes='senha < 10 chars', sucesso=False)
+        return redirect(url_for('admin_usuarios_listar', erro='Senha precisa ter pelo menos 10 caracteres.'))
+
+    try:
+        database.criar_admin_user(
+            username=username,
+            password_hash=generate_password_hash(senha),
+            role=role,
+            criado_por=me['username'],
+        )
+        auth.audit_action('user_create', target=username,
+                          detalhes=f'role={role}', sucesso=True)
+        return redirect(url_for('admin_usuarios_listar',
+                                msg=f'Usuário "{username}" criado com sucesso.'))
+    except ValueError as e:
+        auth.audit_action('user_create', target=username,
+                          detalhes=str(e), sucesso=False)
+        return redirect(url_for('admin_usuarios_listar', erro=str(e)))
+
+
+@app.route("/admin/usuarios/<int:user_id>/ativar", methods=["POST"])
+@auth.superadmin_required
+@require_csrf_form
+def admin_usuarios_toggle_ativo(user_id):
+    """Liga/desliga um usuário (não exclui pra preservar audit log)."""
+    me = auth.current_admin_user()
+    user = database.obter_admin_user_por_id(user_id)
+    if not user:
+        return redirect(url_for('admin_usuarios_listar', erro='Usuário não encontrado.'))
+    if user['id'] == me['id']:
+        return redirect(url_for('admin_usuarios_listar',
+                                erro='Você não pode desativar a si mesmo.'))
+    novo_estado = not user['ativo']
+    database.definir_admin_user_ativo(user_id, novo_estado)
+    auth.audit_action('user_set_ativo', target=user['username'],
+                      detalhes=f'ativo={novo_estado}', sucesso=True)
+    return redirect(url_for('admin_usuarios_listar',
+                            msg=f'Usuário "{user["username"]}" {"ativado" if novo_estado else "desativado"}.'))
+
+
+@app.route("/admin/usuarios/<int:user_id>/reset", methods=["POST"])
+@auth.superadmin_required
+@require_csrf_form
+def admin_usuarios_gerar_reset(user_id):
+    """Gera token de reset de senha (one-time, 24h). Retorna o link na própria UI."""
+    me = auth.current_admin_user()
+    user = database.obter_admin_user_por_id(user_id)
+    if not user:
+        return redirect(url_for('admin_usuarios_listar', erro='Usuário não encontrado.'))
+
+    token = database.criar_token_reset_admin(user_id, criado_por=me['username'])
+    link = url_for('admin_reset_page', token=token, _external=True)
+    auth.audit_action('user_reset_token', target=user['username'], sucesso=True)
+    return redirect(url_for('admin_usuarios_listar',
+                            reset_link=link, reset_username=user['username'],
+                            msg=f'Link de reset gerado para "{user["username"]}". Envie por canal seguro.'))
+
+
+# ----------------------------------------------------------------------------
+# Reset de senha por token
+# ----------------------------------------------------------------------------
+
+@app.route("/admin/reset/<token>", methods=["GET"])
+def admin_reset_page(token):
+    """Tela de redefinição de senha via token gerado pelo superadmin."""
+    user_id = database.validar_token_reset_admin(token)
+    if not user_id:
+        return render_template(
+            "admin/reset.html",
+            token=token,
+            csrf_token=gerar_csrf_token(),
+            user=None,
+            erro="Link de reset inválido ou expirado. Peça um novo ao administrador.",
+        ), 410
+    user = database.obter_admin_user_por_id(user_id)
+    return render_template(
+        "admin/reset.html",
+        token=token,
+        csrf_token=gerar_csrf_token(),
+        user=user,
+        erro=None,
+    )
+
+
+@app.route("/admin/reset/<token>", methods=["POST"])
+@require_csrf_form
+def admin_reset_submit(token):
+    """Aplica nova senha após validar o token."""
+    user_id = database.validar_token_reset_admin(token)
+    if not user_id:
+        return render_template(
+            "admin/reset.html",
+            token=token,
+            csrf_token=gerar_csrf_token(),
+            user=None,
+            erro="Link de reset inválido ou expirado.",
+        ), 410
+
+    senha = request.form.get('senha') or ''
+    senha_conf = request.form.get('senha_conf') or ''
+    user = database.obter_admin_user_por_id(user_id)
+
+    if len(senha) < 10:
+        return render_template(
+            "admin/reset.html",
+            token=token,
+            csrf_token=gerar_csrf_token(),
+            user=user,
+            erro="A nova senha precisa ter pelo menos 10 caracteres.",
+        )
+    if senha != senha_conf:
+        return render_template(
+            "admin/reset.html",
+            token=token,
+            csrf_token=gerar_csrf_token(),
+            user=user,
+            erro="As duas senhas não conferem.",
+        )
+
+    database.atualizar_senha_admin_user(user_id, generate_password_hash(senha))
+    database.consumir_token_reset_admin(token)
+    database.registrar_audit_admin(
+        username=user['username'], action='password_reset',
+        target=user['username'], detalhes='via token', sucesso=True,
+        ip_address=request.remote_addr,
+    )
+    return render_template(
+        "admin/reset.html",
+        token=None,
+        csrf_token=gerar_csrf_token(),
+        user=user,
+        erro=None,
+        sucesso=True,
+    )
+
+
+# ----------------------------------------------------------------------------
+# Conta própria: trocar senha
+# ----------------------------------------------------------------------------
+
+@app.route("/admin/conta", methods=["GET"])
+@auth.admin_required
+def admin_conta_page():
+    return render_template(
+        "admin/conta.html",
+        csrf_token=gerar_csrf_token(),
+        usuario=auth.current_admin_user(),
+        is_superadmin=auth.is_superadmin(),
+        msg=request.args.get('msg'),
+        erro=request.args.get('erro'),
+    )
+
+
+@app.route("/admin/conta/senha", methods=["POST"])
+@auth.admin_required
+@require_csrf_form
+def admin_conta_alterar_senha():
+    me = auth.current_admin_user()
+    user_full = database.obter_admin_user_por_id(me['id'])
+    senha_atual = request.form.get('senha_atual') or ''
+    senha_nova = request.form.get('senha_nova') or ''
+    senha_conf = request.form.get('senha_conf') or ''
+
+    from werkzeug.security import check_password_hash
+    if not check_password_hash(user_full['password_hash'], senha_atual):
+        auth.audit_action('password_change', detalhes='senha atual incorreta', sucesso=False)
+        return redirect(url_for('admin_conta_page', erro='Senha atual incorreta.'))
+    if len(senha_nova) < 10:
+        return redirect(url_for('admin_conta_page', erro='Nova senha precisa ter pelo menos 10 caracteres.'))
+    if senha_nova != senha_conf:
+        return redirect(url_for('admin_conta_page', erro='As duas senhas novas não conferem.'))
+
+    database.atualizar_senha_admin_user(me['id'], generate_password_hash(senha_nova))
+    auth.audit_action('password_change', sucesso=True)
+    return redirect(url_for('admin_conta_page', msg='Senha alterada com sucesso.'))
+
+
+# ----------------------------------------------------------------------------
+# Audit log (só superadmin)
+# ----------------------------------------------------------------------------
+
+@app.route("/admin/audit", methods=["GET"])
+@auth.superadmin_required
+def admin_audit_view():
+    pagina = max(1, int(request.args.get('pagina', 1) or 1))
+    filtro_user = request.args.get('user') or None
+    filtro_action = request.args.get('action') or None
+    dados = database.listar_audit_admin(
+        limite=200, pagina=pagina,
+        filtro_username=filtro_user, filtro_action=filtro_action,
+    )
+    return render_template(
+        "admin/audit.html",
+        csrf_token=gerar_csrf_token(),
+        usuario=auth.current_admin_user(),
+        is_superadmin=True,
+        dados=dados,
+        filtro_user=filtro_user or '',
+        filtro_action=filtro_action or '',
+    )
+
+
+# Limpeza periódica das tentativas de login admin + tokens reset + audit antigo
 def _admin_cleanup_loop():
     while True:
         try:
             time.sleep(60 * 60)  # 1 hora
             removidos = database.limpar_tentativas_login_admin_antigas(horas=24)
-            if removidos:
-                logging.info(f"🗑️ Admin login cleanup: {removidos} tentativas antigas removidas")
+            tokens_removidos = database.limpar_tokens_reset_expirados()
+            audit_removido = database.limpar_audit_admin_antigo(dias=180)
+            if removidos or tokens_removidos or audit_removido:
+                logging.info(
+                    f"🗑️ Admin cleanup: {removidos} tentativas, "
+                    f"{tokens_removidos} tokens reset, {audit_removido} audit > 180d"
+                )
         except Exception as e:
             logging.error(f"Erro no cleanup admin: {e}")
 

@@ -468,6 +468,180 @@ body {
     color: var(--tjto-azul);
 }
 
+/* ---------- Fase 2: navegação, badges de role, formulários, etc ---------- */
+.admin-nav {
+    display: flex;
+    gap: 0.25rem;
+    align-items: center;
+}
+
+.admin-nav a {
+    color: rgba(255, 255, 255, 0.85);
+    text-decoration: none;
+    padding: 0.4rem 0.75rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.admin-nav a:hover,
+.admin-nav a:focus {
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+    outline: none;
+}
+
+.admin-bar-user {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: rgba(255, 255, 255, 0.92);
+    font-size: 0.85rem;
+    padding-left: 0.75rem;
+    border-left: 1px solid rgba(255, 255, 255, 0.25);
+    margin-left: 0.25rem;
+}
+
+.admin-bar-role {
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 0.1rem 0.45rem;
+    border-radius: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    background: rgba(255, 255, 255, 0.18);
+    color: #fff;
+}
+
+.admin-bar-role--superadmin {
+    background: var(--tjto-dourado);
+    color: var(--tjto-azul-dark);
+}
+
+.admin-bar-role--viewer {
+    background: rgba(255, 255, 255, 0.22);
+}
+
+@media (max-width: 720px) {
+    .admin-bar-inner {
+        flex-wrap: wrap;
+    }
+    .admin-nav {
+        flex-wrap: wrap;
+    }
+    .admin-bar-user {
+        border-left: 0;
+        padding-left: 0;
+        margin-left: 0;
+        order: 99;
+    }
+}
+
+/* Mensagens flash (sucesso/erro) */
+.admin-flash {
+    margin: 0 0 1.25rem 0;
+    padding: 0.85rem 1rem;
+    border-radius: 4px;
+    font-size: 0.92rem;
+    border: 1px solid;
+}
+
+.admin-flash--ok {
+    background: #e6f4ea;
+    color: #1d4f2c;
+    border-color: #b6dfc2;
+}
+
+.admin-flash--erro {
+    background: #fdecec;
+    color: #7a1a1a;
+    border-color: #f3b9b9;
+}
+
+/* Formulário em grade (criar usuário, trocar senha, etc) */
+.admin-form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem;
+    align-items: end;
+}
+
+.admin-form-grid > div {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.admin-form-grid select.admin-input {
+    appearance: auto;
+}
+
+.admin-form-submit {
+    grid-column: 1 / -1;
+    margin-top: 0.5rem;
+}
+
+.admin-form-submit .admin-button {
+    width: auto;
+    padding: 0.65rem 1.5rem;
+}
+
+/* Botão pequeno (ações em tabela) */
+.admin-button--small {
+    padding: 0.35rem 0.75rem;
+    font-size: 0.8rem;
+    background: var(--admin-surface);
+    color: var(--tjto-azul);
+    border-color: var(--admin-border);
+}
+
+.admin-button--small:hover {
+    background: var(--tjto-azul-soft);
+    border-color: var(--tjto-azul-light);
+}
+
+.admin-actions {
+    white-space: nowrap;
+}
+
+.admin-actions form {
+    margin: 0;
+}
+
+.admin-actions form + form {
+    margin-left: 0.4rem;
+}
+
+/* Definition list em "Minha conta" */
+.admin-dl {
+    margin: 0;
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 0.5rem 1.25rem;
+}
+
+.admin-dl dt {
+    color: var(--admin-text-muted);
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.admin-dl dd {
+    margin: 0;
+    color: var(--admin-text);
+}
+
+/* Paginação simples */
+.admin-paginacao {
+    margin-top: 1rem;
+    display: flex;
+    gap: 0.75rem;
+    justify-content: center;
+}
+
 /* Acessibilidade: redução de movimento */
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {

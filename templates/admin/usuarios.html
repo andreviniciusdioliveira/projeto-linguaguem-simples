@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Usuários · Painel Administrativo</title>
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='50%' x='50%' text-anchor='middle' font-size='80'>⚖️</text></svg>">
+    <link rel="stylesheet" href="/static/admin.css">
+</head>
+<body>
+    {% include 'admin/_nav.html' %}
+
+    <main class="admin-shell">
+        <header class="admin-header">
+            <h1>Usuários do painel</h1>
+            <p class="admin-subtitle">Gerencie quem tem acesso. Apenas superadmins podem criar e desativar contas.</p>
+        </header>
+
+        {% if msg %}<div class="admin-flash admin-flash--ok" role="status">{{ msg }}</div>{% endif %}
+        {% if erro %}<div class="admin-flash admin-flash--erro" role="alert">{{ erro }}</div>{% endif %}
+
+        {% if reset_link %}
+        <div class="admin-card admin-card--full admin-flash--ok" style="border-left: 4px solid var(--tjto-dourado);">
+            <h2>Link de reset gerado para "{{ reset_username }}"</h2>
+            <p class="admin-card-help">
+                Envie este link <strong>por canal seguro</strong> (WhatsApp, e-mail criptografado ou pessoalmente).
+                Ele expira em 24 horas e é de uso único. Não envie por canais públicos.
+            </p>
+            <input type="text" class="admin-input" readonly value="{{ reset_link }}"
+                   onclick="this.select()" style="font-family: monospace; font-size: 0.85rem;">
+        </div>
+        {% endif %}
+
+        <!-- Criar novo usuário -->
+        <section class="admin-card admin-card--full" aria-label="Criar usuário">
+            <h2>Criar novo usuário</h2>
+            <form method="POST" action="/admin/usuarios/criar" autocomplete="off" class="admin-form-grid">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <div>
+                    <label class="admin-label" for="novo-username">Nome de usuário</label>
+                    <input type="text" id="novo-username" name="username"
+                           class="admin-input" required pattern="[a-zA-Z0-9._-]{3,32}"
+                           title="3-32 caracteres: letras, números, ponto, traço ou underscore">
+                </div>
+                <div>
+                    <label class="admin-label" for="novo-senha">Senha (mín 10 caracteres)</label>
+                    <input type="password" id="novo-senha" name="senha" class="admin-input"
+                           minlength="10" required autocomplete="new-password">
+                </div>
+                <div>
+                    <label class="admin-label" for="novo-role">Papel</label>
+                    <select id="novo-role" name="role" class="admin-input">
+                        <option value="viewer">viewer (só dashboard)</option>
+                        <option value="superadmin">superadmin (gerencia usuários)</option>
+                    </select>
+                </div>
+                <div class="admin-form-submit">
+                    <button type="submit" class="admin-button admin-button--primary">Criar usuário</button>
+                </div>
+            </form>
+        </section>
+
+        <!-- Lista de usuários -->
+        <section class="admin-card admin-card--full" aria-label="Lista de usuários">
+            <h2>Usuários cadastrados ({{ usuarios|length }})</h2>
+            <div class="admin-table-wrap">
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>Usuário</th>
+                            <th>Papel</th>
+                            <th>Status</th>
+                            <th>Criado em</th>
+                            <th>Último login</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for u in usuarios %}
+                        <tr>
+                            <td><strong>{{ u.username }}</strong></td>
+                            <td><span class="admin-bar-role admin-bar-role--{{ u.role }}">{{ u.role }}</span></td>
+                            <td>
+                                {% if u.ativo %}
+                                <span class="admin-pill admin-pill--ok">ativo</span>
+                                {% else %}
+                                <span class="admin-pill admin-pill--danger">desativado</span>
+                                {% endif %}
+                            </td>
+                            <td><small>{{ u.criado_em[:16].replace('T', ' ') }}</small>{% if u.criado_por %}<br><small style="color: var(--admin-text-muted);">por {{ u.criado_por }}</small>{% endif %}</td>
+                            <td>
+                                {% if u.ultimo_login %}
+                                <small>{{ u.ultimo_login[:16].replace('T', ' ') }}</small>
+                                {% else %}
+                                <small style="color: var(--admin-text-muted);">nunca</small>
+                                {% endif %}
+                            </td>
+                            <td class="admin-actions">
+                                {% if u.id != usuario.id %}
+                                <form method="POST" action="/admin/usuarios/{{ u.id }}/ativar" style="display: inline;">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                    <button type="submit" class="admin-button admin-button--small">
+                                        {% if u.ativo %}Desativar{% else %}Ativar{% endif %}
+                                    </button>
+                                </form>
+                                <form method="POST" action="/admin/usuarios/{{ u.id }}/reset" style="display: inline;"
+                                      onsubmit="return confirm('Gerar novo link de reset para {{ u.username }}? Tokens anteriores não-usados ainda valem até expirar.');">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                    <button type="submit" class="admin-button admin-button--small">Resetar senha</button>
+                                </form>
+                                {% else %}
+                                <small style="color: var(--admin-text-muted);">(você)</small>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <footer class="admin-footer-mini">
+        Tribunal de Justiça do Estado do Tocantins · INOVASSOL ·
+        <a href="/">App público</a>
+    </footer>
+</body>
+</html>

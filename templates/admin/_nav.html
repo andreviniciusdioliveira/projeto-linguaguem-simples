@@ -1,0 +1,27 @@
+{# Barra superior do painel admin com usuário logado e navegação.
+   Inclua via {% include 'admin/_nav.html' %} nas páginas autenticadas. #}
+<div class="tjto-bar" role="banner">
+    <div class="tjto-bar-inner admin-bar-inner">
+        <img src="/static/logojto.png" alt="Poder Judiciário do Estado do Tocantins">
+        <div class="admin-bar-actions">
+            <nav class="admin-nav" aria-label="Navegação do painel">
+                <a href="/admin">Dashboard</a>
+                {% if is_superadmin %}
+                <a href="/admin/usuarios">Usuários</a>
+                <a href="/admin/audit">Auditoria</a>
+                {% endif %}
+                <a href="/admin/conta">Minha conta</a>
+            </nav>
+            {% if usuario %}
+            <span class="admin-bar-user">
+                <strong>{{ usuario.username }}</strong>
+                <span class="admin-bar-role admin-bar-role--{{ usuario.role }}">{{ usuario.role }}</span>
+            </span>
+            {% endif %}
+            <form method="POST" action="/admin/logout" class="admin-logout-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <button type="submit" class="admin-button admin-button--ghost">Sair</button>
+            </form>
+        </div>
+    </div>
+</div>
