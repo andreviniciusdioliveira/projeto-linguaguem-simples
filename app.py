@@ -3146,6 +3146,8 @@ MAX_TTS_CHARS = 8000
 # Defesa em profundidade: o frontend já limpa, mas se /narrar for chamado direto
 # (ou via outra ferramenta), evitamos que o TTS leia "#" como "jogo da velha".
 _TTS_HEADERS_RE = re.compile(r'^[ \t]*#{1,6}[ \t]+', re.MULTILINE)
+# Captura # remanescentes (sem espaço, no meio do texto, etc.) — evita "jogo da velha"
+_TTS_HASH_LEFTOVER_RE = re.compile(r'#+')
 _TTS_BOLD_RE = re.compile(r'\*\*([^*]+)\*\*')
 _TTS_ITALIC_RE = re.compile(r'(?<![\*_])[\*_]([^\*_\n]+)[\*_](?![\*_])')
 _TTS_BACKTICK_RE = re.compile(r'`([^`]+)`')
@@ -3170,6 +3172,8 @@ def limpar_texto_para_narracao(texto):
         return ''
     t = _TTS_HEADERS_RE.sub('', texto)
     t = _TTS_BOLD_RE.sub(r'\1', t)
+    # Remove # remanescentes (cabeçalhos sem espaço, # no meio do texto, etc.)
+    t = _TTS_HASH_LEFTOVER_RE.sub('', t)
     t = _TTS_ITALIC_RE.sub(r'\1', t)
     t = _TTS_BACKTICK_RE.sub(r'\1', t)
     t = _TTS_HRULE_RE.sub('', t)
@@ -3194,20 +3198,88 @@ def _gerar_audio_edge_tts(texto, voz, output_path):
 # Cliente do Google TTS instanciado lazy — evita custo de inicialização se nunca for usado
 _google_tts_client = None
 
+# Limite por chunk para Chirp 3 HD. A API rejeita frases muito longas (~1000 chars).
+# Mantemos folga (900) para casos com pontuação rara que não permita quebras boas.
+_GOOGLE_TTS_CHUNK_LIMIT = 900
+
+
+def _quebrar_texto_para_tts(texto, max_chars=_GOOGLE_TTS_CHUNK_LIMIT):
+    """Quebra o texto em chunks <= max_chars respeitando fronteiras naturais.
+    Ordem de preferência: fim de frase (.!?), pausa (;:,), espaço, corte forçado."""
+    if len(texto) <= max_chars:
+        return [texto]
+
+    # Primeiro split: por fim de frase, mantendo a pontuação
+    frases = re.split(r'(?<=[.!?])\s+', texto)
+    chunks, atual = [], ""
+
+    def empurrar(s):
+        nonlocal atual
+        if not s:
+            return
+        if len(atual) + len(s) + 1 <= max_chars:
+            atual = (atual + " " + s).strip() if atual else s
+        else:
+            if atual:
+                chunks.append(atual)
+            atual = s
+
+    for frase in frases:
+        if len(frase) <= max_chars:
+            empurrar(frase)
+            continue
+        # Frase ainda longa demais — quebrar por pausas internas
+        partes = re.split(r'(?<=[;:,])\s+', frase)
+        for parte in partes:
+            if len(parte) <= max_chars:
+                empurrar(parte)
+                continue
+            # Última instância: quebrar por espaço, depois corte forçado
+            palavras = parte.split(" ")
+            buf = ""
+            for p in palavras:
+                if len(p) > max_chars:
+                    # Palavra/sequência única absurdamente longa — corte cego
+                    if buf:
+                        empurrar(buf); buf = ""
+                    for i in range(0, len(p), max_chars):
+                        empurrar(p[i:i+max_chars])
+                elif len(buf) + len(p) + 1 <= max_chars:
+                    buf = (buf + " " + p).strip() if buf else p
+                else:
+                    empurrar(buf); buf = p
+            if buf:
+                empurrar(buf)
+
+    if atual:
+        chunks.append(atual)
+    return [c for c in chunks if c.strip()]
+
 
 def _gerar_audio_google_tts(texto, voz, output_path):
     """Gera MP3 via Google Cloud TTS (Chirp 3 HD).
+    Quebra textos longos em chunks (limite ~1000 chars/frase do Chirp) e
+    concatena os MP3s — frames MP3 podem ser concatenados byte-a-byte.
     Lança exceção em caso de erro — chamador decide se faz fallback."""
     global _google_tts_client
     if _google_tts_client is None:
         _google_tts_client = gcloud_tts.TextToSpeechClient()
-    response = _google_tts_client.synthesize_speech(
-        input=gcloud_tts.SynthesisInput(text=texto),
-        voice=gcloud_tts.VoiceSelectionParams(language_code="pt-BR", name=voz),
-        audio_config=gcloud_tts.AudioConfig(audio_encoding=gcloud_tts.AudioEncoding.MP3),
-    )
+
+    chunks = _quebrar_texto_para_tts(texto)
+    if len(chunks) > 1:
+        logging.info(f"🔊 Texto dividido em {len(chunks)} chunks para Google TTS")
+
+    audio_partes = []
+    for i, chunk in enumerate(chunks, 1):
+        response = _google_tts_client.synthesize_speech(
+            input=gcloud_tts.SynthesisInput(text=chunk),
+            voice=gcloud_tts.VoiceSelectionParams(language_code="pt-BR", name=voz),
+            audio_config=gcloud_tts.AudioConfig(audio_encoding=gcloud_tts.AudioEncoding.MP3),
+        )
+        audio_partes.append(response.audio_content)
+
     with open(output_path, "wb") as f:
-        f.write(response.audio_content)
+        f.write(b"".join(audio_partes))
 
 
 @app.route("/narrar", methods=["POST"])
