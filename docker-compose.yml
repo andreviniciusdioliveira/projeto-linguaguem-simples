@@ -8,11 +8,15 @@ services:
     environment:
       - FLASK_ENV=production
       - PORT=8080
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/secrets/gcp-tts.json
+      - TTS_PROVIDER=google
+      - TTS_VOICE_GOOGLE=pt-BR-Chirp3-HD-Achernar
     env_file:
       - .env
     volumes:
       - ./temp:/app/temp
       - ./data:/app/data
+      - /etc/entenda-aqui/gcp-tts.json:/app/secrets/gcp-tts.json:ro
     shm_size: '512mb'
     mem_limit: 2g
     memswap_limit: 2g

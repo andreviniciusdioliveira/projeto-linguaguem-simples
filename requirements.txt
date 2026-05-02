@@ -35,5 +35,7 @@ google-genai>=1.0.0
 cryptography==42.0.5
 
 # Text-to-Speech (narração do documento simplificado)
-# edge-tts: vozes neurais do Microsoft Edge, gratuitas, sem API key
+# edge-tts: vozes neurais do Microsoft Edge, gratuitas, sem API key (fallback)
 edge-tts==6.1.18
+# Google Cloud TTS: vozes Chirp 3 HD em pt-BR, mais naturais (provedor primário)
+google-cloud-texttospeech>=2.16.3

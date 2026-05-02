@@ -60,9 +60,28 @@ except ImportError:
     TTS_AVAILABLE = False
     logging.warning("⚠️ edge-tts não disponível - narração usará Web Speech API do navegador")
 
+# Tentativa de importar Google Cloud TTS (vozes Chirp 3 HD, mais naturais).
+# Requer GOOGLE_APPLICATION_CREDENTIALS apontando para JSON de service account.
+try:
+    from google.cloud import texttospeech as gcloud_tts
+    GOOGLE_TTS_AVAILABLE = bool(os.getenv("GOOGLE_APPLICATION_CREDENTIALS"))
+    if GOOGLE_TTS_AVAILABLE:
+        logging.info("✅ Google Cloud TTS disponível (Chirp 3 HD)")
+    else:
+        logging.info("ℹ️ google-cloud-texttospeech instalado, mas GOOGLE_APPLICATION_CREDENTIALS não definida — Google TTS desabilitado")
+except ImportError:
+    GOOGLE_TTS_AVAILABLE = False
+    logging.info("ℹ️ google-cloud-texttospeech não instalado — usando edge-tts")
+
 # Voz pt-BR neural padrão. Outras opções: pt-BR-AntonioNeural (masculina),
 # pt-BR-ThalitaNeural (feminina casual), pt-BR-DonatoNeural (masculina casual).
 TTS_VOICE = "pt-BR-FranciscaNeural"
+
+# Provedor preferido: "google" (Chirp 3 HD) ou "edge" (Microsoft, gratuito).
+# Default: google se credencial estiver configurada, senão edge.
+TTS_PROVIDER = os.getenv("TTS_PROVIDER", "google" if GOOGLE_TTS_AVAILABLE else "edge").lower()
+TTS_VOICE_GOOGLE = os.getenv("TTS_VOICE_GOOGLE", "pt-BR-Chirp3-HD-Achernar")
+logging.info(f"🔊 TTS configurado: provedor={TTS_PROVIDER} | voz_google={TTS_VOICE_GOOGLE} | voz_edge={TTS_VOICE}")
 
 app = Flask(__name__)
 _default_secret = os.urandom(24)
@@ -3172,6 +3191,25 @@ def _gerar_audio_edge_tts(texto, voz, output_path):
     asyncio.run(_save())
 
 
+# Cliente do Google TTS instanciado lazy — evita custo de inicialização se nunca for usado
+_google_tts_client = None
+
+
+def _gerar_audio_google_tts(texto, voz, output_path):
+    """Gera MP3 via Google Cloud TTS (Chirp 3 HD).
+    Lança exceção em caso de erro — chamador decide se faz fallback."""
+    global _google_tts_client
+    if _google_tts_client is None:
+        _google_tts_client = gcloud_tts.TextToSpeechClient()
+    response = _google_tts_client.synthesize_speech(
+        input=gcloud_tts.SynthesisInput(text=texto),
+        voice=gcloud_tts.VoiceSelectionParams(language_code="pt-BR", name=voz),
+        audio_config=gcloud_tts.AudioConfig(audio_encoding=gcloud_tts.AudioEncoding.MP3),
+    )
+    with open(output_path, "wb") as f:
+        f.write(response.audio_content)
+
+
 @app.route("/narrar", methods=["POST"])
 @require_csrf
 @rate_limit
@@ -3208,15 +3246,27 @@ def narrar():
             texto = texto[:MAX_TTS_CHARS]
 
         sid = obter_session_id()
-        # Hash isolado por (sessão + voz + texto) evita colisão no /tmp compartilhado
-        audio_hash = hashlib.sha256((sid + TTS_VOICE + texto[:256]).encode()).hexdigest()[:16]
+        # Decide provedor + voz; Google é preferido se configurado, senão edge
+        usar_google = TTS_PROVIDER == "google" and GOOGLE_TTS_AVAILABLE
+        voz_efetiva = TTS_VOICE_GOOGLE if usar_google else TTS_VOICE
+        # Hash isolado por (sessão + voz + texto) evita colisão e mistura de provedores no cache
+        audio_hash = hashlib.sha256((sid + voz_efetiva + texto[:256]).encode()).hexdigest()[:16]
         audio_basename = f"narracao_{audio_hash}.mp3"
         audio_path = os.path.join(TEMP_DIR, audio_basename)
 
         # Reaproveita MP3 já gerado para o mesmo (sessão + texto) — economiza chamadas
         if not os.path.exists(audio_path):
-            logging.info(f"🔊 Gerando narração via edge-tts | voz={TTS_VOICE} | chars={len(texto)}")
-            _gerar_audio_edge_tts(texto, TTS_VOICE, audio_path)
+            gerou = False
+            if usar_google:
+                try:
+                    logging.info(f"🔊 Gerando narração via Google TTS | voz={voz_efetiva} | chars={len(texto)}")
+                    _gerar_audio_google_tts(texto, voz_efetiva, audio_path)
+                    gerou = True
+                except Exception as e:
+                    logging.warning(f"⚠️ Google TTS falhou ({e}) — fazendo fallback para edge-tts")
+            if not gerou:
+                logging.info(f"🔊 Gerando narração via edge-tts | voz={TTS_VOICE} | chars={len(texto)}")
+                _gerar_audio_edge_tts(texto, TTS_VOICE, audio_path)
             registrar_arquivo_temporario(audio_path, session_id=sid)
             logging.info(f"✅ Narração pronta: {audio_basename}")
         else:
