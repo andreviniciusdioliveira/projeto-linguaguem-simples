@@ -15,6 +15,7 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfbase import pdfmetrics
 from functools import wraps
 from datetime import datetime, timedelta
+from concurrent.futures import ThreadPoolExecutor
 import hashlib
 import hmac
 import tempfile
@@ -3256,27 +3257,43 @@ def _quebrar_texto_para_tts(texto, max_chars=_GOOGLE_TTS_CHUNK_LIMIT):
     return [c for c in chunks if c.strip()]
 
 
+# Pool de threads para paralelizar chunks. 8 workers é seguro para a cota
+# default do Google TTS e evita estourar memória do worker Gunicorn.
+_GOOGLE_TTS_MAX_WORKERS = 8
+
+
+def _sintetizar_chunk_google(chunk, voz):
+    """Sintetiza um único chunk via Google TTS. Roda em thread."""
+    voice_params = gcloud_tts.VoiceSelectionParams(language_code="pt-BR", name=voz)
+    audio_config = gcloud_tts.AudioConfig(audio_encoding=gcloud_tts.AudioEncoding.MP3)
+    response = _google_tts_client.synthesize_speech(
+        input=gcloud_tts.SynthesisInput(text=chunk),
+        voice=voice_params,
+        audio_config=audio_config,
+    )
+    return response.audio_content
+
+
 def _gerar_audio_google_tts(texto, voz, output_path):
     """Gera MP3 via Google Cloud TTS (Chirp 3 HD).
     Quebra textos longos em chunks (limite ~1000 chars/frase do Chirp) e
-    concatena os MP3s — frames MP3 podem ser concatenados byte-a-byte.
+    sintetiza em paralelo (cliente gRPC do Google é thread-safe). Concatena
+    os MP3s na ordem original — frames MP3 podem ser concatenados byte-a-byte.
     Lança exceção em caso de erro — chamador decide se faz fallback."""
     global _google_tts_client
     if _google_tts_client is None:
         _google_tts_client = gcloud_tts.TextToSpeechClient()
 
     chunks = _quebrar_texto_para_tts(texto)
-    if len(chunks) > 1:
-        logging.info(f"🔊 Texto dividido em {len(chunks)} chunks para Google TTS")
 
-    audio_partes = []
-    for i, chunk in enumerate(chunks, 1):
-        response = _google_tts_client.synthesize_speech(
-            input=gcloud_tts.SynthesisInput(text=chunk),
-            voice=gcloud_tts.VoiceSelectionParams(language_code="pt-BR", name=voz),
-            audio_config=gcloud_tts.AudioConfig(audio_encoding=gcloud_tts.AudioEncoding.MP3),
-        )
-        audio_partes.append(response.audio_content)
+    if len(chunks) == 1:
+        audio_partes = [_sintetizar_chunk_google(chunks[0], voz)]
+    else:
+        n_workers = min(_GOOGLE_TTS_MAX_WORKERS, len(chunks))
+        logging.info(f"🔊 Texto em {len(chunks)} chunks — sintetizando com {n_workers} threads")
+        with ThreadPoolExecutor(max_workers=n_workers) as pool:
+            # map preserva a ordem dos chunks
+            audio_partes = list(pool.map(lambda c: _sintetizar_chunk_google(c, voz), chunks))
 
     with open(output_path, "wb") as f:
         f.write(b"".join(audio_partes))
@@ -3321,8 +3338,11 @@ def narrar():
         # Decide provedor + voz; Google é preferido se configurado, senão edge
         usar_google = TTS_PROVIDER == "google" and GOOGLE_TTS_AVAILABLE
         voz_efetiva = TTS_VOICE_GOOGLE if usar_google else TTS_VOICE
-        # Hash isolado por (sessão + voz + texto) evita colisão e mistura de provedores no cache
-        audio_hash = hashlib.sha256((sid + voz_efetiva + texto[:256]).encode()).hexdigest()[:16]
+        # Cache compartilhado entre sessões: hash do (voz + texto completo).
+        # Permite reuso quando dois usuários simplificam textos iguais ou ouvem
+        # o mesmo trecho. Sem session_id no hash — o conteúdo do MP3 é função
+        # apenas do texto+voz, então não há vazamento entre sessões.
+        audio_hash = hashlib.sha256((voz_efetiva + texto).encode()).hexdigest()[:16]
         audio_basename = f"narracao_{audio_hash}.mp3"
         audio_path = os.path.join(TEMP_DIR, audio_basename)
 
