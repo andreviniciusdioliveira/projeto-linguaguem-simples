@@ -2223,8 +2223,15 @@
 
         function pararNarracao() {
             if (narracaoAudio) {
+                // Remove handlers ANTES de pausar para evitar que onerror dispare
+                // o fallback Web Speech (voz robótica) ao parar manualmente
+                narracaoAudio.onerror = null;
+                narracaoAudio.onended = null;
                 narracaoAudio.pause();
-                narracaoAudio.src = '';
+                const src = narracaoAudio.src;
+                if (src && src.startsWith('blob:')) {
+                    URL.revokeObjectURL(src);
+                }
                 narracaoAudio = null;
             }
             if (window.speechSynthesis) {
