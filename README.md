@@ -48,6 +48,9 @@ O Entenda Aqui recebe o documento jurídico (PDF, imagem ou texto), processa com
 - Uma **explicação personalizada** com base no papel do usuário (autor ou réu)
 - **Indicadores de urgência** para documentos com prazos críticos
 - Um **PDF simplificado** para download com marca d'água anti-fraude
+- **Narração em áudio** com voz neural Chirp 3 HD do Google (alta naturalidade)
+
+Para a equipe operacional, o sistema inclui ainda um **[Painel Administrativo](#painel-administrativo)** completo em `/admin` com KPIs em tempo real, gráficos de uso, custos da API Gemini em BRL, audit log e gestão multi-usuário — tudo agregado e em conformidade com a LGPD.
 
 ---
 
