@@ -98,7 +98,7 @@ O Entenda Aqui recebe o documento jurídico (PDF, imagem ou texto), processa com
 | **Acessibilidade** | ARIA labels nos botões, `<main>` landmark, `aria-live` no resultado, suporte a `prefers-reduced-motion` |
 | **Avatar Assistente** | Avatar flutuante "JUS Bot" com chat contextual sobre o documento |
 | **Feedback Sonoro** | Áudios pré-gravados de confirmação ao iniciar e concluir a simplificação |
-| **Narração com Voz Neural** | Leitura em áudio do texto simplificado via `edge-tts` (voz `pt-BR-FranciscaNeural`) com fallback para Web Speech API |
+| **Narração com Voz Neural** | Leitura em áudio do texto simplificado via Google Cloud TTS (voz Chirp 3 HD `pt-BR-Chirp3-HD-Achernar` — alta naturalidade), com fallback automático para `edge-tts` e Web Speech API. Síntese paralelizada (até 8 threads) e cache compartilhado por hash do texto. |
 | **Download PDF** | Gera PDF simplificado com marca d'água anti-fraude e QR code |
 | **Compartilhamento** | Compartilhe via WhatsApp, Twitter, Facebook ou copie o link |
 
@@ -530,7 +530,7 @@ railway up
 | `POST` | `/processar` | Processa documento enviado (PDF/imagem) |
 | `POST` | `/processar_texto` | Processa texto jurídico colado diretamente |
 | `POST` | `/chat` | Chat contextual sobre o documento processado |
-| `POST` | `/narrar` | Gera narração em MP3 do texto simplificado (voz neural via edge-tts) |
+| `POST` | `/narrar` | Gera narração em MP3 do texto simplificado (Google Cloud TTS Chirp 3 HD com fallback para edge-tts) |
 | `GET` | `/download_pdf` | Baixa o PDF simplificado gerado (vínculo com sessão) |
 | `GET` | `/validar/<doc_id>` | Página de validação de integridade |
 | `POST` | `/validar/<doc_id>/verificar` | Verifica hash de integridade do documento |
@@ -658,7 +658,7 @@ Requer sessão ativa com um documento já processado. O tamanho da pergunta é l
 
 ### POST `/narrar`
 
-Gera um arquivo MP3 do texto simplificado utilizando a voz neural `pt-BR-FranciscaNeural` via [`edge-tts`](https://github.com/rany2/edge-tts) (vozes neurais da Microsoft, gratuitas, sem necessidade de API key).
+Gera um arquivo MP3 do texto simplificado. O provedor primário é o **Google Cloud Text-to-Speech** com vozes **Chirp 3 HD** em pt-BR (alta naturalidade, próximo de fala humana). Em caso de falha (cota, rede, auth), faz fallback automático para [`edge-tts`](https://github.com/rany2/edge-tts) (Microsoft, gratuito, sem API key). Se ambos falharem, o frontend usa `Web Speech API` do navegador.
 
 **Request:**
 ```json
@@ -667,18 +667,21 @@ Gera um arquivo MP3 do texto simplificado utilizando a voz neural `pt-BR-Francis
 }
 ```
 
-**Response (200):** Arquivo `audio/mpeg` (MP3) gerado em streaming.
+**Response (200):** Arquivo `audio/mpeg` (MP3).
 
-**Response (503):** `edge-tts` indisponível no servidor — o frontend cai automaticamente no `Web Speech API` do navegador como fallback.
+**Response (503):** Nenhum provedor TTS disponível — o frontend cai no Web Speech API.
 
 **Características:**
 
-- **Voz padrão**: `pt-BR-FranciscaNeural` (timbre natural, sem sotaque robotizado)
-- **Limite de texto**: 8.000 caracteres (protege o worker contra timeout no Render free tier)
-- **Pré-processamento**: o backend remove markdown, emojis e caracteres de moldura antes do TTS — evita que o leitor pronuncie `"#"` como `"jogo da velha"`, `"*"`, `` "`" ``, `"■"`, `"═"` etc.
-- **Cache por sessão**: hash composto por `(session_id + voz + primeiros 256 chars do texto)` reaproveita MP3s já gerados na mesma sessão
-- **LGPD**: arquivo MP3 registrado para auto-deleção em **30 minutos**; nenhum texto é persistido em banco
-- **Fallback duplo**: se `edge-tts` falhar (rede, rate limit da Microsoft) ou estiver indisponível, o frontend usa `SpeechSynthesisUtterance` do navegador
+- **Provedor primário**: Google Cloud TTS (voz default `pt-BR-Chirp3-HD-Achernar`, configurável via `TTS_VOICE_GOOGLE`). Selecionado por `TTS_PROVIDER=google`.
+- **Provedor fallback**: `edge-tts` (voz `pt-BR-FranciscaNeural`). Acionado automaticamente se Google falhar.
+- **Limite de texto**: 8.000 caracteres (protege o worker contra timeout).
+- **Quebra em chunks**: textos > 900 chars são divididos por fronteiras naturais (frase → pausa → palavra) — necessário porque Chirp 3 HD rejeita frases longas.
+- **Síntese paralelizada**: até 8 threads simultâneas via `ThreadPoolExecutor` (cliente gRPC do Google é thread-safe). Texto longo que levaria ~20s sequencial fica em ~3s.
+- **Cache compartilhado**: hash `SHA-256(voz + texto)` reaproveita MP3s entre sessões. O conteúdo do MP3 é função pura do par (texto, voz), então não há vazamento entre usuários — quem fornece o texto recebe o áudio.
+- **CSP**: `media-src 'self' blob:` permite que o frontend toque o MP3 via `URL.createObjectURL()`.
+- **Pré-processamento**: o backend remove markdown, emojis e caracteres de moldura antes do TTS — evita que o leitor pronuncie `"#"` como `"jogo da velha"`, `"*"`, `` "`" ``, `"■"`, `"═"` etc. Inclui regex extra `_TTS_HASH_LEFTOVER_RE` que captura `#` no meio do texto (não só cabeçalhos).
+- **LGPD**: arquivo MP3 registrado para auto-deleção em **30 minutos**; nenhum texto é persistido em banco.
 
 ### GET `/health`
 
@@ -858,6 +861,9 @@ O `init_db()` faz **retry com backoff exponencial** (1s, 2s, 4s, 8s) e configura
 | `CPF_HASH_SALT` | Não | Salt para hash SHA-256 de CPFs (recomendado definir em produção) |
 | `FLASK_ENV` | Não | `production` (padrão) ou `development` para modo debug |
 | `PORT` | Não | Porta de execução (padrão: 8080) |
+| `GOOGLE_APPLICATION_CREDENTIALS` | Não | Caminho do JSON de service account do Google Cloud (habilita Google TTS Chirp 3 HD). Sem isso, a narração cai direto no `edge-tts`. |
+| `TTS_PROVIDER` | Não | `google` (default se credencial existir) ou `edge`. Define o provedor primário de narração. |
+| `TTS_VOICE_GOOGLE` | Não | Nome da voz Google TTS (default: `pt-BR-Chirp3-HD-Achernar`). Outras Chirp 3 HD pt-BR podem ser usadas. |
 
 Nunca commite chaves de API. Use variáveis de ambiente ou arquivos `.env` (incluído no `.gitignore`).
 
@@ -933,7 +939,8 @@ O arquivo `gunicorn_config.py` está otimizado para o **Render Free Tier (512MB 
 | certifi | 2024.2.2 | Certificados SSL |
 | urllib3 | 2.2.1 | Cliente HTTP |
 | cryptography | 42.0.5 | Criptografia Fernet para cofre de CPF (LGPD) |
-| edge-tts | 6.1.18 | Narração com vozes neurais (TTS) — sem API key |
+| edge-tts | 6.1.18 | Narração de fallback (Microsoft, sem API key) |
+| google-cloud-texttospeech | ≥2.16.3 | Narração primária via Google Cloud TTS (Chirp 3 HD) |
 
 ### Sistema
 
