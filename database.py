@@ -269,6 +269,38 @@ def _init_db_inner():
                 )
             ''')
 
+            # === ORÇAMENTO MENSAL EM BRL ===
+            # Singleton (id=1): teto configurável pelo admin, bloqueia chamadas pagas
+            # ao Gemini quando o custo acumulado no período atingir o teto.
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS orcamento_config (
+                    id INTEGER PRIMARY KEY CHECK (id = 1),
+                    teto_brl REAL NOT NULL DEFAULT 3000.0,
+                    periodo TEXT NOT NULL DEFAULT 'mensal',
+                    ativo INTEGER NOT NULL DEFAULT 1,
+                    atualizado_em TEXT NOT NULL
+                )
+            ''')
+            cursor.execute('''
+                INSERT OR IGNORE INTO orcamento_config (id, teto_brl, periodo, ativo, atualizado_em)
+                VALUES (1, 3000.0, 'mensal', 1, ?)
+            ''', (datetime.now().isoformat(),))
+
+            # === KPI DE PROMPT INJECTION (LGPD-compliant) ===
+            # Contadores agregados por (data, endpoint, categoria, bloqueado) — sem PII.
+            # Limpeza automática de registros com >90 dias.
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS prompt_injection_diario (
+                    data TEXT NOT NULL,
+                    endpoint TEXT NOT NULL,
+                    categoria TEXT NOT NULL,
+                    bloqueado INTEGER NOT NULL,
+                    contagem INTEGER DEFAULT 0,
+                    PRIMARY KEY (data, endpoint, categoria, bloqueado)
+                )
+            ''')
+            cursor.execute('CREATE INDEX IF NOT EXISTS idx_injection_data ON prompt_injection_diario(data)')
+
             # === COFRE CRIPTOGRAFADO DE CPF (LGPD) ===
             # CPFs criptografados com Fernet - apagados diariamente
             # Hash SHA-256 para lookup rápido sem descriptografar
@@ -1614,6 +1646,245 @@ def get_uso_tokens_hoje():
     }
 
 
+# ==========================================
+# === ORÇAMENTO MENSAL EM BRL ===
+# ==========================================
+
+def get_orcamento_config():
+    """Retorna a configuração atual de orçamento (singleton id=1)."""
+    with db_lock:
+        conn = sqlite3.connect(DB_PATH, timeout=30)
+        try:
+            cursor = conn.cursor()
+            cursor.execute('SELECT teto_brl, periodo, ativo, atualizado_em FROM orcamento_config WHERE id = 1')
+            row = cursor.fetchone()
+        finally:
+            conn.close()
+    if not row:
+        return {"teto_brl": 3000.0, "periodo": "mensal", "ativo": True, "atualizado_em": None}
+    return {
+        "teto_brl": float(row[0]),
+        "periodo": row[1],
+        "ativo": bool(row[2]),
+        "atualizado_em": row[3],
+    }
+
+
+def set_orcamento_config(teto_brl, periodo, ativo):
+    """Atualiza a configuração de orçamento. Valida entradas."""
+    if periodo not in ('mensal', 'diario', 'total'):
+        raise ValueError(f"periodo inválido: {periodo}")
+    teto_brl = float(teto_brl)
+    if teto_brl < 0:
+        raise ValueError("teto_brl não pode ser negativo")
+    with db_lock:
+        conn = sqlite3.connect(DB_PATH, timeout=30)
+        try:
+            cursor = conn.cursor()
+            cursor.execute('''
+                UPDATE orcamento_config
+                SET teto_brl = ?, periodo = ?, ativo = ?, atualizado_em = ?
+                WHERE id = 1
+            ''', (teto_brl, periodo, 1 if ativo else 0, datetime.now().isoformat()))
+            if cursor.rowcount == 0:
+                cursor.execute('''
+                    INSERT INTO orcamento_config (id, teto_brl, periodo, ativo, atualizado_em)
+                    VALUES (1, ?, ?, ?, ?)
+                ''', (teto_brl, periodo, 1 if ativo else 0, datetime.now().isoformat()))
+            conn.commit()
+        finally:
+            conn.close()
+    return get_orcamento_config()
+
+
+def _calcular_custo_periodo_brl(periodo):
+    """Soma custo em BRL dos tokens consumidos no período (mensal/diario/total).
+    Usa pricing.custo_brl() agregando por modelo a partir de audit_ip."""
+    import pricing as _pricing
+    hoje = datetime.now()
+    if periodo == 'diario':
+        corte = hoje.strftime('%Y-%m-%dT00:00:00')
+    elif periodo == 'mensal':
+        corte = hoje.strftime('%Y-%m-01T00:00:00')
+    else:  # total
+        corte = '1970-01-01T00:00:00'
+
+    with db_lock:
+        conn = sqlite3.connect(DB_PATH, timeout=30)
+        try:
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT modelo_usado,
+                       COALESCE(SUM(tokens_input), 0),
+                       COALESCE(SUM(tokens_output), 0)
+                FROM audit_ip
+                WHERE timestamp >= ?
+                GROUP BY modelo_usado
+            ''', (corte,))
+            rows = cursor.fetchall()
+        finally:
+            conn.close()
+
+    total = 0.0
+    for modelo, tin, tout in rows:
+        if not modelo:
+            continue
+        total += _pricing.custo_brl(modelo, tin or 0, tout or 0)
+    return total
+
+
+def _estimar_tokens_para_teto(teto_brl, modelo='gemini-2.5-flash-lite', razao_in_out=5.0):
+    """Estima quantos tokens cabem no teto usando modelo primário (Flash-Lite).
+    razao_in_out: razão input/output típica (5:1 = prompts longos, respostas curtas)."""
+    import pricing as _pricing
+    pricing_modelo = _pricing.GEMINI_PRICING_USD_PER_1M.get(modelo)
+    if not pricing_modelo:
+        return None
+    cambio = _pricing.get_usd_to_brl()
+    teto_usd = teto_brl / cambio if cambio > 0 else 0
+    preco_in = pricing_modelo['input']  # USD por 1M tokens
+    preco_out = pricing_modelo['output']
+    # custo médio por token considerando a razão in:out
+    preco_medio = (preco_in * razao_in_out + preco_out) / (razao_in_out + 1)
+    if preco_medio <= 0:
+        return None
+    tokens_total = int((teto_usd / preco_medio) * 1_000_000)
+    return {
+        "modelo_referencia": modelo,
+        "razao_input_output": razao_in_out,
+        "cambio_usd_brl": cambio,
+        "tokens_estimados": tokens_total,
+    }
+
+
+def verificar_orcamento():
+    """Retorna status do orçamento: teto, gasto atual, percentual e se está bloqueado.
+    Bloqueia quando custo acumulado no período >= teto e config.ativo=True."""
+    config = get_orcamento_config()
+    estimativa = _estimar_tokens_para_teto(config["teto_brl"])
+    if not config["ativo"]:
+        return {
+            **config,
+            "gasto_brl": 0.0,
+            "percentual": 0,
+            "bloqueado": False,
+            "saldo_brl": config["teto_brl"],
+            "estimativa_tokens": estimativa,
+        }
+    gasto = _calcular_custo_periodo_brl(config["periodo"])
+    teto = config["teto_brl"]
+    percentual = min(100, int((gasto / teto) * 100)) if teto > 0 else 100
+    bloqueado = teto > 0 and gasto >= teto
+    return {
+        **config,
+        "gasto_brl": round(gasto, 4),
+        "percentual": percentual,
+        "bloqueado": bloqueado,
+        "saldo_brl": round(max(0.0, teto - gasto), 4),
+        "estimativa_tokens": estimativa,
+    }
+
+
+# ==========================================
+# === KPI DE PROMPT INJECTION (agregado/LGPD) ===
+# ==========================================
+
+def registrar_evento_injection(endpoint, categorias, bloqueado):
+    """Registra contadores agregados (sem PII) de tentativas de prompt injection.
+
+    Args:
+        endpoint: 'chat' | 'processar' | 'processar_texto'
+        categorias: lista de strings (override, persona, exfiltracao, cabecalho, obfuscation_*)
+        bloqueado: True se a requisição foi bloqueada, False se apenas logada.
+    """
+    if not categorias:
+        return
+    hoje = datetime.now().strftime('%Y-%m-%d')
+    bloq = 1 if bloqueado else 0
+    with db_lock:
+        conn = sqlite3.connect(DB_PATH, timeout=30)
+        try:
+            cursor = conn.cursor()
+            for cat in categorias:
+                cursor.execute('''
+                    INSERT INTO prompt_injection_diario (data, endpoint, categoria, bloqueado, contagem)
+                    VALUES (?, ?, ?, ?, 1)
+                    ON CONFLICT(data, endpoint, categoria, bloqueado) DO UPDATE SET
+                        contagem = contagem + 1
+                ''', (hoje, endpoint, cat, bloq))
+            conn.commit()
+        finally:
+            conn.close()
+
+
+def get_kpi_injection_stats(dias=30):
+    """Retorna agregados de prompt injection nos últimos N dias.
+    Estrutura: totais, por endpoint, por categoria, série temporal diária."""
+    corte = (datetime.now() - timedelta(days=dias)).strftime('%Y-%m-%d')
+    with db_lock:
+        conn = sqlite3.connect(DB_PATH, timeout=30)
+        try:
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT data, endpoint, categoria, bloqueado, contagem
+                FROM prompt_injection_diario
+                WHERE data >= ?
+                ORDER BY data
+            ''', (corte,))
+            rows = cursor.fetchall()
+        finally:
+            conn.close()
+
+    total = 0
+    total_bloqueados = 0
+    por_endpoint = {}
+    por_categoria = {}
+    serie_diaria = {}
+    for data, endpoint, categoria, bloqueado, contagem in rows:
+        total += contagem
+        if bloqueado:
+            total_bloqueados += contagem
+        por_endpoint[endpoint] = por_endpoint.get(endpoint, 0) + contagem
+        por_categoria[categoria] = por_categoria.get(categoria, 0) + contagem
+        serie_diaria[data] = serie_diaria.get(data, {"bloqueados": 0, "logados": 0})
+        if bloqueado:
+            serie_diaria[data]["bloqueados"] += contagem
+        else:
+            serie_diaria[data]["logados"] += contagem
+
+    return {
+        "periodo_dias": dias,
+        "total_eventos": total,
+        "total_bloqueados": total_bloqueados,
+        "total_logados": total - total_bloqueados,
+        "por_endpoint": por_endpoint,
+        "por_categoria": por_categoria,
+        "serie_diaria": [
+            {"data": d, "bloqueados": v["bloqueados"], "logados": v["logados"]}
+            for d, v in sorted(serie_diaria.items())
+        ],
+    }
+
+
+def limpar_injection_antigo(dias=90):
+    """Remove eventos de injection com mais de N dias (LGPD - retenção máxima)."""
+    with db_lock:
+        conn = sqlite3.connect(DB_PATH, timeout=30)
+        try:
+            cursor = conn.cursor()
+            cursor.execute('''
+                DELETE FROM prompt_injection_diario
+                WHERE date(data) < date('now', ? || ' days')
+            ''', (f'-{dias}',))
+            deletados = cursor.rowcount
+            conn.commit()
+        finally:
+            conn.close()
+        if deletados > 0:
+            logging.info(f"🗑️ Injection KPI: Removidos {deletados} registros antigos (>{dias}d)")
+        return deletados
+
+
 def limpar_tokens_antigos(dias=7):
     """Remove registros de uso de tokens com mais de X dias"""
     with db_lock:
@@ -1996,10 +2267,11 @@ def executar_limpeza_periodica():
             deletados_auditoria = limpar_auditoria_antiga()
             deletados_cpf = limpar_cpf_vault()
             deletados_tokens = limpar_tokens_antigos()
+            deletados_inj = limpar_injection_antigo()
 
-            total_deletados = deletados + deletados_validacao + deletados_auditoria + deletados_cpf + deletados_tokens
+            total_deletados = deletados + deletados_validacao + deletados_auditoria + deletados_cpf + deletados_tokens + deletados_inj
             if total_deletados > 0:
-                logging.info(f"✅ Limpeza concluída: {deletados} stats + {deletados_validacao} validações + {deletados_auditoria} auditoria + {deletados_cpf} CPFs + {deletados_tokens} tokens removidos")
+                logging.info(f"✅ Limpeza concluída: {deletados} stats + {deletados_validacao} validações + {deletados_auditoria} auditoria + {deletados_cpf} CPFs + {deletados_tokens} tokens + {deletados_inj} injection removidos")
             else:
                 logging.info("✅ Limpeza concluída: nenhum registro antigo encontrado")
 

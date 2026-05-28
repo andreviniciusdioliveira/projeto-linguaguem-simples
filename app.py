@@ -37,7 +37,9 @@ from database import (
     registrar_uso_tokens, verificar_limite_tokens, get_uso_tokens_hoje,
     registrar_cpf_vault, verificar_cpf_rate_limit,
     verificar_e_incrementar_cpf_ip,
-    gerar_hash_cpf, CPF_DAILY_LIMIT, CPF_IP_DAILY_LIMIT, IP_DAILY_LIMIT, DAILY_TOKEN_LIMIT
+    gerar_hash_cpf, CPF_DAILY_LIMIT, CPF_IP_DAILY_LIMIT, IP_DAILY_LIMIT, DAILY_TOKEN_LIMIT,
+    verificar_orcamento, get_orcamento_config, set_orcamento_config,
+    registrar_evento_injection, get_kpi_injection_stats
 )
 # Importar gerador de PDF melhorado
 from gerador_pdf import gerar_pdf_simplificado as gerar_pdf_melhorado
@@ -477,6 +479,32 @@ def verificar_limite_tokens_request():
                     "Tente novamente amanhã.",
             "limite_tokens": True,
             "uso_tokens": resultado
+        }), 503
+    return None
+
+
+def verificar_orcamento_request():
+    """
+    Verifica se o orçamento mensal em BRL foi atingido.
+    Retorna response 503 se bloqueado, None se OK.
+    Aplicado em todos os endpoints que fazem chamada paga ao Gemini.
+    """
+    try:
+        status = verificar_orcamento()
+    except Exception as e:
+        logging.error(f"❌ Erro ao verificar orçamento: {e}")
+        return None  # Falha aberta — não bloquear por erro interno
+    if status["bloqueado"]:
+        periodo_str = {"mensal": "este mês", "diario": "hoje", "total": "no acumulado"}.get(status["periodo"], "no período")
+        logging.warning(
+            f"💰 ORÇAMENTO ATINGIDO: gasto R${status['gasto_brl']:.2f} / teto R${status['teto_brl']:.2f} ({periodo_str})"
+        )
+        return jsonify({
+            "erro": f"O orçamento de R${status['teto_brl']:.2f} {periodo_str} foi atingido. "
+                    f"O serviço está temporariamente indisponível para preservar custos. "
+                    f"Tente novamente após a renovação do orçamento.",
+            "orcamento_bloqueado": True,
+            "orcamento": status,
         }), 503
     return None
 
@@ -2327,6 +2355,11 @@ def processar():
         session.permanent = True
         session.modified = True
 
+        # 💰 VERIFICAR ORÇAMENTO MENSAL EM BRL (bloqueia ao atingir o teto)
+        orcamento_check = verificar_orcamento_request()
+        if orcamento_check:
+            return orcamento_check
+
         # 🔐 VERIFICAR LIMITE DE TOKENS
         token_check = verificar_limite_tokens_request()
         if token_check:
@@ -2403,6 +2436,10 @@ def processar():
                 f"categorias={deteccao_inj_doc['categorias']}, peso={deteccao_inj_doc['peso_total']}, "
                 f"ip={request.remote_addr}, arquivo={secure_filename(file.filename)}"
             )
+            try:
+                registrar_evento_injection('processar', deteccao_inj_doc['categorias'], bloqueado=False)
+            except Exception as _e:
+                logging.warning(f"⚠️ Falha ao registrar KPI de injection: {_e}")
 
         # 🚫 PRÉ-VALIDAÇÃO: Detectar documentos advocatícios antes de enviar ao Gemini
         pre_validacao = detectar_documento_advocaticio(texto_original)
@@ -2757,6 +2794,11 @@ def processar_texto():
         session.permanent = True
         session.modified = True
 
+        # 💰 VERIFICAR ORÇAMENTO MENSAL EM BRL (bloqueia ao atingir o teto)
+        orcamento_check = verificar_orcamento_request()
+        if orcamento_check:
+            return orcamento_check
+
         # 🔐 VERIFICAR LIMITE DE TOKENS
         token_check = verificar_limite_tokens_request()
         if token_check:
@@ -2809,6 +2851,10 @@ def processar_texto():
                 f"categorias={deteccao_inj_texto['categorias']}, peso={deteccao_inj_texto['peso_total']}, "
                 f"ip={request.remote_addr}"
             )
+            try:
+                registrar_evento_injection('processar_texto', deteccao_inj_texto['categorias'], bloqueado=False)
+            except Exception as _e:
+                logging.warning(f"⚠️ Falha ao registrar KPI de injection: {_e}")
 
         text_hash = hashlib.md5(texto_original.encode('utf-8')).hexdigest()
 
@@ -3094,6 +3140,11 @@ def processar_texto():
 def chat_contextual():
     """Chat baseado no documento"""
     try:
+        # 💰 VERIFICAR ORÇAMENTO MENSAL EM BRL (bloqueia ao atingir o teto)
+        orcamento_check = verificar_orcamento_request()
+        if orcamento_check:
+            return orcamento_check
+
         # 🔐 VERIFICAR LIMITE DE TOKENS
         token_check = verificar_limite_tokens_request()
         if token_check:
@@ -3117,6 +3168,10 @@ def chat_contextual():
                 f"categorias={deteccao_inj['categorias']}, peso={deteccao_inj['peso_total']}, "
                 f"ip={request.remote_addr}, trecho={pergunta[:200]!r}"
             )
+            try:
+                registrar_evento_injection('chat', deteccao_inj['categorias'], bloqueado=True)
+            except Exception as _e:
+                logging.warning(f"⚠️ Falha ao registrar KPI de injection: {_e}")
             return jsonify({
                 "resposta": "Pergunta inválida. Por favor, refaça sua dúvida em outras palavras.",
                 "tipo": "erro"
@@ -3881,6 +3936,52 @@ def admin_api_stats():
         return jsonify(database.get_admin_dashboard_stats())
     except Exception as e:
         logging.error(f"❌ Erro em /admin/api/stats: {e}")
+        return jsonify({"erro": str(e)}), 500
+
+
+@app.route("/admin/api/orcamento", methods=["GET"])
+@auth.admin_required
+def admin_api_orcamento_get():
+    """Retorna config de orçamento + status atual (teto, gasto, percentual, bloqueado)."""
+    try:
+        return jsonify(verificar_orcamento())
+    except Exception as e:
+        logging.error(f"❌ Erro em /admin/api/orcamento GET: {e}")
+        return jsonify({"erro": str(e)}), 500
+
+
+@app.route("/admin/api/orcamento", methods=["POST"])
+@auth.superadmin_required
+@require_csrf
+def admin_api_orcamento_set():
+    """Atualiza config de orçamento. Requer superadmin."""
+    try:
+        data = request.get_json() or {}
+        teto_brl = data.get('teto_brl')
+        periodo = data.get('periodo', 'mensal')
+        ativo = bool(data.get('ativo', True))
+        if teto_brl is None:
+            return jsonify({"erro": "teto_brl obrigatório"}), 400
+        config = set_orcamento_config(teto_brl, periodo, ativo)
+        auth.audit_action('orcamento_atualizado', sucesso=True, detalhes=f"teto={teto_brl} periodo={periodo} ativo={ativo}")
+        return jsonify({"ok": True, "config": config, "status": verificar_orcamento()})
+    except ValueError as e:
+        return jsonify({"erro": str(e)}), 400
+    except Exception as e:
+        logging.error(f"❌ Erro em /admin/api/orcamento POST: {e}")
+        return jsonify({"erro": str(e)}), 500
+
+
+@app.route("/admin/api/injection-kpi", methods=["GET"])
+@auth.admin_required
+def admin_api_injection_kpi():
+    """Retorna KPIs agregados de tentativas de prompt injection (últimos 30 dias)."""
+    try:
+        dias = int(request.args.get('dias', 30))
+        dias = max(1, min(dias, 365))
+        return jsonify(get_kpi_injection_stats(dias=dias))
+    except Exception as e:
+        logging.error(f"❌ Erro em /admin/api/injection-kpi: {e}")
         return jsonify({"erro": str(e)}), 500
 
 

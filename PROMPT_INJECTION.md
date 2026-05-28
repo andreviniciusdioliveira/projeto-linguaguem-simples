@@ -188,6 +188,33 @@ A reação à detecção é **diferente** dependendo do vetor, refletindo o trad
 ⚠️ Padrões de prompt injection no documento - categorias=['cabecalho'], peso=3, ip=X.X.X.X, arquivo=nome.pdf
 ```
 
+### 4.1 KPI agregado no painel admin
+
+Toda detecção registra um contador agregado (sem PII) em `prompt_injection_diario` via `registrar_evento_injection(endpoint, categorias, bloqueado)` (`database.py`). O painel admin exibe (em `/admin`):
+
+- Total de tentativas nos últimos 30 dias.
+- Quantas foram bloqueadas (chat) vs apenas logadas (documento).
+- Distribuição por categoria (override, persona, exfiltracao, cabecalho, obfuscation_*).
+- Distribuição por endpoint.
+- Série temporal diária (gráfico empilhado).
+
+**Esquema da tabela** (LGPD: apenas contadores, sem IP/texto):
+
+```sql
+CREATE TABLE prompt_injection_diario (
+    data TEXT NOT NULL,         -- YYYY-MM-DD
+    endpoint TEXT NOT NULL,     -- 'chat' | 'processar' | 'processar_texto'
+    categoria TEXT NOT NULL,    -- override | persona | exfiltracao | ...
+    bloqueado INTEGER NOT NULL, -- 0 = só log, 1 = bloqueou request
+    contagem INTEGER DEFAULT 0,
+    PRIMARY KEY (data, endpoint, categoria, bloqueado)
+)
+```
+
+Limpeza automática: registros com mais de 90 dias são removidos pela rotina diária (`limpar_injection_antigo()`).
+
+**Endpoint:** `GET /admin/api/injection-kpi?dias=30` (requer login admin).
+
 ---
 
 ## 5. Fluxo Completo (Diagrama Textual)

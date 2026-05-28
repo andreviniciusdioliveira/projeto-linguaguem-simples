@@ -77,6 +77,62 @@
             </article>
         </section>
 
+        <!-- Orçamento mensal em BRL -->
+        <section class="admin-card admin-card--full" aria-label="Orçamento Gemini" id="orcamentoCard">
+            <h2>Orçamento Gemini <span id="orcamentoBadge" class="admin-badge"></span></h2>
+            <p class="admin-card-help">
+                Teto configurável em R$ por período. Quando o custo real acumulado (tokens consumidos × preço Google × câmbio)
+                atingir o teto, o sistema bloqueia novos uploads, texto colado e chat até a renovação.
+            </p>
+
+            <div class="admin-orcamento-status">
+                <div>
+                    <span class="admin-sec-label">Teto</span>
+                    <strong id="orcTeto">—</strong>
+                </div>
+                <div>
+                    <span class="admin-sec-label">Gasto no período</span>
+                    <strong id="orcGasto">—</strong>
+                </div>
+                <div>
+                    <span class="admin-sec-label">Saldo</span>
+                    <strong id="orcSaldo">—</strong>
+                </div>
+                <div>
+                    <span class="admin-sec-label">Período</span>
+                    <strong id="orcPeriodo">—</strong>
+                </div>
+            </div>
+
+            <div class="admin-progress" aria-label="Uso do orçamento">
+                <div class="admin-progress-bar" id="orcBar" style="width:0%"></div>
+                <span class="admin-progress-label" id="orcPercent">0%</span>
+            </div>
+
+            <p class="admin-card-help" id="orcEstimativa">Equivalente estimado: —</p>
+
+            <form id="orcamentoForm" class="admin-form-inline" aria-label="Configurar orçamento">
+                <label>
+                    Teto (R$)
+                    <input type="number" id="orcInputTeto" min="0" step="100" required>
+                </label>
+                <label>
+                    Período
+                    <select id="orcInputPeriodo">
+                        <option value="mensal">Mensal</option>
+                        <option value="diario">Diário</option>
+                        <option value="total">Acumulado total</option>
+                    </select>
+                </label>
+                <label class="admin-checkbox-label">
+                    <input type="checkbox" id="orcInputAtivo">
+                    Ativo
+                </label>
+                <button type="submit" class="admin-btn-primary">Salvar</button>
+                <span id="orcSaveMsg" class="admin-save-msg"></span>
+            </form>
+        </section>
+
         <!-- Gráficos: tokens e feedback -->
         <section class="admin-grid" aria-label="Gráficos de uso">
             <div class="admin-card">
@@ -184,6 +240,70 @@
                     </tbody>
                 </table>
             </div>
+        </section>
+
+        <!-- Segurança: tentativas de prompt injection -->
+        <section class="admin-card admin-card--full" aria-label="Tentativas de prompt injection">
+            <h2>Tentativas de prompt injection · últimos 30 dias</h2>
+            <p class="admin-card-help">
+                Eventos detectados pelo filtro regex categorizado.
+                <strong>Bloqueados</strong> = pergunta de chat rejeitada com erro genérico.
+                <strong>Logados</strong> = padrão detectado em documento (não bloqueia, só monitora).
+                Dados agregados sem PII — apenas contadores por dia/endpoint/categoria.
+            </p>
+
+            <div class="admin-security">
+                <div>
+                    <span class="admin-sec-label">Total (30d)</span>
+                    <strong id="injTotal">—</strong>
+                </div>
+                <div>
+                    <span class="admin-sec-label">Bloqueados</span>
+                    <strong id="injBloqueados">—</strong>
+                </div>
+                <div>
+                    <span class="admin-sec-label">Logados (não bloqueio)</span>
+                    <strong id="injLogados">—</strong>
+                </div>
+            </div>
+
+            <div class="admin-grid">
+                <div>
+                    <h3 class="admin-subhead">Por categoria</h3>
+                    <div class="admin-table-wrap">
+                        <table class="admin-table" id="tabelaInjCategoria">
+                            <thead>
+                                <tr>
+                                    <th>Categoria</th>
+                                    <th class="num">Ocorrências</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabelaInjCategoriaBody">
+                                <tr><td colspan="2" class="admin-empty">Carregando…</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div>
+                    <h3 class="admin-subhead">Por endpoint</h3>
+                    <div class="admin-table-wrap">
+                        <table class="admin-table" id="tabelaInjEndpoint">
+                            <thead>
+                                <tr>
+                                    <th>Endpoint</th>
+                                    <th class="num">Ocorrências</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabelaInjEndpointBody">
+                                <tr><td colspan="2" class="admin-empty">Carregando…</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <h3 class="admin-subhead">Série temporal</h3>
+            <canvas id="chartInjection" height="180"></canvas>
         </section>
 
         <!-- Segurança: tentativas de login admin -->

@@ -358,6 +358,166 @@
             console.error('fetchStats falhou:', err);
             setLastUpdate(`falha em ${fmtHora()} — tentando novamente…`);
         }
+        // Carregar em paralelo: orçamento e KPI de prompt injection
+        fetchOrcamento().catch(e => console.error('orcamento', e));
+        fetchInjectionKpi().catch(e => console.error('injection-kpi', e));
+    }
+
+    // ===========================================
+    // Orçamento mensal em BRL
+    // ===========================================
+
+    let orcInputsTouched = false;  // não sobrescreve form em edição
+
+    async function fetchOrcamento() {
+        const resp = await fetch('/admin/api/orcamento', { credentials: 'same-origin' });
+        if (!resp.ok) return;
+        const data = await resp.json();
+        if (data.erro) return;
+        renderOrcamento(data);
+    }
+
+    function renderOrcamento(o) {
+        setText('orcTeto', fmtBRL(o.teto_brl));
+        setText('orcGasto', fmtBRL(o.gasto_brl));
+        setText('orcSaldo', fmtBRL(o.saldo_brl));
+        const periodoStr = {mensal: 'Mensal', diario: 'Diário', total: 'Acumulado total'}[o.periodo] || o.periodo;
+        setText('orcPeriodo', periodoStr);
+
+        const bar = document.getElementById('orcBar');
+        const label = document.getElementById('orcPercent');
+        if (bar) {
+            bar.style.width = `${o.percentual}%`;
+            bar.classList.remove('admin-progress-bar--ok', 'admin-progress-bar--warn', 'admin-progress-bar--danger');
+            if (o.percentual < 60) bar.classList.add('admin-progress-bar--ok');
+            else if (o.percentual < 90) bar.classList.add('admin-progress-bar--warn');
+            else bar.classList.add('admin-progress-bar--danger');
+        }
+        if (label) label.textContent = `${o.percentual}%`;
+
+        const badge = document.getElementById('orcamentoBadge');
+        if (badge) {
+            badge.className = 'admin-badge';
+            if (!o.ativo) { badge.textContent = 'Desativado'; badge.classList.add('admin-badge--off'); }
+            else if (o.bloqueado) { badge.textContent = 'Bloqueado'; badge.classList.add('admin-badge--danger'); }
+            else if (o.percentual >= 90) { badge.textContent = 'Crítico'; badge.classList.add('admin-badge--warn'); }
+            else if (o.percentual >= 60) { badge.textContent = 'Atenção'; badge.classList.add('admin-badge--warn'); }
+            else { badge.textContent = 'OK'; badge.classList.add('admin-badge--ok'); }
+        }
+
+        const estEl = document.getElementById('orcEstimativa');
+        if (estEl && o.estimativa_tokens) {
+            const est = o.estimativa_tokens;
+            estEl.textContent = `Equivalente estimado: ${fmtNumero(est.tokens_estimados)} tokens ` +
+                `(modelo ${est.modelo_referencia}, razão in:out ${est.razao_input_output}:1, câmbio R$${est.cambio_usd_brl.toFixed(2)}/USD).`;
+        }
+
+        // Só pré-preencher o form se o usuário não estiver editando
+        if (!orcInputsTouched) {
+            const inTeto = document.getElementById('orcInputTeto');
+            const inPer = document.getElementById('orcInputPeriodo');
+            const inAtv = document.getElementById('orcInputAtivo');
+            if (inTeto) inTeto.value = o.teto_brl;
+            if (inPer) inPer.value = o.periodo;
+            if (inAtv) inAtv.checked = o.ativo;
+        }
+    }
+
+    function setupOrcamentoForm() {
+        const form = document.getElementById('orcamentoForm');
+        if (!form) return;
+        ['orcInputTeto', 'orcInputPeriodo', 'orcInputAtivo'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener('input', () => { orcInputsTouched = true; });
+        });
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const msgEl = document.getElementById('orcSaveMsg');
+            const submitBtn = form.querySelector('button[type="submit"]');
+            if (msgEl) { msgEl.textContent = 'salvando…'; msgEl.className = 'admin-save-msg'; }
+            if (submitBtn) submitBtn.disabled = true;
+            try {
+                const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+                const csrf = csrfMeta ? csrfMeta.getAttribute('content') : '';
+                const payload = {
+                    teto_brl: parseFloat(document.getElementById('orcInputTeto').value),
+                    periodo: document.getElementById('orcInputPeriodo').value,
+                    ativo: document.getElementById('orcInputAtivo').checked,
+                };
+                const resp = await fetch('/admin/api/orcamento', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
+                    body: JSON.stringify(payload),
+                });
+                const data = await resp.json();
+                if (!resp.ok || data.erro) {
+                    if (msgEl) { msgEl.textContent = data.erro || `erro ${resp.status}`; msgEl.className = 'admin-save-msg admin-save-msg--err'; }
+                    return;
+                }
+                if (msgEl) { msgEl.textContent = '✓ salvo'; msgEl.className = 'admin-save-msg admin-save-msg--ok'; }
+                orcInputsTouched = false;
+                renderOrcamento(data.status);
+                setTimeout(() => { if (msgEl) msgEl.textContent = ''; }, 3000);
+            } catch (err) {
+                if (msgEl) { msgEl.textContent = `falha: ${err.message}`; msgEl.className = 'admin-save-msg admin-save-msg--err'; }
+            } finally {
+                if (submitBtn) submitBtn.disabled = false;
+            }
+        });
+    }
+
+    // ===========================================
+    // KPI de prompt injection
+    // ===========================================
+
+    async function fetchInjectionKpi() {
+        const resp = await fetch('/admin/api/injection-kpi?dias=30', { credentials: 'same-origin' });
+        if (!resp.ok) return;
+        const data = await resp.json();
+        if (data.erro) return;
+        renderInjectionKpi(data);
+    }
+
+    function renderInjectionKpi(kpi) {
+        setText('injTotal', fmtNumero(kpi.total_eventos));
+        setText('injBloqueados', fmtNumero(kpi.total_bloqueados));
+        setText('injLogados', fmtNumero(kpi.total_logados));
+
+        const tbCat = document.getElementById('tabelaInjCategoriaBody');
+        if (tbCat) {
+            const items = Object.entries(kpi.por_categoria || {}).sort((a, b) => b[1] - a[1]);
+            tbCat.innerHTML = items.length === 0
+                ? '<tr><td colspan="2" class="admin-empty">Nenhuma tentativa detectada nos últimos 30 dias.</td></tr>'
+                : items.map(([cat, n]) => `<tr><td>${escapeHtml(cat)}</td><td class="num">${fmtNumero(n)}</td></tr>`).join('');
+        }
+
+        const tbEnd = document.getElementById('tabelaInjEndpointBody');
+        if (tbEnd) {
+            const items = Object.entries(kpi.por_endpoint || {}).sort((a, b) => b[1] - a[1]);
+            tbEnd.innerHTML = items.length === 0
+                ? '<tr><td colspan="2" class="admin-empty">—</td></tr>'
+                : items.map(([ep, n]) => `<tr><td>${escapeHtml(ep)}</td><td class="num">${fmtNumero(n)}</td></tr>`).join('');
+        }
+
+        const serie = kpi.serie_diaria || [];
+        if (typeof Chart !== 'undefined') {
+            ensureChart('chartInjection', {
+                type: 'bar',
+                data: {
+                    labels: serie.map(s => s.data.slice(5)),  // MM-DD
+                    datasets: [
+                        { label: 'Bloqueados', data: serie.map(s => s.bloqueados), backgroundColor: DANGER_RED },
+                        { label: 'Logados', data: serie.map(s => s.logados), backgroundColor: TJTO_AZUL_LIGHT },
+                    ],
+                },
+                options: {
+                    responsive: true,
+                    scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true, ticks: { precision: 0 } } },
+                    plugins: { legend: { position: 'bottom' } },
+                },
+            });
+        }
     }
 
     function start() {
@@ -382,6 +542,7 @@
         Chart.defaults.font.family = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
         Chart.defaults.color = '#5b6776';
 
+        setupOrcamentoForm();
         fetchStats();
         pollTimer = setInterval(fetchStats, POLL_INTERVAL_MS);
 
