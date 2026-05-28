@@ -23,6 +23,7 @@ import threading
 import queue
 import json
 import re
+import unicodedata
 import base64
 import subprocess
 import numpy as np
@@ -214,6 +215,21 @@ def delimitar_texto_usuario(texto):
     )
 
 
+# Zero-width e caracteres invisíveis usados para "esconder" letras em payloads de injection.
+# Inclui ZWSP, ZWNJ, ZWJ, LRM, RLM, Word Joiner, Soft Hyphen e BOM.
+_REGEX_ZERO_WIDTH = re.compile('[\u200b\u200c\u200d\u200e\u200f\u2060\u00ad\ufeff]')
+
+
+def _normalizar_para_deteccao(texto):
+    """Normaliza texto antes do regex anti-injection: remove caracteres invisíveis
+    e aplica NFKC para neutralizar homóglifos Unicode (ex.: 'А' cirílico → 'A' latino).
+    Frustra bypass simples sem alterar texto legítimo."""
+    if not texto:
+        return ""
+    texto = _REGEX_ZERO_WIDTH.sub('', texto)
+    return unicodedata.normalize('NFKC', texto)
+
+
 # 🛡️ Defesa em profundidade: regex para detectar tentativas óbvias de prompt injection.
 # Não substitui a delimitação — adiciona uma camada de bloqueio/log para padrões clássicos.
 # Pesos: 3 = padrão forte (override/jailbreak/exfiltração explícita), 2 = sinal médio.
@@ -239,26 +255,54 @@ _PADROES_PROMPT_INJECTION = [
 ]
 
 
-def detectar_prompt_injection(texto):
+# Padrões de obfuscation aplicáveis apenas a texto curto (pergunta de chat).
+# Em documento são arriscados (PDFs têm base64/hex em metadados, assinaturas, imagens).
+_PADROES_OBFUSCATION = [
+    # Blob Base64 de 40+ chars: típico de payload codificado em pergunta de chat
+    (re.compile(r'\b[A-Za-z0-9+/]{40,}={0,2}\b'), "obfuscation_base64", 3),
+    # Hex de 40+ chars: payload em hexadecimal
+    (re.compile(r'\b[0-9a-fA-F]{40,}\b'), "obfuscation_hex", 3),
+    # Letras separadas por espaços (8+ pares letra-espaço-letra): "i g n o r e ..."
+    (re.compile(r'(?:[A-Za-zÀ-ÿ]\s){8,}[A-Za-zÀ-ÿ]'), "obfuscation_espacada", 3),
+    # Mistura de scripts: caracteres cirílicos (U+0400-U+04FF) ou gregos (U+0370-U+03FF)
+    # em texto PT/EN — homóglifos clássicos ('А' cirílico no lugar de 'A' latino)
+    (re.compile('[\u0400-\u04ff\u0370-\u03ff]'), "obfuscation_homografo", 3),
+]
+
+
+def detectar_prompt_injection(texto, incluir_obfuscation=False):
     """Detecta padrões clássicos de prompt injection em texto curto (pergunta de chat) ou longo (documento).
+
+    Pré-processa o texto: remove caracteres zero-width invisíveis e aplica normalização
+    NFKC para neutralizar bypass por homóglifos Unicode (ex.: 'А' cirílico → 'A' latino).
+
+    Args:
+        texto: texto a inspecionar.
+        incluir_obfuscation: se True, também detecta padrões de obfuscation técnica
+            (Base64, hex, letras espaçadas). Usar apenas em texto curto livre de ruído
+            (perguntas de chat). Documentos PDF têm base64/hex legítimos em metadados.
 
     Retorna dict com:
       - suspeito (bool): True se peso_total >= 3 (um padrão forte ou múltiplos médios)
-      - categorias (list): tipos de padrão detectados (override, persona, exfiltracao, cabecalho)
+      - categorias (list): tipos de padrão detectados
       - peso_total (int): soma dos pesos dos padrões matched
 
     Defesa em profundidade — não substitui delimitar_texto_usuario(). Atacantes podem
     parafrasear para escapar do regex, por isso o uso recomendado é:
-      - /chat (pergunta): bloquear quando suspeito (texto curto, intenção clara)
-      - /processar (documento): apenas logar (sentenças jurídicas podem citar trechos)
+      - /chat (pergunta): bloquear quando suspeito (com incluir_obfuscation=True)
+      - /processar (documento): apenas logar, sem obfuscation (sentenças jurídicas
+        podem citar trechos com palavras suspeitas)
     """
     if not texto:
         return {"suspeito": False, "categorias": [], "peso_total": 0}
 
+    texto_norm = _normalizar_para_deteccao(texto)
+    padroes = _PADROES_PROMPT_INJECTION + (_PADROES_OBFUSCATION if incluir_obfuscation else [])
+
     categorias = []
     peso_total = 0
-    for regex, categoria, peso in _PADROES_PROMPT_INJECTION:
-        if regex.search(texto):
+    for regex, categoria, peso in padroes:
+        if regex.search(texto_norm):
             categorias.append(categoria)
             peso_total += peso
 
@@ -3064,8 +3108,9 @@ def chat_contextual():
             return jsonify({"resposta": "Faça uma pergunta sobre o documento", "tipo": "erro"}), 400
 
         # 🛡️ Defesa em profundidade: bloquear tentativas óbvias de prompt injection na pergunta.
-        # Mensagem de erro genérica para não revelar o filtro ao atacante.
-        deteccao_inj = detectar_prompt_injection(pergunta)
+        # incluir_obfuscation=True ativa detecção de Base64/hex/letras espaçadas — só seguro
+        # em texto curto. Mensagem de erro genérica para não revelar o filtro ao atacante.
+        deteccao_inj = detectar_prompt_injection(pergunta, incluir_obfuscation=True)
         if deteccao_inj["suspeito"]:
             logging.warning(
                 f"🚫 PROMPT INJECTION bloqueada no /chat - "
