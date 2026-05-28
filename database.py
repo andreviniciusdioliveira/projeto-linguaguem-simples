@@ -1718,7 +1718,7 @@ def _calcular_custo_periodo_brl(periodo):
                        COALESCE(SUM(tokens_input), 0),
                        COALESCE(SUM(tokens_output), 0)
                 FROM audit_ip
-                WHERE timestamp >= ?
+                WHERE data_processamento >= ?
                 GROUP BY modelo_usado
             ''', (corte,))
             rows = cursor.fetchall()
