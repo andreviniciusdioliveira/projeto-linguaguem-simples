@@ -214,6 +214,61 @@ def delimitar_texto_usuario(texto):
     )
 
 
+# 🛡️ Defesa em profundidade: regex para detectar tentativas óbvias de prompt injection.
+# Não substitui a delimitação — adiciona uma camada de bloqueio/log para padrões clássicos.
+# Pesos: 3 = padrão forte (override/jailbreak/exfiltração explícita), 2 = sinal médio.
+_PADROES_PROMPT_INJECTION = [
+    # === Override de instruções (peso 3) ===
+    (re.compile(r'ignor[ae][rm]?\s+(?:tod[ao]s?\s+)?(?:as|os)?\s*(?:instru[çc][õo]es|regras|comandos|prompts?)\s+(?:anteriores|acima|pr[ée]vi[ao]s)', re.IGNORECASE), "override", 3),
+    (re.compile(r'ignore\s+(?:all\s+)?(?:previous|prior|above)\s+(?:instructions|rules|prompts)', re.IGNORECASE), "override", 3),
+    (re.compile(r'esque[çc]a\s+(?:tudo\s+(?:o\s+que|que\s+(?:eu\s+)?disse)|as\s+(?:regras|instru[çc][õo]es))', re.IGNORECASE), "override", 3),
+    (re.compile(r'desconsidere\s+(?:tudo|o\s+(?:que|acima)|as\s+(?:regras|instru[çc][õo]es))', re.IGNORECASE), "override", 3),
+    (re.compile(r'disregard\s+(?:all\s+)?(?:previous|above|prior)\s+(?:instructions|rules)', re.IGNORECASE), "override", 3),
+    # === Jailbreak / mudança de persona maliciosa (peso 3) ===
+    (re.compile(r'\b(?:jailbreak|developer\s+mode|DAN\s+mode|do\s+anything\s+now)\b', re.IGNORECASE), "persona", 3),
+    (re.compile(r'modo\s+(?:desenvolvedor|sem\s+restri[çc][õo]es|livre|admin|root|debug)\b', re.IGNORECASE), "persona", 3),
+    (re.compile(r'voc[eê]\s+(?:agora|ser[áa])\s+(?:é\s+|ser[áa]\s+)?(?:um\s+|uma\s+)?(?:hacker|cracker|criminoso|sem\s+restri[çc][õo]es)', re.IGNORECASE), "persona", 3),
+    (re.compile(r'you\s+are\s+(?:now|no\s+longer)\s+(?:a|an|bound)', re.IGNORECASE), "persona", 2),
+    # === Exfiltração do prompt do sistema (peso 3) ===
+    # Aceita 1–3 palavras curtas (artigos/pronomes) entre o verbo e o alvo.
+    (re.compile(r'(?:revele|mostre|imprima|exiba|repita|copie)\s+(?:(?:o|a|os|as|seu|sua|teu|tua|este|esse|todo|toda)\s+){1,3}(?:prompt|system\s*prompt|instru[çc][õo]es\s+(?:do\s+)?sistema)', re.IGNORECASE), "exfiltracao", 3),
+    (re.compile(r'(?:reveal|show|print|repeat|output)\s+(?:your\s+|the\s+|all\s+)?(?:system\s+)?(?:prompt|instructions)', re.IGNORECASE), "exfiltracao", 3),
+    # === Falsos cabeçalhos de chat / tags de sistema (peso 3 — alta especificidade) ===
+    (re.compile(r'^\s*(?:SYSTEM|ASSISTANT|USER|HUMAN)\s*[:>]', re.MULTILINE), "cabecalho", 3),
+    (re.compile(r'<\s*(?:system|instructions?|assistant|/?human)\s*>', re.IGNORECASE), "cabecalho", 3),
+]
+
+
+def detectar_prompt_injection(texto):
+    """Detecta padrões clássicos de prompt injection em texto curto (pergunta de chat) ou longo (documento).
+
+    Retorna dict com:
+      - suspeito (bool): True se peso_total >= 3 (um padrão forte ou múltiplos médios)
+      - categorias (list): tipos de padrão detectados (override, persona, exfiltracao, cabecalho)
+      - peso_total (int): soma dos pesos dos padrões matched
+
+    Defesa em profundidade — não substitui delimitar_texto_usuario(). Atacantes podem
+    parafrasear para escapar do regex, por isso o uso recomendado é:
+      - /chat (pergunta): bloquear quando suspeito (texto curto, intenção clara)
+      - /processar (documento): apenas logar (sentenças jurídicas podem citar trechos)
+    """
+    if not texto:
+        return {"suspeito": False, "categorias": [], "peso_total": 0}
+
+    categorias = []
+    peso_total = 0
+    for regex, categoria, peso in _PADROES_PROMPT_INJECTION:
+        if regex.search(texto):
+            categorias.append(categoria)
+            peso_total += peso
+
+    return {
+        "suspeito": peso_total >= 3,
+        "categorias": list(dict.fromkeys(categorias)),
+        "peso_total": peso_total,
+    }
+
+
 # Magic bytes por extensão para validar que o conteúdo bate com a extensão declarada
 MIME_MAGIC_BYTES = {
     'pdf': [b'%PDF-'],
@@ -2295,6 +2350,16 @@ def processar():
             logging.warning(f"⚠️ Texto muito curto: {len(texto_original)} caracteres")
             return jsonify({"erro": "Texto insuficiente no documento"}), 400
 
+        # 🛡️ Monitoramento (não bloqueia): documentos jurídicos podem citar trechos com
+        # palavras suspeitas legitimamente. Delimitação no prompt continua sendo a defesa principal.
+        deteccao_inj_doc = detectar_prompt_injection(texto_original)
+        if deteccao_inj_doc["suspeito"]:
+            logging.warning(
+                f"⚠️ Padrões de prompt injection no documento - "
+                f"categorias={deteccao_inj_doc['categorias']}, peso={deteccao_inj_doc['peso_total']}, "
+                f"ip={request.remote_addr}, arquivo={secure_filename(file.filename)}"
+            )
+
         # 🚫 PRÉ-VALIDAÇÃO: Detectar documentos advocatícios antes de enviar ao Gemini
         pre_validacao = detectar_documento_advocaticio(texto_original)
         if pre_validacao["detectado"]:
@@ -2692,6 +2757,15 @@ def processar_texto():
         if len(texto_original) > 10000:
             return jsonify({"erro": "Texto muito longo. Máximo: 10.000 caracteres"}), 400
 
+        # 🛡️ Monitoramento de prompt injection em texto colado (apenas log, não bloqueia)
+        deteccao_inj_texto = detectar_prompt_injection(texto_original)
+        if deteccao_inj_texto["suspeito"]:
+            logging.warning(
+                f"⚠️ Padrões de prompt injection em texto colado - "
+                f"categorias={deteccao_inj_texto['categorias']}, peso={deteccao_inj_texto['peso_total']}, "
+                f"ip={request.remote_addr}"
+            )
+
         text_hash = hashlib.md5(texto_original.encode('utf-8')).hexdigest()
 
         logging.info(f"📝 Processando texto colado: {len(texto_original)} caracteres")
@@ -2988,6 +3062,20 @@ def chat_contextual():
 
         if not pergunta:
             return jsonify({"resposta": "Faça uma pergunta sobre o documento", "tipo": "erro"}), 400
+
+        # 🛡️ Defesa em profundidade: bloquear tentativas óbvias de prompt injection na pergunta.
+        # Mensagem de erro genérica para não revelar o filtro ao atacante.
+        deteccao_inj = detectar_prompt_injection(pergunta)
+        if deteccao_inj["suspeito"]:
+            logging.warning(
+                f"🚫 PROMPT INJECTION bloqueada no /chat - "
+                f"categorias={deteccao_inj['categorias']}, peso={deteccao_inj['peso_total']}, "
+                f"ip={request.remote_addr}, trecho={pergunta[:200]!r}"
+            )
+            return jsonify({
+                "resposta": "Pergunta inválida. Por favor, refaça sua dúvida em outras palavras.",
+                "tipo": "erro"
+            }), 400
 
         contexto = session.get('contexto_chat')
         if not contexto:
