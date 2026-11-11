@@ -88,16 +88,47 @@ TTS_VOICE_GOOGLE = os.getenv("TTS_VOICE_GOOGLE", "pt-BR-Chirp3-HD-Achernar")
 logging.info(f"🔊 TTS configurado: provedor={TTS_PROVIDER} | voz_google={TTS_VOICE_GOOGLE} | voz_edge={TTS_VOICE}")
 
 app = Flask(__name__)
-_default_secret = os.urandom(24)
-app.secret_key = os.getenv("SECRET_KEY", _default_secret)
-if not os.getenv("SECRET_KEY"):
-    logging.warning("⚠️ SECRET_KEY não definida - sessões serão invalidadas entre workers/restarts. Defina SECRET_KEY em produção!")
+
+
+def _carregar_secret_key():
+    """Usa SECRET_KEY do ambiente. Sem ela, gera uma chave uma única vez e a guarda em
+    data/.secret_key, para que todos os workers do Gunicorn assinem a sessão com a mesma
+    chave (chaves diferentes por worker invalidam o token CSRF de forma intermitente)."""
+    chave_env = os.getenv("SECRET_KEY")
+    if chave_env:
+        return chave_env
+    logging.warning("⚠️ SECRET_KEY não definida - usando chave persistida em data/.secret_key. Defina SECRET_KEY em produção!")
+    caminho = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", ".secret_key")
+    try:
+        os.makedirs(os.path.dirname(caminho), exist_ok=True)
+        try:
+            fd = os.open(caminho, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            with os.fdopen(fd, "wb") as f:
+                f.write(os.urandom(32))
+        except FileExistsError:
+            pass
+        with open(caminho, "rb") as f:
+            chave = f.read()
+        if len(chave) >= 32:
+            return chave
+    except OSError as e:
+        logging.warning(f"⚠️ Não foi possível persistir a SECRET_KEY ({e}); sessões podem falhar entre workers.")
+    return os.urandom(32)
+
+
+app.secret_key = _carregar_secret_key()
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=1)
-# Cookies de sessão: HttpOnly, Secure (em HTTPS), SameSite=Lax
+# Cookies de sessão: HttpOnly, SameSite=Lax e Secure (só trafega em HTTPS).
+# SESSION_COOKIE_SECURE=false permite o acesso por HTTP (ex.: IP:8080) mantendo o modo produção;
+# sem a variável, o cookie é Secure sempre que FLASK_ENV=production.
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
-if os.getenv('FLASK_ENV', 'production').lower() == 'production':
+_cookie_secure_env = os.getenv('SESSION_COOKIE_SECURE')
+if _cookie_secure_env is not None:
+    app.config['SESSION_COOKIE_SECURE'] = _cookie_secure_env.strip().lower() in ('1', 'true', 'yes', 'sim')
+elif os.getenv('FLASK_ENV', 'production').lower() == 'production':
     app.config['SESSION_COOKIE_SECURE'] = True
+logging.info(f"🍪 SESSION_COOKIE_SECURE={app.config.get('SESSION_COOKIE_SECURE', False)}")
 logging.basicConfig(level=logging.INFO)
 
 # Flag de debug controla verbosidade de logs (stack traces em produção vazam dados)

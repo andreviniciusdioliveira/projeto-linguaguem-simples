@@ -7,6 +7,9 @@ services:
       - "8080:8080"
     environment:
       - FLASK_ENV=production
+      # Acesso por HTTP (IP:8080) sem HTTPS: o cookie de sessão não pode ser Secure.
+      # Voltar para true quando o domínio com SSL estiver ativo.
+      - SESSION_COOKIE_SECURE=false
       - PORT=8080
       - GOOGLE_APPLICATION_CREDENTIALS=/app/secrets/gcp-tts.json
       - TTS_PROVIDER=google
