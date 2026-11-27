@@ -52,3 +52,6 @@ tmp/
 *.db
 *.sqlite
 *.sqlite3
+
+# Documentos reais usados em testes (dados pessoais e processos sigilosos): nunca versionar
+documentos_teste/
