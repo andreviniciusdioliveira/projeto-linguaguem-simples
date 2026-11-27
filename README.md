@@ -422,7 +422,25 @@ MASCARAR_DADOS_PESSOAIS=true
 # Código de registro da solução no Sinapses (CNJ) e grau de risco definido pelo CEIA; aparecem no rodapé
 SINAPSES_CODIGO=
 IA_GRAU_RISCO=
+
+# Segurança e implantação
+# Quantidade de proxies reversos confiáveis na frente da aplicação (0 = acesso direto).
+# Use 1 atrás de Caddy/nginx; sem isso os limites por IP enxergam só o IP do proxy.
+TRUSTED_PROXIES=0
+# Limites de páginas por PDF (total e com OCR)
+MAX_PAGINAS_PDF=200
+MAX_PAGINAS_OCR=20
+# Domínio para o HTTPS automático (usado só com docker-compose.https.yml)
+DOMINIO=entendaaqui.exemplo.jus.br
 ```
+
+> **Dados persistentes.** O banco (`stats.db`), a chave de sessão e os segredos de hash ficam em `data/`
+> (no Docker, o volume `./data`). Se `IP_HASH_SALT` e `CPF_HASH_SALT` não forem definidos, o sistema gera
+> valores aleatórios uma única vez e os guarda nessa pasta. Faça cópia de segurança de `data/`.
+>
+> **HTTPS.** Com um domínio apontado para o servidor, suba com
+> `docker compose -f docker-compose.yml -f docker-compose.https.yml up -d --build`.
+> O Caddy obtém o certificado sozinho e a porta 8080 deixa de ser exposta.
 
 > **Proteção de dados antes da IA.** `salvaguardas.py` faz a triagem local de segredo de justiça (documento
 > sigiloso não é enviado ao modelo) e `protecao_dados.py` troca identificadores pessoais por marcadores como
@@ -852,7 +870,7 @@ O `init_db()` faz **retry com backoff exponencial** (1s, 2s, 4s, 8s) e configura
 - **Rate Limiting Combinado CPF+IP**: 3 documentos/dia por par (CPF, IP) — proteção anti-botnet
 - **Sessões Seguras**: Cookies `HttpOnly`, `SameSite=Lax`, `Secure` em HTTPS, expiração de 1 hora
 - **Security Headers**: CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy
-- **Admin Protegido**: Endpoint de auditoria requer `ADMIN_TOKEN` (Bearer ou query param)
+- **Admin Protegido**: Endpoint de auditoria requer `ADMIN_TOKEN` no cabeçalho `Authorization: Bearer` (o token não é aceito na URL)
 - **Vínculo PDF↔Sessão**: Apenas a sessão que gerou o PDF pode baixá-lo (anti-enumeração)
 - **Anti-Injeção de Prompt**: Validação e limpeza do output da IA (remove vazamentos de instruções)
 - **Anti-Fraude em PDF**: Marca d'água diagonal + logotipos com rotação variável + QR code + hash SHA-256
@@ -1068,7 +1086,8 @@ Retorna dados agregados em conformidade com a LGPD:
 ### Painel de Auditoria
 
 ```
-GET /admin/auditoria?token=SEU_ADMIN_TOKEN
+GET /admin/auditoria
+Authorization: Bearer SEU_ADMIN_TOKEN
 ```
 
 Disponível apenas com `ADMIN_TOKEN` configurado. Mostra:

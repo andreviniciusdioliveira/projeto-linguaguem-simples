@@ -1,0 +1,8 @@
+# Proxy reverso com HTTPS automático. O domínio vem da variável DOMINIO (arquivo .env).
+{$DOMINIO} {
+	encode gzip
+	request_body {
+		max_size 12MB
+	}
+	reverse_proxy app:8080
+}

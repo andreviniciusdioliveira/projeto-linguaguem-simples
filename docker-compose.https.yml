@@ -1,0 +1,37 @@
+# HTTPS com certificado automático (Let's Encrypt) via Caddy.
+#
+# Pré-requisitos: um domínio apontando para o IP do servidor e as portas 80 e 443 liberadas.
+# No arquivo .env, defina:  DOMINIO=entendaaqui.exemplo.jus.br
+#
+# Subir:  docker compose -f docker-compose.yml -f docker-compose.https.yml up -d --build
+#
+# Com este arquivo a aplicação deixa de ser publicada na porta 8080: todo o acesso passa
+# pelo Caddy, o cookie de sessão volta a ser Secure e os limites por IP usam o IP real.
+services:
+  app:
+    ports: !reset []
+    expose:
+      - "8080"
+    environment:
+      - SESSION_COOKIE_SECURE=true
+      - TRUSTED_PROXIES=1
+
+  caddy:
+    image: caddy:2
+    container_name: entenda-aqui-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - DOMINIO=${DOMINIO:?Defina DOMINIO no arquivo .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+
+volumes:
+  caddy_data:
+  caddy_config:

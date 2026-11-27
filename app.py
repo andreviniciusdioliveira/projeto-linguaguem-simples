@@ -96,6 +96,22 @@ logging.info(f"🔊 TTS configurado: provedor={TTS_PROVIDER} | voz_google={TTS_V
 
 app = Flask(__name__)
 
+# Limite do corpo da requisição: o Werkzeug recusa (HTTP 413) antes de ler tudo na memória.
+# Arquivos têm teto de 10 MB (MAX_FILE_SIZE); a folga cobre os demais campos do formulário.
+app.config['MAX_CONTENT_LENGTH'] = 12 * 1024 * 1024
+
+# Atrás de proxy reverso (Caddy, nginx, Render), request.remote_addr seria o IP do proxy e
+# todos os limites por IP virariam um limite global. TRUSTED_PROXIES = quantidade de proxies
+# confiáveis na frente da aplicação (0 = acesso direto; 1 = um proxy). Nunca use um valor
+# maior que o real: o cliente poderia forjar o próprio IP pelo cabeçalho X-Forwarded-For.
+try:
+    TRUSTED_PROXIES = max(0, int(os.getenv("TRUSTED_PROXIES", "0") or 0))
+except ValueError:
+    TRUSTED_PROXIES = 0
+if TRUSTED_PROXIES:
+    from werkzeug.middleware.proxy_fix import ProxyFix
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=TRUSTED_PROXIES, x_proto=TRUSTED_PROXIES, x_host=TRUSTED_PROXIES)
+
 
 def _carregar_secret_key():
     """Usa SECRET_KEY do ambiente. Sem ela, gera uma chave uma única vez e a guarda em
@@ -140,6 +156,15 @@ logging.basicConfig(level=logging.INFO)
 
 # Flag de debug controla verbosidade de logs (stack traces em produção vazam dados)
 DEBUG_MODE = os.getenv('FLASK_ENV', 'production').lower() != 'production'
+
+@app.before_request
+def recusar_requisicao_grande():
+    """Recusa cedo (HTTP 413) corpos acima do limite. Feito aqui porque as rotas têm um
+    'except Exception' amplo que transformaria o erro 413 do Werkzeug em 500."""
+    tamanho = request.content_length
+    if tamanho is not None and tamanho > app.config['MAX_CONTENT_LENGTH']:
+        return jsonify({"erro": "Arquivo muito grande. O limite é 10 MB."}), 413
+
 
 @app.after_request
 def add_security_headers(response):
@@ -465,6 +490,10 @@ def obter_info_ia():
 
 
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+# Limites de páginas: OCR a 300 dpi é caro e os workers são síncronos; sem teto, um PDF
+# digitalizado longo ocupa o worker até o timeout e derruba o serviço.
+MAX_PAGINAS_PDF = int(os.getenv("MAX_PAGINAS_PDF", "200"))
+MAX_PAGINAS_OCR = int(os.getenv("MAX_PAGINAS_OCR", "20"))
 ALLOWED_EXTENSIONS = {'pdf', 'png', 'jpg', 'jpeg', 'gif', 'bmp', 'tiff', 'webp'}
 ALLOWED_IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'tiff', 'webp'}
 TEMP_DIR = tempfile.gettempdir()
@@ -2187,6 +2216,8 @@ def extrair_texto_pdf(pdf_bytes):
             total_pages = len(doc)
             metadados["total_paginas"] = total_pages
             logging.info(f"Processando PDF com {total_pages} páginas")
+            if total_pages > MAX_PAGINAS_PDF:
+                raise ValueError(f"PDF com {total_pages} páginas excede o limite de {MAX_PAGINAS_PDF}")
 
             # Usar lista para melhor performance em memória (evita concatenação repetida)
             partes_texto = []
@@ -2199,6 +2230,11 @@ def extrair_texto_pdf(pdf_bytes):
                         metadados["tem_texto"] = True
                         partes_texto.append(conteudo)
                     elif TESSERACT_AVAILABLE:
+                        if len(metadados["paginas_com_ocr"]) >= MAX_PAGINAS_OCR:
+                            if not metadados.get("ocr_limitado"):
+                                logging.warning(f"⚠️ Limite de {MAX_PAGINAS_OCR} páginas com OCR atingido; demais páginas digitalizadas ignoradas")
+                            metadados["ocr_limitado"] = True
+                            continue
                         logging.info(f"Aplicando OCR na página {i+1}")
                         metadados["usou_ocr"] = True
                         metadados["paginas_com_ocr"].append(i+1)
@@ -2828,10 +2864,19 @@ def processar():
         })
 
         # Salvar texto original
-        texto_original_path = os.path.join(TEMP_DIR, f"texto_{file_hash[:8]}.txt")
+        # Nome inclui a sessão: duas sessões com o mesmo documento não compartilham nem sobrescrevem arquivos
+        sid8 = obter_session_id()[:8]
+        texto_original_path = os.path.join(TEMP_DIR, f"texto_{sid8}_{file_hash[:8]}.txt")
         with open(texto_original_path, 'w', encoding='utf-8') as f:
             f.write(texto_original)
         registrar_arquivo_temporario(texto_original_path, session_id=session.get('session_id'))
+
+        # Texto simplificado guardado no servidor: /narrar só narra este texto, nunca texto livre do cliente
+        texto_narracao_path = os.path.join(TEMP_DIR, f"texto_narrar_{sid8}_{file_hash[:8]}.txt")
+        with open(texto_narracao_path, 'w', encoding='utf-8') as f:
+            f.write(texto_simplificado)
+        registrar_arquivo_temporario(texto_narracao_path, session_id=session.get('session_id'))
+        session['texto_narracao_path'] = texto_narracao_path
 
         # 🔐 GERAR ID E HASH DE VALIDAÇÃO (LGPD compliant)
         doc_id = gerar_doc_id()
@@ -2867,7 +2912,7 @@ def processar():
             "validation_url": validation_url
         }
 
-        pdf_filename = f"simplificado_{file_hash[:8]}.pdf"
+        pdf_filename = f"simplificado_{sid8}_{file_hash[:8]}.pdf"
         pdf_path = gerar_pdf_simplificado(texto_simplificado, metadados_pdf, pdf_filename)
 
         # Autorizar PDF para esta sessão (vínculo PDF↔sessão contra acesso cruzado)
@@ -2968,30 +3013,20 @@ def processar_texto():
         if token_check:
             return token_check
 
-        # 🔐 VERIFICAR CPF
-        data = request.get_json()
-        if not data:
+        # 🔐 VERIFICAR CPF (mesma validação do upload: CPF, limite por CPF e limite por CPF+IP / IP)
+        data = request.get_json(silent=True)
+        if not data or not isinstance(data, dict):
             return jsonify({"erro": "Nenhum dado enviado"}), 400
 
-        cpf = data.get('cpf', '')
-        if not cpf:
-            return jsonify({"erro": "CPF é obrigatório para processar documentos", "cpf_required": True}), 400
-
-        valido, cpf_limpo, mensagem = validar_cpf(cpf)
-        if not valido:
-            return jsonify({"erro": mensagem, "cpf_invalid": True}), 400
-
-        rate_info = verificar_cpf_rate_limit(cpf_limpo)
-        if rate_info["limite_atingido"]:
-            return jsonify({
-                "erro": f"Limite de {CPF_DAILY_LIMIT} documentos por dia atingido para este CPF. Tente novamente amanhã.",
-                "cpf_limit": True,
-                "uso_cpf": rate_info
-            }), 429
+        cpf_limpo, cpf_error = verificar_cpf_request()
+        if cpf_error:
+            return cpf_error
 
         if 'texto' not in data:
             return jsonify({"erro": "Nenhum texto enviado"}), 400
 
+        if not isinstance(data['texto'], str):
+            return jsonify({"erro": "Texto inválido"}), 400
         texto_original = data['texto'].strip()
         perspectiva = data.get('perspectiva', 'nao_informado')
 
@@ -3181,10 +3216,19 @@ def processar_texto():
         })
 
         # Salvar texto original
-        texto_original_path = os.path.join(TEMP_DIR, f"texto_{text_hash[:8]}.txt")
+        # Nome inclui a sessão: duas sessões com o mesmo documento não compartilham nem sobrescrevem arquivos
+        sid8 = obter_session_id()[:8]
+        texto_original_path = os.path.join(TEMP_DIR, f"texto_{sid8}_{text_hash[:8]}.txt")
         with open(texto_original_path, 'w', encoding='utf-8') as f:
             f.write(texto_original)
         registrar_arquivo_temporario(texto_original_path, session_id=session.get('session_id'))
+
+        # Texto simplificado guardado no servidor: /narrar só narra este texto, nunca texto livre do cliente
+        texto_narracao_path = os.path.join(TEMP_DIR, f"texto_narrar_{sid8}_{text_hash[:8]}.txt")
+        with open(texto_narracao_path, 'w', encoding='utf-8') as f:
+            f.write(texto_simplificado)
+        registrar_arquivo_temporario(texto_narracao_path, session_id=session.get('session_id'))
+        session['texto_narracao_path'] = texto_narracao_path
 
         # 🔐 GERAR ID E HASH DE VALIDAÇÃO (LGPD compliant)
         doc_id = gerar_doc_id()
@@ -3220,7 +3264,7 @@ def processar_texto():
             "validation_url": validation_url
         }
 
-        pdf_filename = f"simplificado_{text_hash[:8]}.pdf"
+        pdf_filename = f"simplificado_{sid8}_{text_hash[:8]}.pdf"
         pdf_path = gerar_pdf_simplificado(texto_simplificado, metadados_pdf, pdf_filename)
 
         # Autorizar PDF para esta sessão (vínculo PDF↔sessão contra acesso cruzado)
@@ -3532,8 +3576,25 @@ def narrar():
         return jsonify({"erro": "Narração via servidor indisponível", "fallback": "web_speech"}), 503
 
     try:
-        data = request.get_json(silent=True) or {}
-        texto_bruto = (data.get('texto') or '').strip()
+        # 💰 A narração também consome serviço pago: respeita o teto de orçamento
+        orcamento_check = verificar_orcamento_request()
+        if orcamento_check:
+            return orcamento_check
+
+        # Só narra o texto simplificado que ESTA sessão gerou (guardado no servidor em
+        # /processar). O texto enviado pelo cliente é ignorado: sem isso a rota vira uma
+        # API de voz aberta, paga pelo Tribunal. Sem texto guardado, o frontend usa a voz
+        # do próprio navegador (fallback web_speech).
+        narracao_path = session.get('texto_narracao_path')
+        temp_dir_real = os.path.realpath(TEMP_DIR)
+        if (not narracao_path
+                or not os.path.basename(narracao_path).startswith('texto_narrar_')
+                or not os.path.realpath(narracao_path).startswith(temp_dir_real + os.sep)
+                or not os.path.exists(narracao_path)):
+            return jsonify({"erro": "Simplifique um documento antes de pedir a narração.",
+                            "fallback": "web_speech"}), 403
+        with open(narracao_path, 'r', encoding='utf-8') as f:
+            texto_bruto = f.read().strip()
 
         if not texto_bruto:
             return jsonify({"erro": "Texto vazio"}), 400
@@ -3610,14 +3671,15 @@ def validar_documento(doc_id):
 
 
 @app.route("/validar/<doc_id>/verificar", methods=["POST"])
+@rate_limit
 @require_csrf
 def verificar_integridade(doc_id):
     """Verifica integridade do documento comparando hash do texto"""
     try:
-        data = request.get_json()
-        texto = data.get("texto", "")
+        data = request.get_json(silent=True) or {}
+        texto = data.get("texto", "") if isinstance(data, dict) else ""
 
-        if not texto:
+        if not texto or not isinstance(texto, str):
             return jsonify({"erro": "Texto não fornecido"}), 400
 
         validacao = buscar_validacao(doc_id)
@@ -3652,6 +3714,7 @@ def verificar_integridade(doc_id):
 
 
 @app.route("/feedback", methods=["POST"])
+@rate_limit
 @require_csrf
 def feedback():
     """Registra feedback do usuário (LGPD compliant - só contador)"""
@@ -3696,18 +3759,17 @@ def get_stats():
 def admin_auditoria():
     """
     Painel de auditoria para administrador - mostra qual IP processou qual documento.
-    Requer token de autenticação via query param ou header Authorization.
+    Requer token de autenticação no header "Authorization: Bearer <ADMIN_TOKEN>".
     NÃO exibe conteúdo de documentos - apenas metadados operacionais.
     """
     # Verificar se ADMIN_TOKEN está configurado
     if not ADMIN_TOKEN:
         return jsonify({"erro": "Painel administrativo não configurado. Defina a variável ADMIN_TOKEN."}), 503
 
-    # Autenticação via header ou query param
-    token = request.headers.get('Authorization', '').replace('Bearer ', '')
-    if not token:
-        token = request.args.get('token', '')
-    if not hmac.compare_digest(token, ADMIN_TOKEN):
+    # Autenticação somente pelo cabeçalho Authorization. O token NÃO é aceito na URL
+    # (?token=...), porque URLs ficam em logs de acesso, de proxy e no histórico do navegador.
+    token = request.headers.get('Authorization', '').replace('Bearer ', '').strip()
+    if not token or not hmac.compare_digest(token.encode('utf-8'), ADMIN_TOKEN.encode('utf-8')):
         return jsonify({"erro": "Acesso negado. Token inválido."}), 403
 
     # Parâmetros de consulta
@@ -3803,6 +3865,10 @@ def health():
 @app.errorhandler(404)
 def not_found(e):
     return jsonify({"erro": "Endpoint não encontrado"}), 404
+
+@app.errorhandler(413)
+def payload_too_large(e):
+    return jsonify({"erro": "Arquivo muito grande. O limite é 10 MB."}), 413
 
 @app.errorhandler(500)
 def server_error(e):
@@ -3947,7 +4013,7 @@ def admin_api_stats():
         return jsonify(database.get_admin_dashboard_stats())
     except Exception as e:
         logging.error(f"❌ Erro em /admin/api/stats: {e}")
-        return jsonify({"erro": str(e)}), 500
+        return jsonify({"erro": "Erro interno ao processar a solicitação."}), 500
 
 
 @app.route("/admin/api/orcamento", methods=["GET"])
@@ -3958,7 +4024,7 @@ def admin_api_orcamento_get():
         return jsonify(verificar_orcamento())
     except Exception as e:
         logging.error(f"❌ Erro em /admin/api/orcamento GET: {e}")
-        return jsonify({"erro": str(e)}), 500
+        return jsonify({"erro": "Erro interno ao processar a solicitação."}), 500
 
 
 @app.route("/admin/api/orcamento", methods=["POST"])
@@ -3980,7 +4046,7 @@ def admin_api_orcamento_set():
         return jsonify({"erro": str(e)}), 400
     except Exception as e:
         logging.error(f"❌ Erro em /admin/api/orcamento POST: {e}")
-        return jsonify({"erro": str(e)}), 500
+        return jsonify({"erro": "Erro interno ao processar a solicitação."}), 500
 
 
 @app.route("/admin/api/injection-kpi", methods=["GET"])
@@ -3993,7 +4059,7 @@ def admin_api_injection_kpi():
         return jsonify(get_kpi_injection_stats(dias=dias))
     except Exception as e:
         logging.error(f"❌ Erro em /admin/api/injection-kpi: {e}")
-        return jsonify({"erro": str(e)}), 500
+        return jsonify({"erro": "Erro interno ao processar a solicitação."}), 500
 
 
 # ----------------------------------------------------------------------------
@@ -4004,6 +4070,7 @@ def admin_api_injection_kpi():
 @auth.superadmin_required
 def admin_usuarios_listar():
     """Lista todos os usuários admin."""
+    reset_info = session.pop('admin_reset_link', None) or {}
     return render_template(
         "admin/usuarios.html",
         csrf_token=gerar_csrf_token(),
@@ -4013,8 +4080,8 @@ def admin_usuarios_listar():
         roles=database.ROLES_VALIDOS,
         msg=request.args.get('msg'),
         erro=request.args.get('erro'),
-        reset_link=request.args.get('reset_link'),
-        reset_username=request.args.get('reset_username'),
+        reset_link=reset_info.get('link'),
+        reset_username=reset_info.get('username'),
     )
 
 
@@ -4083,8 +4150,9 @@ def admin_usuarios_gerar_reset(user_id):
     token = database.criar_token_reset_admin(user_id, criado_por=me['username'])
     link = url_for('admin_reset_page', token=token, _external=True)
     auth.audit_action('user_reset_token', target=user['username'], sucesso=True)
+    # O link vai pela sessão (exibido uma única vez), nunca pela URL: evita o token em logs e histórico.
+    session['admin_reset_link'] = {'link': link, 'username': user['username']}
     return redirect(url_for('admin_usuarios_listar',
-                            reset_link=link, reset_username=user['username'],
                             msg=f'Link de reset gerado para "{user["username"]}". Envie por canal seguro.'))
 
 

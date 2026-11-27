@@ -56,6 +56,11 @@ tmp/
 # Documentos reais usados em testes (dados pessoais e processos sigilosos): nunca versionar
 documentos_teste/
 
+# Dados persistentes locais (banco, chave de sessão e segredos de hash gerados em execução)
+data/
+*.db-wal
+*.db-shm
+
 # Documentos reais do Judiciário e evidências de simulação (dados pessoais): nunca versionar
 Modelos de documentos/
 relatorio-tecnico/
