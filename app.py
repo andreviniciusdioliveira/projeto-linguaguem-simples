@@ -30,6 +30,7 @@ import numpy as np
 from google import genai
 from google.genai import types as genai_types
 import database
+from salvaguardas import detectar_segredo_justica_local, documento_procedimental, validar_prazos_contra_original
 from database import (
     gerar_doc_id, gerar_hash_conteudo, gerar_hash_ip,
     registrar_validacao, buscar_validacao,
@@ -44,7 +45,7 @@ from database import (
 # Importar gerador de PDF melhorado
 from gerador_pdf import gerar_pdf_simplificado as gerar_pdf_melhorado
 # Proteção de dados antes do envio à IA (Resolução CNJ 615/2025 e Resolução TJTO 20/2026)
-from protecao_dados import MascaradorDados, detectar_segredo_local, INSTRUCAO_MARCADORES
+from protecao_dados import MascaradorDados, INSTRUCAO_MARCADORES
 
 # Tentativa de importar OpenCV
 try:
@@ -459,55 +460,6 @@ def obter_info_ia():
     }
 
 
-def resposta_segredo_justica(texto_original, perspectiva, modelo_usado, motivo=None, hipotese_legal=None):
-    """Resposta padrão para documento sob segredo de justiça (nenhum dado do documento é devolvido)."""
-    return jsonify({
-        "texto": "O processo envolve segredo de justiça, procure a Comarca do fórum da sua cidade.",
-        "tipo_documento": "sigiloso",
-        "confianca_tipo": "ALTA",
-        "razao_tipo": "Documento identificado como protegido por segredo de justiça",
-        "urgencia": "MÉDIA",
-        "acao_necessaria": "Procure a Comarca do fórum da sua cidade",
-        "dados_extraidos": {
-            "numero_processo": None,
-            "tipo_documento": "sigiloso",
-            "partes": {},
-            "autoridade": {},
-            "valores": {},
-            "prazos": [],
-            "decisao": None,
-            "audiencias": [],
-            "links_audiencia": []
-        },
-        "recursos_cabiveis": {"cabe_recurso": "Não disponível", "prazo": None},
-        "perguntas_sugeridas": [],
-        "tem_justica_gratuita": None,
-        "caracteres_original": len(texto_original),
-        "caracteres_simplificado": 0,
-        "modelo_usado": modelo_usado,
-        "perspectiva_aplicada": perspectiva,
-        "segredo_justica": {"detectado": True, "motivo": motivo, "hipotese_legal": hipotese_legal},
-        "pdf_download_url": None
-    })
-
-
-def verificar_segredo_antes_da_ia(texto_original, perspectiva, origem):
-    """Bloqueia localmente documento sob segredo de justiça ANTES de qualquer envio ao
-    modelo externo (Res. CNJ 615/2025, art. 19, §3º, IV). Retorna a resposta HTTP de
-    bloqueio ou None se o documento pode seguir."""
-    segredo = detectar_segredo_local(texto_original)
-    if segredo["detectado"]:
-        logging.warning(f"🔒 SEGREDO DE JUSTIÇA detectado localmente em {origem} "
-                        f"(nivel={segredo['nivel']}) - documento NÃO enviado à IA")
-        return resposta_segredo_justica(
-            texto_original, perspectiva, "pre-validacao-local",
-            motivo=segredo["motivo"], hipotese_legal=segredo["hipotese_legal"],
-        )
-    if segredo["indicios"]:
-        logging.info(f"📋 Indício de sigilo em documento procedimental ({origem}, nivel={segredo['nivel']}) "
-                     f"- liberado por SEGREDO_PERMITIR_PROCEDIMENTAIS, com dados mascarados")
-    return None
-
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
 ALLOWED_EXTENSIONS = {'pdf', 'png', 'jpg', 'jpeg', 'gif', 'bmp', 'tiff', 'webp'}
 ALLOWED_IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'tiff', 'webp'}
@@ -824,7 +776,7 @@ Documentos dos tipos MANDADO, INTIMAÇÃO, CITAÇÃO e NOTIFICAÇÃO são docume
 Estes documentos contêm apenas dados operacionais (data, hora, local, instruções) e NÃO expõem o mérito sigiloso.
 ÚNICO CASO de bloqueio para mandados/intimações: se contiver transcrições extensas do CONTEÚDO SIGILOSO em si (relato detalhado de violência, laudos médicos/psicológicos, depoimentos). Apenas mencionar o tipo de vara ou a natureza da ação NÃO é motivo para bloquear.
 
-**EXCEÇÃO — ATO INFRACIONAL (ECA):** Pode simplificar se NÃO houver indicação explícita de sigilo, for direcionado ao adolescente/responsáveis, e NÃO envolver crimes sexuais/violência doméstica.
+**INFÂNCIA E JUVENTUDE (ECA, arts. 143 e 247) — SEMPRE SIGILOSO:** Apuração de ato infracional, execução de medida socioeducativa, medida de proteção, adoção, guarda e demais processos da Infância e Juventude DEVEM ser bloqueados (segredo_justica.detectado: true), mesmo sem marcação explícita de sigilo e mesmo sem nome do adolescente. Única exceção: mandados/intimações procedimentais, conforme a regra acima.
 
 **EXCEÇÃO — DECISÕES RECURSAIS com "PROCESSO ORIGINÁRIO SIGILOSO":** NÃO bloqueie se: (1) é decisão de tribunal, (2) "sigiloso" aparece APENAS na classificação do processo originário, (3) partes por NOME COMPLETO, (4) ementa publicada, (5) advogados com OAB, (6) conteúdo NÃO trata de matéria intrinsecamente sigilosa.
 
@@ -952,6 +904,9 @@ Use "Aguarde" APENAS para:
 **REGRAS SOBRE PRAZOS:**
 
 - Se NÃO houver prazos específicos → NÃO mencione prazos
+- NUNCA deduza prazo pela lei, pelo tipo de recurso ou pelo seu conhecimento: só informe número de dias que esteja ESCRITO no documento
+- Em processo CRIMINAL e de JUIZADO os prazos de recurso são diferentes do cível: jamais use "15 dias" por padrão
+- Se cabe recurso mas o documento não escreve o prazo → diga para procurar advogado(a) ou a Defensoria Pública IMEDIATAMENTE, sem citar número de dias
 - Se houver → especifique PARA QUEM e PARA QUÊ
 - Exemplo CORRETO: "A Secretaria tem 15 dias para realizar avaliação"
 - Exemplo ERRADO: "15 dias" (sem contexto)
@@ -1673,8 +1628,8 @@ Procure no documento por detalhamentos de valores (palavras: "sendo", "compreend
 - Se preencheu "_discriminado" com 2+ itens, o texto DEVE usar discriminação com lista
 
   "prazos": [
-    {{"tipo": "recurso", "prazo": "15 dias", "destinatario": "para quem é o prazo", "finalidade": "para que serve"}},
-    {{"tipo": "contestacao", "prazo": "30 dias", "destinatario": "para quem é o prazo", "finalidade": "para que serve"}}
+    {{"tipo": "recurso", "prazo": "prazo ESCRITO no documento", "destinatario": "para quem é o prazo", "finalidade": "para que serve"}},
+    {{"tipo": "contestacao", "prazo": "prazo ESCRITO no documento", "destinatario": "para quem é o prazo", "finalidade": "para que serve"}}
   ],
 
   "audiencia": {{
@@ -1687,7 +1642,7 @@ Procure no documento por detalhamentos de valores (palavras: "sendo", "compreend
   "recursos_cabiveis": {{
     "cabe_recurso": "Sim|Não|Não se aplica|Consulte advogado(a) ou defensoria pública",
     "tipo_recurso": "Apelação|Agravo|etc ou null",
-    "prazo": "X dias ou null",
+    "prazo": "prazo ESCRITO no documento ou null (NUNCA deduza pela lei)",
     "explicacao_simples": "Explicação em linguagem simples sobre recurso (ex: 'Outros juízes podem analisar se você pedir recurso')"
   }}
 }}
@@ -1710,7 +1665,7 @@ Se em dúvida: confianca_tipo "BAIXA". Use apenas informações explícitas. Se 
 
 **AUDIÊNCIAS:** Só use "tem_audiencia": true se mencionada. NUNCA invente datas/horários.
 
-**PRAZOS:** Use APENAS prazos explícitos do documento com tipo, prazo, destinatário e finalidade. Se não menciona → prazos: [].
+**PRAZOS:** Use APENAS prazos explícitos do documento com tipo, prazo, destinatário e finalidade. Se não menciona → prazos: [] e recursos_cabiveis.prazo: null. Prazo deduzido pela lei é ERRO GRAVE: o sistema confere cada prazo com o documento e descarta o que não estiver escrito.
 
 **RECURSOS:** Mandados → "Não se aplica". Outros: escolha UMA opção entre "Sim"/"Não"/"Consulte advogado(a) ou defensoria pública" conforme o documento. Use linguagem simples no campo explicacao_simples.
 
@@ -1910,6 +1865,13 @@ Responda EXATAMENTE neste formato:
             analise["teve_vazamentos"] = teve_vazamentos  # 🔥 NOVO - flag de vazamentos
             analise["documento_truncado"] = texto_truncado  # aviso de truncamento para o frontend
             analise["dados_mascarados"] = mascarador.contagem()  # só quantidades, sem valores
+
+            # 🛡️ PRAZOS: só permanece o prazo cujo número está ESCRITO no documento original.
+            # O modelo não pode deduzir prazo pela lei (ex.: 15 dias em apelação criminal, que é de 5).
+            prazos_removidos = validar_prazos_contra_original(analise, texto)
+            if prazos_removidos:
+                logging.warning(f"🛡️ {len(prazos_removidos)} prazo(s) não escrito(s) no documento removido(s) da resposta")
+                texto_simplificado = analise["texto_simplificado"]
 
             # 🔥 VALIDAÇÃO DE DISCRIMINAÇÃO DE VALORES
             valores = analise.get("valores_principais", {})
@@ -2476,6 +2438,34 @@ def detectar_documento_advocaticio(texto):
     return {"detectado": False, "razao": None, "indicadores": indicadores, "peso": peso_total}
 
 
+def _resposta_segredo_local(texto_original, perspectiva, triagem):
+    """Resposta padrão de segredo de justiça quando o bloqueio é feito pela triagem local.
+    O texto do documento NÃO foi (nem será) enviado ao provedor de IA."""
+    logging.warning(f"🔒 SEGREDO DE JUSTIÇA (triagem local, sem envio à IA) - {triagem.get('motivo')}")
+    return jsonify({
+        "texto": "O processo envolve segredo de justiça, procure a Comarca do fórum da sua cidade.",
+        "tipo_documento": "sigiloso",
+        "confianca_tipo": "ALTA",
+        "razao_tipo": "Documento identificado como protegido por segredo de justiça",
+        "urgencia": "MÉDIA",
+        "acao_necessaria": "Procure a Comarca do fórum da sua cidade",
+        "dados_extraidos": {
+            "numero_processo": None, "tipo_documento": "sigiloso",
+            "partes": {}, "autoridade": {}, "valores": {},
+            "prazos": [], "decisao": None, "audiencias": [], "links_audiencia": []
+        },
+        "recursos_cabiveis": {"cabe_recurso": "Não disponível", "prazo": None},
+        "perguntas_sugeridas": [],
+        "tem_justica_gratuita": None,
+        "caracteres_original": len(texto_original),
+        "caracteres_simplificado": 0,
+        "modelo_usado": "pre-validacao",
+        "perspectiva_aplicada": perspectiva,
+        "segredo_justica": {"detectado": True, "motivo": None, "hipotese_legal": None},
+        "pdf_download_url": None
+    })
+
+
 @app.route("/processar", methods=["POST"])
 @rate_limit
 @require_csrf
@@ -2573,11 +2563,6 @@ def processar():
             except Exception as _e:
                 logging.warning(f"⚠️ Falha ao registrar KPI de injection: {_e}")
 
-        # 🔒 SEGREDO DE JUSTIÇA: verificação local, antes de qualquer envio ao Gemini
-        bloqueio_segredo = verificar_segredo_antes_da_ia(texto_original, perspectiva, 'processar')
-        if bloqueio_segredo is not None:
-            return bloqueio_segredo
-
         # 🚫 PRÉ-VALIDAÇÃO: Detectar documentos advocatícios antes de enviar ao Gemini
         pre_validacao = detectar_documento_advocaticio(texto_original)
         if pre_validacao["detectado"]:
@@ -2612,6 +2597,12 @@ def processar():
                 "pdf_download_url": None
             })
 
+        # 🔒 TRIAGEM LOCAL DE SEGREDO DE JUSTIÇA — antes de qualquer envio ao provedor de IA.
+        # Documento sigiloso não procedimental é bloqueado aqui e nunca sai do servidor.
+        triagem_segredo = detectar_segredo_justica_local(texto_original)
+        if triagem_segredo["detectado"]:
+            return _resposta_segredo_local(texto_original, perspectiva, triagem_segredo)
+
         # 🎯 ANÁLISE COMPLETA COM GEMINI (COM PERSPECTIVA CORRIGIDA)
         logging.info(f"🤖 Iniciando análise completa com Gemini (perspectiva: {perspectiva})...")
         logging.info(f"📝 Texto extraído: {len(texto_original)} caracteres")
@@ -2637,14 +2628,11 @@ def processar():
             tipos_procedimentais = ["mandado", "intimacao", "intimação", "citacao", "citação", "notificacao", "notificação"]
             # Fallback: detectar tipo procedimental pelo texto original caso Gemini não preencha tipo_documento
             if not tipo_doc_segredo or tipo_doc_segredo == "sigiloso":
-                texto_upper = texto_original[:3000].upper()
-                termos_procedimentais = ["MANDADO DE INTIMAÇÃO", "MANDADO DE CITAÇÃO", "MANDADO DE NOTIFICAÇÃO",
-                                        "INTIMAÇÃO", "CITAÇÃO", "NOTIFICAÇÃO", "OFICIAL DE JUSTIÇA", "CUMPRA-SE"]
-                for termo in termos_procedimentais:
-                    if termo in texto_upper:
-                        tipo_doc_segredo = "mandado" if "MANDADO" in termo else termo.lower()
-                        logging.info(f"📋 Tipo procedimental detectado pelo texto original: '{termo}'")
-                        break
+                # Tipo procedimental só pelo TÍTULO do documento ("Cumpra-se" ou "intimação"
+                # no corpo de um despacho não tornam o documento procedimental).
+                if documento_procedimental(texto_original):
+                    tipo_doc_segredo = "mandado"
+                    logging.info("📋 Tipo procedimental detectado pelo título do documento")
             if tipo_doc_segredo in tipos_procedimentais:
                 logging.warning(f"🔒 Segredo detectado pelo Gemini, mas documento é tipo '{tipo_doc_segredo}' (procedimental) - IGNORANDO restrição")
                 # Verificar se o texto simplificado está vazio/padrão (Gemini pode ter retornado só a msg de segredo)
@@ -2997,10 +2985,11 @@ def processar_texto():
 
         logging.info(f"📝 Processando texto colado: {len(texto_original)} caracteres")
 
-        # 🔒 SEGREDO DE JUSTIÇA: verificação local, antes de qualquer envio ao Gemini
-        bloqueio_segredo = verificar_segredo_antes_da_ia(texto_original, perspectiva, 'processar_texto')
-        if bloqueio_segredo is not None:
-            return bloqueio_segredo
+        # 🔒 TRIAGEM LOCAL DE SEGREDO DE JUSTIÇA — antes de qualquer envio ao provedor de IA.
+        # Documento sigiloso não procedimental é bloqueado aqui e nunca sai do servidor.
+        triagem_segredo = detectar_segredo_justica_local(texto_original)
+        if triagem_segredo["detectado"]:
+            return _resposta_segredo_local(texto_original, perspectiva, triagem_segredo)
 
         # 🎯 ANÁLISE COMPLETA COM GEMINI
         logging.info(f"🤖 Iniciando análise completa com Gemini (perspectiva: {perspectiva})...")
@@ -3023,14 +3012,11 @@ def processar_texto():
             tipo_doc_segredo = (analise_completa.get("tipo_documento") or "").lower().strip()
             tipos_procedimentais = ["mandado", "intimacao", "intimação", "citacao", "citação", "notificacao", "notificação"]
             if not tipo_doc_segredo or tipo_doc_segredo == "sigiloso":
-                texto_upper = texto_original[:3000].upper()
-                termos_procedimentais = ["MANDADO DE INTIMAÇÃO", "MANDADO DE CITAÇÃO", "MANDADO DE NOTIFICAÇÃO",
-                                        "INTIMAÇÃO", "CITAÇÃO", "NOTIFICAÇÃO", "OFICIAL DE JUSTIÇA", "CUMPRA-SE"]
-                for termo in termos_procedimentais:
-                    if termo in texto_upper:
-                        tipo_doc_segredo = "mandado" if "MANDADO" in termo else termo.lower()
-                        logging.info(f"📋 Tipo procedimental detectado pelo texto original: '{termo}'")
-                        break
+                # Tipo procedimental só pelo TÍTULO do documento ("Cumpra-se" ou "intimação"
+                # no corpo de um despacho não tornam o documento procedimental).
+                if documento_procedimental(texto_original):
+                    tipo_doc_segredo = "mandado"
+                    logging.info("📋 Tipo procedimental detectado pelo título do documento")
             if tipo_doc_segredo in tipos_procedimentais:
                 logging.warning(f"🔒 Segredo detectado pelo Gemini, mas documento é tipo '{tipo_doc_segredo}' (procedimental) - IGNORANDO restrição")
                 texto_simp = analise_completa.get("texto_simplificado", "")
@@ -3389,7 +3375,7 @@ PERGUNTA DO USUÁRIO:
 {pergunta_limpa}
 </PERGUNTA_USUARIO>
 
-Responda em NO MÁXIMO 2-3 frases curtas e simples, baseando-se EXCLUSIVAMENTE no documento acima. Se não souber, diga "Não encontrei essa informação no documento"."""
+Responda em NO MÁXIMO 2-3 frases curtas e simples, baseando-se EXCLUSIVAMENTE no documento acima. Se não souber, diga "Não encontrei essa informação no documento". Nunca informe prazo em dias que não esteja escrito no documento: se perguntarem sobre prazo não escrito, oriente a procurar advogado(a) ou a Defensoria Pública imediatamente."""
 
         # Tentar modelos em ordem de prioridade (fallback)
         modelos_chat = sorted(GEMINI_MODELS, key=lambda x: x["priority"])

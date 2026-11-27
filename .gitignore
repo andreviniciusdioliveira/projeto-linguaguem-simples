@@ -55,3 +55,7 @@ tmp/
 
 # Documentos reais usados em testes (dados pessoais e processos sigilosos): nunca versionar
 documentos_teste/
+
+# Documentos reais do Judiciário e evidências de simulação (dados pessoais): nunca versionar
+Modelos de documentos/
+relatorio-tecnico/
