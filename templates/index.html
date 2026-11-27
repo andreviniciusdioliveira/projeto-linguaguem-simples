@@ -65,6 +65,13 @@
                     Nosso objetivo é oferecer informações simples e úteis. Conte com esse apoio sempre que necessário!<br>
                     ⚠️ Para receber orientação adequada sobre o seu caso, é essencial buscar um(a) advogado(a) ou defensor(a) público(a).
                 </p>
+                <!-- Aviso de uso de IA (Res. CNJ 615/2025, art. 33; Res. TJTO 20/2026, art. 31) -->
+                <div class="aviso-ia" role="note" aria-label="Aviso sobre o uso de inteligência artificial">
+                    <strong>🤖 Este serviço usa inteligência artificial.</strong>
+                    A explicação é escrita por um programa de computador, não por uma pessoa.
+                    Ela serve só para ajudar você a entender o documento e pode conter erros.
+                    O que vale é o documento original. Na dúvida, procure o fórum, um(a) advogado(a) ou a Defensoria Pública.
+                </div>
                 <p style="color: var(--text-muted); font-size: 0.85rem; max-width: 650px; margin: 0.8rem auto 0; line-height: 1.5; font-style: italic;">
                     🛡️ Esta ferramenta está em conformidade com a Lei de Acesso à Informação, a Lei Geral de Proteção de Dados e a Constituição Brasileira.
                 </p>
@@ -310,7 +317,7 @@
                 <div style="background: #fff8e1; border: 2px solid #f9a825; border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.75rem;">
                     <span style="font-size: 1.5rem; flex-shrink: 0;">⚠️</span>
                     <p style="margin: 0; color: #5d4037; font-size: 0.95rem; font-weight: 600; line-height: 1.4;">
-                        Aviso: Este documento tem finalidade exclusivamente informativa, sem valor oficial.
+                        Aviso: Este texto foi gerado por inteligência artificial e tem finalidade exclusivamente informativa, sem valor oficial. Ele pode conter erros: confira sempre com o documento original.
                     </p>
                 </div>
 
@@ -357,7 +364,7 @@
                 <div style="background: #fff8e1; border: 2px solid #f9a825; border-radius: 8px; padding: 1rem 1.25rem; margin-top: 1.5rem; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.75rem;">
                     <span style="font-size: 1.5rem; flex-shrink: 0;">⚠️</span>
                     <p style="margin: 0; color: #5d4037; font-size: 0.95rem; font-weight: 600; line-height: 1.4;">
-                        Aviso: Este documento tem finalidade exclusivamente informativa, sem valor oficial.
+                        Aviso: Este texto foi gerado por inteligência artificial e tem finalidade exclusivamente informativa, sem valor oficial. Ele pode conter erros: confira sempre com o documento original.
                     </p>
                 </div>
 
@@ -511,6 +518,20 @@
                 </div>
             </div>
         </div>
+
+        {% if ia_info %}
+        <!-- Identificação da IA em uso (Res. CNJ 615/2025, art. 21; Res. TJTO 20/2026, art. 20) -->
+        <div class="institutional-footer-bottom ia-info" id="sobre-a-ia">
+            <strong>Sobre a inteligência artificial usada neste serviço</strong><br>
+            Modelo: {{ ia_info.familia }} ({{ ia_info.fornecedor }}), versão <code>{{ ia_info.modelo_principal }}</code>{% if ia_info.modelos_reserva %}, com reserva em {% for m in ia_info.modelos_reserva %}<code>{{ m }}</code>{% if not loop.last %}, {% endif %}{% endfor %}{% endif %}
+            · Versão das instruções: {{ ia_info.versao_prompt }}
+            · Registro no Sinapses (CNJ): {{ ia_info.sinapses_codigo or 'em cadastramento' }}
+            · Grau de risco: {{ ia_info.grau_risco or 'em avaliação pelo CEIA' }}
+            · Informações atualizadas em {{ ia_info.atualizado_em }}<br>
+            Antes do envio à IA, CPF, CNPJ, RG, telefone, e-mail, CEP e número do processo são trocados por marcadores.
+            Documentos sob segredo de justiça não são enviados.
+        </div>
+        {% endif %}
 
         <div class="institutional-footer-bottom">
             Desenvolvido pelo <strong>INOVASSOL</strong> — Centro de Inovação do Tribunal de Justiça do Estado do Tocantins

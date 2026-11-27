@@ -415,7 +415,19 @@ ADMIN_TOKEN=seu_token_legacy_para_admin_auditoria
 CPF_VAULT_KEY=sua_chave_fernet_para_criptografia_de_cpf
 IP_HASH_SALT=salt_aleatorio_para_hash_de_ip
 CPF_HASH_SALT=salt_aleatorio_para_hash_de_cpf
+
+# Conformidade com a Resolução CNJ 615/2025 e a Resolução TJTO 20/2026
+# Mascarar CPF, CNPJ, RG, telefone, e-mail, CEP e nº do processo antes do envio à IA (default: true)
+MASCARAR_DADOS_PESSOAIS=true
+# Código de registro da solução no Sinapses (CNJ) e grau de risco definido pelo CEIA; aparecem no rodapé
+SINAPSES_CODIGO=
+IA_GRAU_RISCO=
 ```
+
+> **Proteção de dados antes da IA.** `salvaguardas.py` faz a triagem local de segredo de justiça (documento
+> sigiloso não é enviado ao modelo) e `protecao_dados.py` troca identificadores pessoais por marcadores como
+> `[CPF_1]`, devolvendo os valores reais na resposta sem que saiam do servidor. Nomes e endereços por
+> extenso não são mascarados. Testes: `python -m pytest tests/`.
 
 ### 6. Obter a Chave da API Gemini
 
