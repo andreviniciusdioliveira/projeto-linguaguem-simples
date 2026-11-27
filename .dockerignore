@@ -59,3 +59,20 @@ tmp/
 .env.local
 .env.development
 .env.test
+# Segredos e dados: nunca dentro da imagem (ficam em variáveis de ambiente e no volume ./data)
+.env
+.env.*
+data/
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+secrets/
+
+# Não fazem parte da aplicação em produção
+tests/
+documentos_teste/
+.github/
+docker-compose*.yml
+Caddyfile

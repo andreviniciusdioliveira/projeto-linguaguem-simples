@@ -26,8 +26,70 @@ except ImportError:
 # Lock para operações thread-safe
 db_lock = Lock()
 
-# Caminho do banco (persistente, não em TEMP_DIR para não perder dados)
-DB_PATH = os.path.join(os.path.dirname(__file__), 'stats.db')
+# Diretório de dados persistentes. No Docker, é o volume ./data montado em /app/data.
+# Antes o banco ficava em /app/stats.db, FORA do volume, e era apagado a cada deploy
+# (usuários do painel, auditoria, orçamento e códigos de validação dos PDFs).
+_BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_DIR = os.getenv("DATA_DIR") or os.path.join(_BASE_DIR, 'data')
+DB_PATH = os.getenv("DATABASE_PATH") or os.path.join(DATA_DIR, 'stats.db')
+_DB_PATH_LEGADO = os.path.join(_BASE_DIR, 'stats.db')
+
+
+def _preparar_diretorio_e_migrar_banco():
+    """Cria o diretório do banco e, se existir um stats.db no local antigo e ainda não
+    houver banco no local novo, copia o conteúdo (API de backup do SQLite, segura com WAL)."""
+    try:
+        os.makedirs(os.path.dirname(os.path.abspath(DB_PATH)), mode=0o700, exist_ok=True)
+    except OSError as e:
+        logging.error(f"❌ Não foi possível criar o diretório do banco: {e}")
+        return
+    if (os.path.abspath(DB_PATH) != _DB_PATH_LEGADO
+            and os.path.exists(_DB_PATH_LEGADO) and not os.path.exists(DB_PATH)):
+        try:
+            origem = sqlite3.connect(_DB_PATH_LEGADO, timeout=30)
+            destino = sqlite3.connect(DB_PATH, timeout=30)
+            try:
+                origem.backup(destino)
+            finally:
+                destino.close()
+                origem.close()
+            logging.warning(f"📦 Banco migrado de {_DB_PATH_LEGADO} para {DB_PATH}")
+        except Exception as e:
+            logging.error(f"❌ Falha ao migrar banco legado: {e}")
+
+
+_preparar_diretorio_e_migrar_banco()
+
+
+def _segredo_persistente(nome_env, nome_arquivo):
+    """Segredo para derivar identificadores (hash de IP e de CPF).
+
+    Usa a variável de ambiente se definida. Sem ela, gera um valor aleatório uma única vez
+    e o guarda em DATA_DIR (compartilhado entre workers e preservado entre deploys).
+    Antes havia um valor padrão fixo e público no código: com ele, qualquer pessoa com
+    acesso ao banco revertia os hashes testando todos os CPFs ou IPs possíveis."""
+    valor = os.getenv(nome_env)
+    if valor:
+        return valor
+    caminho = os.path.join(DATA_DIR, nome_arquivo)
+    try:
+        os.makedirs(DATA_DIR, mode=0o700, exist_ok=True)
+        try:
+            fd = os.open(caminho, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            with os.fdopen(fd, "w") as f:
+                f.write(secrets.token_hex(32))
+        except FileExistsError:
+            pass
+        for _ in range(20):  # outro worker pode estar terminando de gravar
+            with open(caminho, "r") as f:
+                valor = f.read().strip()
+            if len(valor) >= 32:
+                return valor
+            time.sleep(0.05)
+    except OSError as e:
+        logging.error(f"❌ Não foi possível persistir {nome_env} em {caminho}: {e}")
+    logging.warning(f"⚠️ {nome_env} temporário neste processo: limites por IP/CPF podem divergir entre workers. Defina a variável.")
+    return secrets.token_hex(32)
 
 # === CONFIGURAÇÕES DE LIMITE DE TOKENS ===
 # Limite diário: 171.6 milhões de tokens
@@ -44,8 +106,8 @@ CPF_IP_DAILY_LIMIT = 3
 IP_DAILY_LIMIT = 20
 
 # Salts para hashing (DEVEM ser definidos como variáveis de ambiente em produção)
-IP_HASH_SALT = os.getenv("IP_HASH_SALT", "entenda-aqui-tjto-2024-default")
-CPF_HASH_SALT = os.getenv("CPF_HASH_SALT", "entenda-aqui-cpf-vault-2024-default")
+IP_HASH_SALT = _segredo_persistente("IP_HASH_SALT", ".ip_hash_salt")
+CPF_HASH_SALT = _segredo_persistente("CPF_HASH_SALT", ".cpf_hash_salt")
 
 # Inicializar Fernet se chave disponível
 _fernet = None
@@ -539,7 +601,7 @@ def gerar_hash_ip(ip_address):
     LGPD: O IP real NUNCA é armazenado, apenas seu hash
     O salt impede ataques de força bruta contra IPs conhecidos
     """
-    return hashlib.sha256(f"{IP_HASH_SALT}:{ip_address}".encode('utf-8')).hexdigest()
+    return hmac.new(IP_HASH_SALT.encode('utf-8'), str(ip_address).encode('utf-8'), hashlib.sha256).hexdigest()
 
 
 def registrar_validacao(doc_id, hash_conteudo, ip_hash, tipo_documento):
@@ -1920,7 +1982,7 @@ def gerar_hash_cpf(cpf):
     Args:
         cpf: CPF limpo (apenas dígitos, 11 caracteres)
     """
-    return hashlib.sha256(f"{CPF_HASH_SALT}:{cpf}".encode('utf-8')).hexdigest()
+    return hmac.new(CPF_HASH_SALT.encode('utf-8'), str(cpf).encode('utf-8'), hashlib.sha256).hexdigest()
 
 
 def criptografar_cpf(cpf):
