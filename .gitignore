@@ -52,3 +52,7 @@ tmp/
 *.db
 *.sqlite
 *.sqlite3
+
+# Documentos reais do Judiciário e evidências de simulação (dados pessoais): nunca versionar
+Modelos de documentos/
+relatorio-tecnico/

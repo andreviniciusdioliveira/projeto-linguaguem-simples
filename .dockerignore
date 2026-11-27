@@ -59,3 +59,7 @@ tmp/
 .env.local
 .env.development
 .env.test
+# Documentos reais e evidências: nunca entram na imagem
+Modelos de documentos/
+relatorio-tecnico/
+tests/
