@@ -60,3 +60,7 @@ documentos_teste/
 data/
 *.db-wal
 *.db-shm
+
+# Documentos reais do Judiciário e evidências de simulação (dados pessoais): nunca versionar
+Modelos de documentos/
+relatorio-tecnico/

@@ -59,6 +59,11 @@ tmp/
 .env.local
 .env.development
 .env.test
+# Documentos reais e evidências: nunca entram na imagem
+Modelos de documentos/
+relatorio-tecnico/
+tests/
+
 # Segredos e dados: nunca dentro da imagem (ficam em variáveis de ambiente e no volume ./data)
 .env
 .env.*
@@ -71,7 +76,6 @@ data/
 secrets/
 
 # Não fazem parte da aplicação em produção
-tests/
 documentos_teste/
 .github/
 docker-compose*.yml

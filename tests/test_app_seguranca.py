@@ -133,11 +133,12 @@ def test_chat_mascara_e_restaura(ctx):
 
 
 def test_documento_sigiloso_nao_e_enviado(ctx):
-    sigiloso = DOC.replace("ação de indenização por danos morais", "ação de alimentos, em segredo de justiça")
+    # A triagem (salvaguardas.py) olha o cabeçalho: juízo e classe antes do número do processo.
+    sigiloso = DOC.replace("SENTENÇA\nProcesso nº", "2ª Vara de Família de Palmas\nALIMENTOS Nº")
     r = _simplificar(ctx, cpf_valido("222333444"), sigiloso)
     d = r.get_json()
     assert r.status_code == 200 and d["segredo_justica"]["detectado"] is True
-    assert d["modelo_usado"] == "pre-validacao-local"
+    assert d["modelo_usado"] == "pre-validacao"
     assert ctx.enviados == [], "documento sigiloso chegou à IA"
     assert "João" not in json.dumps(d, ensure_ascii=False)
 

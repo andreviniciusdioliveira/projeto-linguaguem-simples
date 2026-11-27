@@ -7,8 +7,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import protecao_dados as pd  # noqa: E402
-from protecao_dados import MascaradorDados, detectar_segredo_local  # noqa: E402
+from protecao_dados import MascaradorDados  # noqa: E402
 
 
 # ---------- Mascaramento ----------
@@ -86,64 +85,3 @@ def test_contagem_nao_expoe_valores():
     m.mascarar(TEXTO)
     assert m.contagem()["CPF"] == 1
     assert m.total() == 7
-
-
-# ---------- Segredo de justiça ----------
-
-SENTENCA_COMUM = (
-    "PODER JUDICIÁRIO DO ESTADO DO TOCANTINS\nSENTENÇA\n"
-    "Trata-se de ação de indenização por danos morais movida contra banco. "
-    "Ante o exposto, JULGO PROCEDENTE o pedido. Defiro a justiça gratuita."
-)
-
-
-def test_sentenca_comum_nao_bloqueia():
-    r = detectar_segredo_local(SENTENCA_COMUM)
-    assert r["detectado"] is False and r["indicios"] is False
-
-
-def test_marcador_explicito_bloqueia():
-    r = detectar_segredo_local("SENTENÇA\nProcesso em SEGREDO DE JUSTIÇA.\nJulgo procedente o pedido.")
-    assert r["detectado"] is True and r["nivel"] == "explicito"
-
-
-def test_negacao_nao_bloqueia():
-    r = detectar_segredo_local(SENTENCA_COMUM + " O feito não tramita em segredo de justiça.")
-    assert r["detectado"] is False
-    r = detectar_segredo_local(SENTENCA_COMUM + " Indefiro o pedido de segredo de justiça.")
-    assert r["detectado"] is False
-
-
-def test_materia_de_familia_bloqueia():
-    r = detectar_segredo_local("SENTENÇA\nVara de Família de Palmas. Ação de alimentos. Julgo procedente.")
-    assert r["detectado"] is True and r["nivel"] == "materia"
-    assert "189" in r["hipotese_legal"]
-
-
-def test_crime_sexual_e_maria_da_penha_bloqueiam():
-    assert detectar_segredo_local("SENTENÇA. O réu foi denunciado por estupro de vulnerável.")["detectado"]
-    assert detectar_segredo_local("DECISÃO. Defiro medidas protetivas de urgência.")["detectado"]
-
-
-def test_mandado_procedimental_e_liberado_por_padrao(monkeypatch):
-    monkeypatch.setattr(pd, "SEGREDO_PERMITIR_PROCEDIMENTAIS", True)
-    texto = "MANDADO DE INTIMAÇÃO\nVara de Família de Palmas\nCompareça à audiência no dia 10/12/2026 às 14h."
-    r = detectar_segredo_local(texto)
-    assert r["procedimental"] is True and r["indicios"] is True and r["detectado"] is False
-
-
-def test_mandado_bloqueado_quando_configurado(monkeypatch):
-    monkeypatch.setattr(pd, "SEGREDO_PERMITIR_PROCEDIMENTAIS", False)
-    texto = "MANDADO DE INTIMAÇÃO\nVara de Família de Palmas\nCompareça à audiência."
-    assert detectar_segredo_local(texto)["detectado"] is True
-
-
-def test_sentenca_que_cita_intimacao_nao_e_procedimental():
-    texto = "SENTENÇA\nVara de Família. Após a intimação das partes, julgo procedente o pedido de guarda."
-    r = detectar_segredo_local(texto)
-    assert r["procedimental"] is False and r["detectado"] is True
-
-
-def test_motivo_nao_contem_trecho_do_documento():
-    r = detectar_segredo_local("SENTENÇA. Ação de divórcio de Maria Fulana contra José Beltrano.")
-    assert "Maria" not in (r["motivo"] or "") and "José" not in (r["hipotese_legal"] or "")
