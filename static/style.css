@@ -2382,6 +2382,42 @@ body.dark-mode .scroll-container::-webkit-scrollbar-track {
     line-height: 1.5;
 }
 
+.institutional-footer-bottom.ia-info {
+    max-width: 760px; /* não encostar nos botões flutuantes dos cantos */
+    font-size: 0.8rem;
+    line-height: 1.7;
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.institutional-footer-bottom.ia-info code {
+    font-family: inherit;
+    font-weight: 600;
+    color: #ffffff;
+}
+
+.aviso-ia {
+    max-width: 650px;
+    margin: 1rem auto 0;
+    padding: 0.85rem 1.1rem;
+    background: #e8f1f5;
+    border-left: 4px solid var(--jus-azul);
+    border-radius: 6px;
+    color: #1f3640;
+    font-size: 0.9rem;
+    line-height: 1.55;
+    text-align: left;
+}
+
+.aviso-ia strong {
+    display: block;
+    margin-bottom: 0.25rem;
+}
+
+body.dark-mode .aviso-ia {
+    background: #1d2b31;
+    color: #e3edf1;
+}
+
 .institutional-footer-bottom a {
     color: #ffffff;
     text-decoration: underline;
