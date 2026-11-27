@@ -14,7 +14,7 @@ import re
 import unicodedata
 
 # Número de processo no padrão CNJ; tolera quebra de linha após o hífen (OCR).
-_RE_CNJ = re.compile(r'\d{7}-\s*\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}')
+_RE_CNJ = re.compile(r'(?<!\d)\d{7}-?\s*\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}')
 
 _LIMITE_CABECALHO = 1500
 _CABECALHO_SEM_NUMERO = 600
@@ -234,3 +234,268 @@ def validar_prazos_contra_original(analise, texto_original):
     if removidos:
         analise["prazos_removidos"] = removidos
     return removidos
+
+
+# ===================== PEÇAS QUE NÃO SÃO DO PODER JUDICIÁRIO =====================
+# Sistemas como o SEEU e o eproc guardam tanto atos de magistrados e servidores quanto
+# peças das partes. O que decide é QUEM ASSINA o documento, e não o sistema de origem.
+
+_RE_TITULO_JUDICIAL = re.compile(
+    r'^[ \t]*(?:SENTENÇA|DECISÃO|DESPACHO(?:\s*/\s*DECISÃO)?|ACÓRDÃO|VOTO|EMENTA|CERTIDÃO|ATO ORDINATÓRIO)[ \t]*$',
+    re.MULTILINE,
+)
+
+
+def detectar_peca_nao_judicial(texto):
+    """Identifica manifestação do Ministério Público (peça de parte, não ato judicial).
+
+    Retorna {"detectado": bool, "razao": str | None}. Não bloqueia documentos assinados
+    por magistrado ou servidor, ainda que venham do mesmo sistema."""
+    texto = texto or ''
+    inicio = _normalizar(texto[:1500])
+    fim = _normalizar(texto[-700:])
+    tudo = _normalizar(texto)
+
+    assinado_por_magistrado = bool(re.search(r'JUIZ(?:A)? (?:\(A\) )?DE DIREITO|JUIZ(?:A)? SUBSTITUT|DESEMBARGADOR', fim))
+    tem_titulo_judicial = bool(_RE_TITULO_JUDICIAL.search(texto[:3000]))
+    if documento_procedimental(texto) or assinado_por_magistrado or tem_titulo_judicial:
+        return {"detectado": False, "razao": None}
+
+    assinatura_mp = bool(re.search(r'PROMOTOR(?:A)? DE JUSTICA|PROCURADOR(?:A)? DE JUSTICA|PROCURADOR(?:A)? DA REPUBLICA', fim))
+    vocativo = bool(re.search(r'(?:SENHOR(?:A)?|MM\.?|MERITISSIM[OA]|EXCELENTISSIM[OA])[^.]{0,40}\bJUIZ', inicio))
+    juntada = 'JUNTADA DE MANIFESTACAO' in inicio or 'PARECER DO MINISTERIO PUBLICO' in inicio
+    opina = bool(re.search(r'PELO (?:IN)?DEFERIMENTO|MINISTERIO PUBLICO[^.]{0,80}(?:MANIFESTA-SE|REQUER|OPINA|PUGNA)', tudo[-2500:]))
+
+    if assinatura_mp and sum([vocativo, juntada, opina]) >= 1:
+        return {"detectado": True,
+                "razao": "Manifestação do Ministério Público: é a opinião do promotor, e não uma decisão do juiz."}
+    return {"detectado": False, "razao": None}
+
+
+# ===================== JUSTIÇA GRATUITA =====================
+
+_RE_GRATUIDADE_ORIGINAL = re.compile(r'gratuidade|justica gratuita|assistencia judiciaria')
+_RE_SEM_CUSTAS_ORIGINAL = re.compile(r'sem (?:condenacao em )?custas|isent[oa]s? de custas')
+_RE_FRASE_GRATUIDADE = re.compile(
+    r'\s*,?\s*porque\s+(?:você\s+|voce\s+)?(?:tem|possui|recebeu|é\s+beneficiári[oa]\s+d[ae])\s+(?:direito\s+[àa]\s+)?'
+    r'(?:a\s+)?(?:justiça\s+gratuita|gratuidade(?:\s+d[ae]\s+justiça)?)', re.IGNORECASE)
+_RE_SENTENCA_CUSTAS = re.compile(r'[^\n.]*\bN[ÃA]O\s+vai\s+pagar\s+custas[^\n.]*\.', re.IGNORECASE)
+
+
+def validar_gratuidade(analise, texto_original):
+    """Remove a menção a justiça gratuita quando o documento original não a contém.
+    Em juizados, por exemplo, não há custas por força de lei, e não por gratuidade."""
+    orig = _normalizar(texto_original).lower()
+    if _RE_GRATUIDADE_ORIGINAL.search(orig):
+        return False
+    sem_custas = bool(_RE_SEM_CUSTAS_ORIGINAL.search(orig))
+    alterou = False
+    if analise.get("tem_justica_gratuita"):
+        analise["tem_justica_gratuita"] = False
+        alterou = True
+    valores = analise.get("valores_principais")
+    if isinstance(valores, dict):
+        for chave in ("custas", "honorarios"):
+            v = valores.get(chave)
+            if isinstance(v, str) and 'gratuit' in _normalizar(v).lower():
+                valores[chave] = "Sem cobrança, conforme o documento" if sem_custas else None
+                alterou = True
+    texto = analise.get("texto_simplificado")
+    if isinstance(texto, str) and _RE_FRASE_GRATUIDADE.search(texto):
+        if sem_custas:
+            novo = _RE_FRASE_GRATUIDADE.sub(", conforme consta do documento", texto)
+        else:
+            novo = _RE_SENTENCA_CUSTAS.sub("O documento não informa quem paga as custas e os honorários.", texto)
+            novo = _RE_FRASE_GRATUIDADE.sub("", novo)
+        if novo != texto:
+            analise["texto_simplificado"] = novo
+            alterou = True
+    return alterou
+
+
+# ===================== DATA DA ASSINATURA E PRAZOS ESCRITOS =====================
+
+_MESES = {m: i + 1 for i, m in enumerate(
+    ['janeiro', 'fevereiro', 'marco', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'])}
+
+
+def extrair_data_assinatura(texto):
+    """Data em que o documento foi assinado, lida do próprio documento (dd/mm/aaaa) ou None."""
+    texto = texto or ''
+    # eproc: "Data e Hora: 28/10/2025, às 10:24:28" (a última assinatura fecha o ato)
+    m = re.findall(r'Data\s+e\s+Hora:\s*(\d{1,2})/(\d{1,2})/(\d{4})', texto)
+    if not m:
+        m = re.findall(r'assinad[oa][^\n]{0,120}?\bem\s*:?\s*(\d{1,2})/(\d{1,2})/(\d{4})', texto, re.IGNORECASE)
+    if m:
+        d, mes, a = m[-1]
+        return f"{int(d):02d}/{int(mes):02d}/{a}"
+    # fecho por extenso: "Palmas/TO, 4 de agosto de 2025."
+    fim = unicodedata.normalize('NFKD', texto[-2500:])
+    fim = ''.join(c for c in fim if not unicodedata.combining(c)).lower()
+    m = re.findall(r'(\d{1,2})[ºo°]?\s+de\s+(' + '|'.join(_MESES) + r')\s+de\s+(\d{4})', fim)
+    if m:
+        d, mes, a = m[-1]
+        return f"{int(d):02d}/{_MESES[mes]:02d}/{a}"
+    return None
+
+
+_RE_INICIO_DISPOSITIVO = re.compile(
+    r'DISPOSITIVO|ANTE O EXPOSTO|DIANTE DO EXPOSTO|PELO EXPOSTO|POSTO ISSO|ISTO POSTO|ISSO POSTO|JULGO\s|DETERMIN[AO]\b|DECIDO\b',
+    re.IGNORECASE)
+_RE_PRAZO_ESCRITO = re.compile(
+    r'(?:prazo[^.;\n]{0,40}?\bde\s+|\bem\s+(?:até\s+)?|\bno\s+prazo\s+de\s+)(\d{1,3})\s*(?:\([^)]{1,30}\)\s*)?(dias?(?:\s+úteis|\s+corridos)?|horas?)',
+    re.IGNORECASE)
+
+
+def extrair_prazos_escritos(texto, max_itens=4):
+    """Prazos em dias ou horas ESCRITOS na parte decisória do documento.
+    Retorna lista de {"prazo": "15 dias", "trecho": "frase do documento"}."""
+    texto = texto or ''
+    inicios = [m.start() for m in _RE_INICIO_DISPOSITIVO.finditer(texto) if m.start() > len(texto) * 0.35]
+    parte = texto[inicios[0]:] if inicios else texto[-4000:]
+    parte = re.sub(r'\s+', ' ', parte)
+    achados, vistos = [], set()
+    for m in _RE_PRAZO_ESCRITO.finditer(parte):
+        prazo = f"{int(m.group(1))} {m.group(2).lower()}"
+        ini = max(parte.rfind('. ', 0, m.start()), parte.rfind('; ', 0, m.start())) + 2
+        fim = min([p for p in (parte.find('. ', m.end()), parte.find('; ', m.end())) if p != -1] or [len(parte)])
+        trecho = parte[ini:fim].strip()
+        if len(trecho) > 230:
+            c = m.start() - ini
+            trecho = ('… ' if c > 110 else '') + trecho[max(0, c - 110):c + 120].strip() + ' …'
+        if prazo in vistos or len(trecho) < 12:
+            continue
+        vistos.add(prazo)
+        achados.append({"prazo": prazo, "trecho": trecho})
+        if len(achados) >= max_itens:
+            break
+    return achados
+
+
+def bloco_data_e_prazos(texto_original, truncado=False):
+    """Seção acrescentada ao texto simplificado com o que o PRÓPRIO DOCUMENTO informa:
+    data da assinatura e prazos escritos. Não calcula data final: o prazo conta, em regra,
+    da intimação, e não da assinatura. Retorna (markdown, dados)."""
+    data = extrair_data_assinatura(texto_original)
+    prazos = extrair_prazos_escritos(texto_original)
+    linhas = ["**DATA E PRAZOS QUE CONSTAM NO DOCUMENTO**", ""]
+    linhas.append(f"- Documento assinado em {data}." if data else "- Não foi possível ler a data da assinatura no documento.")
+    if prazos:
+        for p in prazos:
+            linhas.append(f"- Prazo escrito no documento: {p['prazo']} (“{p['trecho']}”).")
+        linhas += ["", "O prazo começa a contar, em regra, do dia em que você foi avisado oficialmente (intimação), e não da data da assinatura. "
+                       "Confirme a data final com advogado(a) ou com a Defensoria Pública."]
+    else:
+        linhas.append("- O documento não informa prazo em dias. Se você precisar recorrer ou cumprir alguma ordem, "
+                      "procure advogado(a) ou a Defensoria Pública o quanto antes: os prazos são curtos.")
+    if truncado:
+        linhas += ["", "Atenção: este documento é longo e uma parte do meio não foi analisada. Leia o original ou peça ajuda para conferir."]
+    return "\n".join(linhas), {"data_assinatura": data, "prazos_documento": prazos}
+
+
+def anexar_bloco(texto_simplificado, bloco):
+    """Insere o bloco antes da dica final do texto simplificado (ou ao fim)."""
+    m = re.search(r'\n-{3,}\s*\n+\*?\s*💡', texto_simplificado or '')
+    if m:
+        return texto_simplificado[:m.start()] + "\n\n---\n\n" + bloco + texto_simplificado[m.start():]
+    return (texto_simplificado or '').rstrip() + "\n\n---\n\n" + bloco + "\n"
+
+
+# ===================== TÍTULOS E RÓTULOS FIXOS =====================
+
+import difflib  # noqa: E402
+
+_ROTULOS = ["CONSEGUIU O QUE PEDIU", "CONSEGUIU PARTE DO QUE PEDIU", "NÃO CONSEGUIU O QUE PEDIU", "PEDIDO NEGADO",
+            "VITÓRIA TOTAL", "VITÓRIA PARCIAL", "CONDENAÇÃO", "CONDENAÇÃO PARCIAL", "ABSOLVIÇÃO"]
+
+
+def _taxa(a, b):
+    return difflib.SequenceMatcher(None, _normalizar(a), _normalizar(b)).ratio()
+
+
+def normalizar_titulos(texto, texto_original=""):
+    """Corrige, sem IA, títulos de seção com texto incoerente e rótulos de resultado com erro
+    de digitação. Não muda o sentido: só troca por títulos fixos."""
+    if not isinstance(texto, str) or not texto.strip():
+        return texto
+    linhas = texto.split("\n")
+    orig = _normalizar(texto_original).lower()
+    primeira = next((i for i, l in enumerate(linhas) if l.strip()), None)
+    for i, linha in enumerate(linhas):
+        limpo = re.sub(r'[*#_]', '', linha).strip()
+        chave = _normalizar(limpo)
+        if chave.startswith("VALORES E O QUE"):
+            linhas[i] = "**VALORES E O QUE VOCÊ PRECISA FAZER**"
+        elif chave.startswith("PALAVRAS QUE") and len(chave) < 60:
+            linhas[i] = "**PALAVRAS QUE PODEM APARECER NO DOCUMENTO**"
+        elif i == primeira:
+            m = re.match(r'^([^A-Za-zÀ-ÿ]*)(.*?)([^A-Za-zÀ-ÿ]*)$', limpo)
+            rotulo = m.group(2).strip()
+            if 6 <= len(rotulo) <= 40 and rotulo.upper() == rotulo:
+                melhor = max(_ROTULOS, key=lambda r: _taxa(r, rotulo))
+                novo = melhor if _taxa(melhor, rotulo) >= 0.86 else rotulo
+                if "CONDENA" in _normalizar(novo) and "PARCIAL" in _normalizar(novo) \
+                        and "julgo procedente" in orig \
+                        and not re.search(r'parcialmente procedente|procedente em parte|parcial procedencia', orig):
+                    novo = "CONDENAÇÃO"
+                if novo != rotulo:
+                    linhas[i] = linha.replace(rotulo, novo)
+    return "\n".join(linhas)
+
+
+# O hífen é opcional: o pós-processamento do OCR une "0011307-" e "98.2025..." em "001130798.2025...".
+_RE_CNJ_QUEBRADO = re.compile(r'(?<!\d)(\d{7})-?\s*(\d{2})\.\s*(\d{4})\.\s*(\d)\.\s*(\d{2})\.\s*(\d{4})')
+
+
+def extrair_numero_processo(texto):
+    """Primeiro número de processo no padrão CNJ, mesmo quando quebrado em duas linhas."""
+    m = _RE_CNJ_QUEBRADO.search(texto or '')
+    return "{}-{}.{}.{}.{}.{}".format(*m.groups()) if m else None
+
+# ===================== DATAS COM ANO INCOMPLETO =====================
+
+_RE_DATA_EXTENSO_CURTA = re.compile(r'\b(\d{1,2})\s+de\s+([a-zç]+)\s+de\s+(\d{3})\b(?!\d)', re.IGNORECASE)
+_RE_DATA_NUM_CURTA = re.compile(r'\b(\d{1,2})/(\d{1,2})/(\d{3})\b(?!\d)')
+
+
+def corrigir_datas_incompletas(analise, texto_original):
+    """Quando o original traz a mesma data duas vezes, uma com erro de digitação no ano
+    ("26 de maio de 205") e outra completa ("26/05/2025"), usa a forma completa e avisa.
+    Só corrige se houver UMA data completa com o mesmo dia e mês no documento."""
+    completas = {}
+    for d, m, a in re.findall(r'\b(\d{1,2})/(\d{1,2})/(\d{4})\b', texto_original or ''):
+        completas.setdefault((int(d), int(m)), set()).add(a)
+
+    def ano_para(dia, mes):
+        anos = completas.get((dia, mes), set())
+        return next(iter(anos)) if len(anos) == 1 else None
+
+    corrigiu = [False]
+
+    def troca_extenso(m):
+        mes = _MESES.get(''.join(c for c in unicodedata.normalize('NFKD', m.group(2).lower()) if not unicodedata.combining(c)))
+        ano = ano_para(int(m.group(1)), mes) if mes else None
+        if not ano:
+            return m.group(0)
+        corrigiu[0] = True
+        return f"{m.group(1)} de {m.group(2)} de {ano}"
+
+    def troca_num(m):
+        ano = ano_para(int(m.group(1)), int(m.group(2)))
+        if not ano:
+            return m.group(0)
+        corrigiu[0] = True
+        return f"{m.group(1)}/{m.group(2)}/{ano}"
+
+    texto = analise.get("texto_simplificado")
+    if isinstance(texto, str):
+        analise["texto_simplificado"] = _RE_DATA_NUM_CURTA.sub(troca_num, _RE_DATA_EXTENSO_CURTA.sub(troca_extenso, texto))
+    aud = analise.get("audiencia")
+    if isinstance(aud, dict) and isinstance(aud.get("data"), str):
+        aud["data"] = _RE_DATA_NUM_CURTA.sub(troca_num, aud["data"])
+    if corrigiu[0] and isinstance(analise.get("texto_simplificado"), str):
+        analise["texto_simplificado"] = anexar_bloco(
+            analise["texto_simplificado"],
+            "**ATENÇÃO À DATA**\n\nO documento original traz essa data com um erro de digitação no ano em um dos trechos. "
+            "Usamos a data completa que aparece em outra parte do mesmo documento. Confirme no fórum se tiver dúvida.")
+    return corrigiu[0]

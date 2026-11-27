@@ -37,6 +37,22 @@ JUS_VINHO = colors.HexColor('#6d2932')
 JUS_AZUL = colors.HexColor('#2c4f5e')
 JUS_DOURADO = colors.HexColor('#b8963c')
 
+_IMAGENS_REDUZIDAS = {}
+
+
+def imagem_reduzida(caminho, lado_max=240):
+    """Devolve a imagem pronta para o PDF, reduzida a no máximo `lado_max` pixels e guardada
+    em memória. Sem isso, cada PDF embutia o arquivo original inteiro."""
+    chave = (caminho, lado_max)
+    if chave not in _IMAGENS_REDUZIDAS:
+        from PIL import Image
+        img = Image.open(caminho).convert("RGBA")
+        img.thumbnail((lado_max, lado_max), Image.Resampling.LANCZOS)
+        buf = io.BytesIO(); img.save(buf, format="PNG", optimize=True); buf.seek(0)
+        _IMAGENS_REDUZIDAS[chave] = ImageReader(buf)
+    return _IMAGENS_REDUZIDAS[chave]
+
+
 def registrar_fontes():
     """Registra fontes personalizadas se disponíveis"""
     try:
@@ -197,7 +213,7 @@ class HeaderFooterCanvas(canvas.Canvas):
         logo_jus_path = os.path.join(_BASE_DIR, 'static', 'avatar.png')
         if os.path.exists(logo_jus_path):
             try:
-                self.drawImage(logo_jus_path, 1.5*cm, page_height - 2.8*cm,
+                self.drawImage(imagem_reduzida(logo_jus_path), 1.5*cm, page_height - 2.8*cm,
                               width=1.2*cm, height=1.2*cm,
                               preserveAspectRatio=True, mask='auto')
             except Exception as e:
@@ -218,7 +234,7 @@ class HeaderFooterCanvas(canvas.Canvas):
         logo_inovassol_path = os.path.join(_BASE_DIR, 'static', 'inovassol.png')
         if os.path.exists(logo_inovassol_path):
             try:
-                self.drawImage(logo_inovassol_path, page_width - 2.7*cm, page_height - 2.8*cm,
+                self.drawImage(imagem_reduzida(logo_inovassol_path), page_width - 2.7*cm, page_height - 2.8*cm,
                               width=1.2*cm, height=1.2*cm,
                               preserveAspectRatio=True, mask='auto')
             except Exception as e:
@@ -559,16 +575,19 @@ def gerar_pdf_simplificado(texto, metadados=None, output_path='documento_simplif
         resultado_texto = ""
         cor_resultado = JUS_AZUL
 
-        if 'CONSEGUIU O QUE PEDIU' in texto and 'PARTE' not in texto:
-            resultado_texto = "CONSEGUIU O QUE PEDIU"
-            cor_resultado = colors.HexColor('#34a853')  # Verde
-        elif 'CONSEGUIU PARTE DO QUE PEDIU' in texto:
-            resultado_texto = "CONSEGUIU PARTE DO QUE PEDIU"
-            cor_resultado = colors.HexColor('#fbbc04')  # Laranja
-        elif 'NÃO CONSEGUIU O QUE PEDIU' in texto:
+        # A faixa segue o rótulo da PRIMEIRA linha do texto. "NÃO CONSEGUIU" é testado antes,
+        # porque contém "CONSEGUIU O QUE PEDIU" e era exibido em verde por engano.
+        _rotulo = next((l for l in texto.split("\n") if l.strip()), "").upper()
+        if 'NÃO CONSEGUIU O QUE PEDIU' in _rotulo:
             resultado_texto = "NÃO CONSEGUIU O QUE PEDIU"
             cor_resultado = colors.HexColor('#ea4335')  # Vermelho
-        elif 'PEDIDO NEGADO' in texto:
+        elif 'CONSEGUIU PARTE DO QUE PEDIU' in _rotulo:
+            resultado_texto = "CONSEGUIU PARTE DO QUE PEDIU"
+            cor_resultado = colors.HexColor('#fbbc04')  # Laranja
+        elif 'CONSEGUIU O QUE PEDIU' in _rotulo:
+            resultado_texto = "CONSEGUIU O QUE PEDIU"
+            cor_resultado = colors.HexColor('#34a853')  # Verde
+        elif 'PEDIDO NEGADO' in _rotulo:
             resultado_texto = "PEDIDO NEGADO"
             cor_resultado = colors.HexColor('#9e9e9e')  # Cinza
         else:
