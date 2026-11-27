@@ -36,6 +36,6 @@ cryptography==43.0.3
 
 # Text-to-Speech (narração do documento simplificado)
 # edge-tts: vozes neurais do Microsoft Edge, gratuitas, sem API key (fallback)
-edge-tts==6.1.18
+edge-tts==7.3.1
 # Google Cloud TTS: vozes Chirp 3 HD em pt-BR, mais naturais (provedor primário)
 google-cloud-texttospeech>=2.16.3

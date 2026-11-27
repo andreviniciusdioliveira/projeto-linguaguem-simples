@@ -123,13 +123,10 @@ def test_analise_mascara_na_ida_e_restaura_na_volta(ctx):
     assert not re.search(r"\[(CPF|CNPJ|PROCESSO|EMAIL|TELEFONE)_\d+\]", json.dumps(d, ensure_ascii=False))
 
 
-def test_chat_mascara_e_restaura(ctx):
-    assert _simplificar(ctx, cpf_valido("111444777")).status_code == 200
-    r = ctx.cliente.post("/chat", json={"pergunta": "Qual o meu CPF 123.456.789-09?"}, headers=ctx.cab)
-    assert r.status_code == 200, r.get_json()
-    for valor in SENSIVEIS:
-        assert valor not in ctx.enviados[-1]
-    assert r.get_json()["resposta"] == "O CPF do autor é 123.456.789-09 e o processo é 0001234-56.2026.8.27.2729."
+def test_rota_de_chat_foi_removida(ctx):
+    r = ctx.cliente.post("/chat", json={"pergunta": "Qual o meu CPF?"}, headers=ctx.cab)
+    assert r.status_code == 404
+    assert ctx.enviados == []
 
 
 def test_documento_sigiloso_nao_e_enviado(ctx):
